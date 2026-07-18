@@ -1,5 +1,5 @@
 import db from '@/database/db';
-import QRCode from 'qrcode';
+import QRCode from 'react-qr-code';
 import Link from 'next/link';
 import PrintButton from './PrintButton';
 import { calculateValidity } from '@/app/utils/validity';
@@ -44,18 +44,8 @@ export default async function CarnetPage({ params }) {
     estado: userData.estado
   };
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://contratistas-app.vercel.app';
+  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'https://contratistas-app.vercel.app').replace(/\/$/, '');
   const qrData = `${baseUrl}/scan/${user.id}`;
-  
-  const qrCodeSvg = await QRCode.toString(qrData, {
-    type: 'svg',
-    color: {
-      dark: '#000000',  // Pure black for maximum contrast
-      light: '#ffffff'
-    },
-    width: 250,
-    margin: 2
-  });
 
   // Default avatar mapping
   const roleType = user.tipo ? user.tipo.toLowerCase() : 'trabajador';
@@ -168,7 +158,7 @@ export default async function CarnetPage({ params }) {
 
           {/* Código QR */}
           <div style={{ background: '#fff', padding: '0.5rem', display: 'inline-block' }}>
-            <div dangerouslySetInnerHTML={{ __html: qrCodeSvg }} style={{ display: 'block', width: '250px', height: '250px' }} />
+            <QRCode value={qrData} size={250} level="H" />
           </div>
         </div>
 

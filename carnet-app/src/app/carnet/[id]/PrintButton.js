@@ -48,7 +48,18 @@ export default function PrintButton() {
       });
       
       pdf.addImage(imgData, "JPEG", 0, 0, canvas.width, canvas.height);
-      pdf.save("carnet_identificacion.pdf");
+      
+      // Fix for iOS Safari "THIS PAGE COULDN'T LOAD" crash on large Data URIs
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIOS) {
+        const blob = pdf.output("blob");
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        // Clean up the URL object after a bit
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } else {
+        pdf.save("carnet_identificacion.pdf");
+      }
     } catch (error) {
       console.error("Error generating PDF:", error);
       alert("Hubo un error al generar el PDF.");
