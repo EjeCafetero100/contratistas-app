@@ -20,9 +20,10 @@ export default function ScanPage() {
     async function processScan() {
       try {
         // Fetch user data
-        const res = await fetch(`/api/users/${id}`);
+        const res = await fetch(`/api/users/${id}`, { cache: 'no-store' });
         if (!res.ok) {
-          throw new Error('Usuario no encontrado');
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `HTTP ${res.status}: Error al obtener usuario`);
         }
         const data = await res.json();
         
