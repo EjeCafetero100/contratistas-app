@@ -47,7 +47,8 @@ export default async function CarnetPage({ params }) {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://contratistas-app.vercel.app';
   const qrData = `${baseUrl}/scan/${user.id}`;
   
-  const qrCodeDataUri = await QRCode.toDataURL(qrData, {
+  const qrCodeSvg = await QRCode.toString(qrData, {
+    type: 'svg',
     color: {
       dark: '#000000',  // Pure black for maximum contrast
       light: '#ffffff'
@@ -167,7 +168,7 @@ export default async function CarnetPage({ params }) {
 
           {/* Código QR */}
           <div style={{ background: '#fff', padding: '0.5rem', display: 'inline-block' }}>
-            <img src={qrCodeDataUri} alt="Código QR" style={{ display: 'block' }} />
+            <div dangerouslySetInnerHTML={{ __html: qrCodeSvg }} style={{ display: 'block', width: '250px', height: '250px' }} />
           </div>
         </div>
 
