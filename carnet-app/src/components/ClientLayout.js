@@ -7,7 +7,7 @@ export default function ClientLayout({ children }) {
   const pathname = usePathname();
 
   // Ocultar el panel en rutas públicas como los carnets escaneados
-  const isPublicRoute = pathname.startsWith('/carnet/') || pathname.startsWith('/scan/');
+  const isPublicRoute = pathname?.startsWith('/carnet/') || pathname?.startsWith('/scan/');
 
   if (isPublicRoute) {
     return <main>{children}</main>;
