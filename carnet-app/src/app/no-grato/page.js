@@ -14,6 +14,9 @@ export default function NoGratoPage() {
   });
   const [adding, setAdding] = useState(false);
 
+  const [searchCedula, setSearchCedula] = useState("");
+  const [searchResult, setSearchResult] = useState(null);
+
   const fetchRecords = () => {
     setLoading(true);
     fetch('/api/no-grato')
@@ -29,6 +32,18 @@ export default function NoGratoPage() {
   useEffect(() => {
     fetchRecords();
   }, []);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (!searchCedula.trim()) return;
+    
+    const found = records.find(r => r.cedula === searchCedula.trim());
+    if (found) {
+      setSearchResult({ status: 'NO GRATO', motivo: found.motivo, nombre: found.nombre });
+    } else {
+      setSearchResult({ status: 'GRATO' });
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -105,9 +120,58 @@ export default function NoGratoPage() {
           </form>
         </div>
 
-        {/* Tabla */}
-        <div className="glass-panel">
-          <h2 style={{ fontSize: '1.25rem' }}>Personal Restringido</h2>
+        {/* Columna Derecha: Buscador y Tabla */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          
+          {/* Buscador */}
+          <div className="glass-panel">
+            <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              🔍 Validar Cédula
+            </h2>
+            <form onSubmit={handleSearch} style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+              <input 
+                type="text" 
+                placeholder="Ingrese cédula a buscar..." 
+                value={searchCedula}
+                onChange={(e) => {
+                  setSearchCedula(e.target.value);
+                  setSearchResult(null); // limpiar al escribir
+                }}
+                style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}
+              />
+              <button type="submit" className="btn btn-primary">
+                Buscar
+              </button>
+            </form>
+
+            {searchResult && (
+              <div style={{ 
+                marginTop: '1.5rem', 
+                padding: '1rem', 
+                borderRadius: '8px', 
+                background: searchResult.status === 'GRATO' ? '#ecfdf5' : '#fef2f2',
+                border: `2px solid ${searchResult.status === 'GRATO' ? '#10b981' : '#ef4444'}`
+              }}>
+                {searchResult.status === 'GRATO' ? (
+                  <div style={{ color: '#10b981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.5rem' }}>✓</span> ESTA PERSONA ES GRATA (No está en la lista negra)
+                  </div>
+                ) : (
+                  <div style={{ color: '#ef4444' }}>
+                    <div style={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1.1rem' }}>
+                      <span style={{ fontSize: '1.5rem' }}>❌</span> ESTA PERSONA ES NO GRATA
+                    </div>
+                    <p style={{ margin: '0.5rem 0 0 2rem' }}><strong>Nombre:</strong> {searchResult.nombre}</p>
+                    <p style={{ margin: '0.2rem 0 0 2rem' }}><strong>Motivo:</strong> {searchResult.motivo}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Tabla */}
+          <div className="glass-panel">
+            <h2 style={{ fontSize: '1.25rem' }}>Personal Restringido</h2>
           
           {loading ? (
             <p>Cargando datos...</p>
@@ -149,6 +213,7 @@ export default function NoGratoPage() {
             </div>
           )}
         </div>
+      </div>
 
       </div>
     </div>
