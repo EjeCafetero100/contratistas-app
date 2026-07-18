@@ -56,7 +56,7 @@ export default async function CarnetPage({ params }) {
   // Default avatar mapping
   const roleType = user.tipo ? user.tipo.toLowerCase() : 'trabajador';
   const defaultAvatar = `/avatars/${roleType}.png`;
-  const avatarSrc = user.foto || defaultAvatar;
+  const avatarSrc = (user.foto && user.foto !== 'null' && user.foto.trim() !== '') ? user.foto : defaultAvatar;
 
   const s360ValidityObj = calculateValidity(user.fechaInduccion360, 6);
   const isSafety360Valid = user.induccion360 === 'Con certificado' && s360ValidityObj.status === 'Vigente';

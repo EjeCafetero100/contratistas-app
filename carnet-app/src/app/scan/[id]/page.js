@@ -133,7 +133,7 @@ export default function ScanPage() {
           justifyContent: 'center'
         }}>
           <img 
-            src={user.foto || `/avatars/${user.tipo ? user.tipo.toLowerCase() : 'trabajador'}.png`} 
+            src={(user.foto && user.foto !== 'null' && user.foto.trim() !== '') ? user.foto : `/avatars/${user.tipo ? user.tipo.toLowerCase() : 'trabajador'}.png`} 
             alt="Foto de perfil" 
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
           />
