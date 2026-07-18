@@ -8,7 +8,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/users')
+    fetch('/api/users', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         setUsers(data);
@@ -86,7 +86,7 @@ export default function Home() {
                         </Link>
                         <button 
                           onClick={() => handleDelete(user.id, user.nombre)} 
-                          style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '500', cursor: 'pointer', padding: 0 }}
+                          style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '500', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontFamily: 'inherit' }}
                         >
                           Eliminar
                         </button>
