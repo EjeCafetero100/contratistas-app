@@ -4,6 +4,9 @@ import Link from 'next/link';
 import PrintButton from './PrintButton';
 import { calculateValidity } from '@/app/utils/validity';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function CarnetPage({ params }) {
   const { id } = await params;
   
