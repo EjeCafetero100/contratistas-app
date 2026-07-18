@@ -80,9 +80,10 @@ export default function ScanPage() {
 
   if (error) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8f9fa', padding: '2rem', textAlign: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f8f9fa', padding: '2rem', textAlign: 'center', wordBreak: 'break-all' }}>
         <h2 style={{ color: 'var(--danger)', marginBottom: '1rem' }}>❌ Error</h2>
-        <p>{error}</p>
+        <p><strong>Detalle:</strong> {error}</p>
+        <p><strong>ID escaneado:</strong> {id}</p>
         <Link href="/" style={{ marginTop: '2rem' }}>Volver al Inicio</Link>
       </div>
     );
