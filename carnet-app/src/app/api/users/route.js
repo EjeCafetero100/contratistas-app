@@ -19,11 +19,11 @@ export async function GET() {
       empresa: u.empresa,
       tipo: u.cargo,
       induccion360: u.induccion_safety_360,
-      fechaInduccion360: u.vigencia_induccion,
+      fechaInduccion360: u.fecha_induccion_360,
       induccionEspecifica: u.induccion_especifica,
-      fechaInduccionEspecifica: u.vigencia_induccion,
+      fechaInduccionEspecifica: u.fecha_induccion_especifica,
       ss: u.seguridad_social_vigente,
-      fechaSeguridadSocial: null,
+      fechaSeguridadSocial: u.fecha_seguridad_social,
       foto: u.foto,
       estado: u.estado
     }));
@@ -51,9 +51,11 @@ export async function POST(request) {
         empresa: empresa,
         cargo: tipo,
         induccion_safety_360: induccion360,
+        fecha_induccion_360: fechaInduccion360 || null,
         induccion_especifica: induccionEspecifica,
-        vigencia_induccion: fechaInduccion360 || fechaInduccionEspecifica,
+        fecha_induccion_especifica: fechaInduccionEspecifica || null,
         seguridad_social_vigente: ss,
+        fecha_seguridad_social: fechaSeguridadSocial || null,
         foto: foto,
         estado: estado || 'Activo'
       }])

@@ -23,11 +23,11 @@ export async function GET(request, { params }) {
       empresa: user.empresa,
       tipo: user.cargo,
       induccion360: user.induccion_safety_360,
-      fechaInduccion360: user.vigencia_induccion,
+      fechaInduccion360: user.fecha_induccion_360,
       induccionEspecifica: user.induccion_especifica,
-      fechaInduccionEspecifica: user.vigencia_induccion,
+      fechaInduccionEspecifica: user.fecha_induccion_especifica,
       ss: user.seguridad_social_vigente,
-      fechaSeguridadSocial: null,
+      fechaSeguridadSocial: user.fecha_seguridad_social,
       foto: user.foto,
       estado: user.estado
     };
@@ -56,9 +56,11 @@ export async function PUT(request, { params }) {
         empresa: empresa,
         cargo: tipo,
         induccion_safety_360: induccion360,
+        fecha_induccion_360: fechaInduccion360 || null,
         induccion_especifica: induccionEspecifica,
-        vigencia_induccion: fechaInduccion360 || fechaInduccionEspecifica,
+        fecha_induccion_especifica: fechaInduccionEspecifica || null,
         seguridad_social_vigente: ss,
+        fecha_seguridad_social: fechaSeguridadSocial || null,
         foto: foto,
         estado: estado
       })

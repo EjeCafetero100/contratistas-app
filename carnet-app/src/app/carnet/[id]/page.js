@@ -32,11 +32,11 @@ export default async function CarnetPage({ params }) {
     empresa: userData.empresa,
     tipo: userData.cargo,
     induccion360: userData.induccion_safety_360,
-    fechaInduccion360: userData.vigencia_induccion,
+    fechaInduccion360: userData.fecha_induccion_360,
     induccionEspecifica: userData.induccion_especifica,
-    fechaInduccionEspecifica: userData.vigencia_induccion,
+    fechaInduccionEspecifica: userData.fecha_induccion_especifica,
     ss: userData.seguridad_social_vigente,
-    fechaSeguridadSocial: null,
+    fechaSeguridadSocial: userData.fecha_seguridad_social,
     foto: userData.foto,
     estado: userData.estado
   };
