@@ -92,6 +92,10 @@ export default function ScanPage() {
   const isAuth = authStatus === 'Autorizado';
   const bgColor = isAuth ? '#10b981' : '#ef4444'; // Green : Red
 
+  // Calculate validity for rendering
+  const s360ValidityObj = calculateValidity(user.fechaInduccion360, 6);
+  const isSafety360Valid = user.induccion360 === 'Con certificado' && s360ValidityObj.status === 'Vigente';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#f0f4f8', minHeight: '100vh', padding: '2rem 1rem' }}>
       

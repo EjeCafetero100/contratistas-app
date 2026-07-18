@@ -156,6 +156,10 @@ export default async function CarnetPage({ params }) {
             {/* Estado removido según solicitud */}
           </div>
 
+          {/* Código QR */}
+          <div style={{ background: '#fff', padding: '0.5rem', display: 'inline-block' }}>
+            <QRCode value={qrData} size={250} level="H" />
+          </div>
         </div>
 
         {/* Pie del carnet */}
@@ -170,14 +174,6 @@ export default async function CarnetPage({ params }) {
         }}>
           USO PERSONAL E INTRANSFERIBLE
         </div>
-      </div>
-      
-      {/* Código QR (fuera del diseño principal del carnet para no romperlo) */}
-      <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-        <div style={{ background: '#fff', padding: '0.5rem', display: 'inline-block', borderRadius: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-          <QRCode value={qrData} size={200} level="H" />
-        </div>
-        <p style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Escanea para verificar acceso</p>
       </div>
       
       <PrintButton />
