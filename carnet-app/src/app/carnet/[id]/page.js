@@ -1,5 +1,4 @@
 import db from '@/database/db';
-import QRCode from 'react-qr-code';
 import Link from 'next/link';
 import PrintButton from './PrintButton';
 import { calculateValidity } from '@/app/utils/validity';
@@ -43,9 +42,6 @@ export default async function CarnetPage({ params }) {
     foto: userData.foto,
     estado: userData.estado
   };
-
-  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || 'https://contratistas-app.vercel.app').replace(/\/$/, '');
-  const qrData = `${baseUrl}/scan/${user.id}`;
 
   // Default avatar mapping
   const roleType = user.tipo ? user.tipo.toLowerCase() : 'trabajador';
@@ -155,12 +151,6 @@ export default async function CarnetPage({ params }) {
             
             {/* Estado removido según solicitud */}
           </div>
-
-          {/* Código QR */}
-          <div style={{ background: '#fff', padding: '0.5rem', display: 'inline-block' }}>
-            <QRCode value={qrData} size={250} level="H" />
-          </div>
-        </div>
 
         {/* Pie del carnet */}
         <div style={{
