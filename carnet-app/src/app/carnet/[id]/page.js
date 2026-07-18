@@ -17,7 +17,7 @@ export default async function CarnetPage({ params }) {
     .eq('id', id)
     .single();
 
-  if (error || !userData) {
+  if (error || !userData || userData.estado === 'Eliminado') {
     return (
       <div className="container" style={{ textAlign: 'center', marginTop: '5rem' }}>
         <h2>Usuario no encontrado</h2>

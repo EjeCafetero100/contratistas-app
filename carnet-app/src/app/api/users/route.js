@@ -9,6 +9,7 @@ export async function GET() {
     const { data: users, error } = await db
       .from('personal')
       .select('*')
+      .neq('estado', 'Eliminado')
       .order('id', { ascending: false });
       
     if (error) throw error;

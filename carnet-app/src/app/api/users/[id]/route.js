@@ -13,7 +13,7 @@ export async function GET(request, { params }) {
       .eq('id', id)
       .single();
 
-    if (error || !user) {
+    if (error || !user || user.estado === 'Eliminado') {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
@@ -81,12 +81,17 @@ export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
 
-    const { error } = await db
+    const { data, error } = await db
       .from('personal')
-      .delete()
-      .eq('id', id);
+      .update({ estado: 'Eliminado' })
+      .eq('id', id)
+      .select();
 
     if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      throw new Error('Supabase did not delete the row. RLS policy might be blocking it.');
+    }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
