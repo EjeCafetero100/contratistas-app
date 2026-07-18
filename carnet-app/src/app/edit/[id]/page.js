@@ -39,11 +39,11 @@ export default function EditUser() {
               cedula: data.cedula || "",
               empresa: data.empresa || "",
               tipo: data.tipo || "Trabajador",
-              induccion360: data.induccion360 || "Sin certificado",
+              induccion360: data.induccion360 === "Con certificado" ? "Con certificado" : "Sin certificado",
               fechaInduccion360: data.fechaInduccion360 || "",
-              induccionEspecifica: data.induccionEspecifica || "Vigente",
+              induccionEspecifica: data.induccionEspecifica === "Vencida" ? "Vencida" : "Vigente",
               fechaInduccionEspecifica: data.fechaInduccionEspecifica || "",
-              ss: data.ss || "Vigente",
+              ss: data.ss === "Vencida" ? "Vencida" : "Vigente",
               fechaSeguridadSocial: data.fechaSeguridadSocial || "",
               estado: data.estado || "Activo"
             });
