@@ -20,6 +20,21 @@ export default function Home() {
       });
   }, []);
 
+  const handleDelete = async (id, nombre) => {
+    if (confirm(`¿Estás seguro de que deseas eliminar a ${nombre}?`)) {
+      try {
+        const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          setUsers(users.filter(u => u.id !== id));
+        } else {
+          alert("Error al eliminar");
+        }
+      } catch (err) {
+        alert("Error de red al eliminar");
+      }
+    }
+  };
+
   return (
     <div className="container">
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -77,6 +92,12 @@ export default function Home() {
                         <Link href={`/edit/${user.id}`} style={{ color: '#f59e0b', fontWeight: '500' }}>
                           Editar
                         </Link>
+                        <button 
+                          onClick={() => handleDelete(user.id, user.nombre)} 
+                          style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '500', cursor: 'pointer', padding: 0 }}
+                        >
+                          Eliminar
+                        </button>
                       </div>
                     </td>
                   </tr>
