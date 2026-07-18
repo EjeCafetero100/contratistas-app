@@ -42,14 +42,6 @@ export default function Home() {
           <h1>Panel de Control</h1>
           <p style={{ color: 'var(--text-muted)' }}>Gestión de Personal y Visitantes</p>
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <Link href="/historial" className="btn btn-secondary" style={{ background: '#e2e8f0', color: 'var(--primary)' }}>
-            Historial de Ingresos
-          </Link>
-          <Link href="/register" className="btn btn-primary">
-            + Añadir Persona
-          </Link>
-        </div>
       </header>
 
       <div className="glass-panel">

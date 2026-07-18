@@ -89,7 +89,7 @@ export default function EditUser() {
 
   return (
     <div className="container" style={{ maxWidth: '800px' }}>
-      <Link href="/" style={{ display: 'inline-block', marginBottom: '2rem' }}>&larr; Volver al Panel de Control</Link>
+      
       
       <div className="glass-panel">
         <h2 style={{ marginBottom: '2rem' }}>Editar Persona</h2>

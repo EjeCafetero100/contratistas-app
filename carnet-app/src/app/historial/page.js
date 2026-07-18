@@ -36,9 +36,6 @@ export default function Historial() {
           <h1>Historial de Ingresos</h1>
           <p style={{ color: 'var(--text-muted)' }}>Registro de escaneos de código QR</p>
         </div>
-        <Link href="/" className="btn btn-secondary" style={{ background: '#e2e8f0', color: 'var(--primary)' }}>
-          Volver al Panel de Control
-        </Link>
       </header>
 
       <div className="glass-panel">

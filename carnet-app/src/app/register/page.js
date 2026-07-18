@@ -51,7 +51,7 @@ export default function Register() {
 
   return (
     <div className="container" style={{ maxWidth: '800px' }}>
-      <Link href="/" style={{ display: 'inline-block', marginBottom: '2rem' }}>&larr; Volver al Inicio</Link>
+      
       
       <div className="glass-panel">
         <h2 style={{ marginBottom: '2rem' }}>Registrar Nueva Persona</h2>
