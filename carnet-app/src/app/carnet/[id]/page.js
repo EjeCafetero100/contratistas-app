@@ -49,11 +49,11 @@ export default async function CarnetPage({ params }) {
   
   const qrCodeDataUri = await QRCode.toDataURL(qrData, {
     color: {
-      dark: '#0f172a',  // Blue-gray dark
+      dark: '#000000',  // Pure black for maximum contrast
       light: '#ffffff'
     },
-    width: 200,
-    margin: 1
+    width: 250,
+    margin: 2
   });
 
   // Default avatar mapping
