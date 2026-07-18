@@ -30,15 +30,14 @@ export default function ScanPage() {
         setUser(data);
 
         // Calculate validity
-        const safety360Validity = data.induccion360 === 'Con certificado' 
-          ? calculateValidity(data.fechaInduccion360, 6) 
-          : { status: data.induccion360 || 'Sin certificado', date: null };
+        const s360ValidityObj = calculateValidity(data.fechaInduccion360, 6);
+        const isSafety360Valid = data.induccion360 === 'Con certificado' && s360ValidityObj.status === 'Vigente';
 
         const especificaValidity = calculateValidity(data.fechaInduccionEspecifica, 6, data.induccionEspecifica || 'N/A');
         const ssValidity = calculateValidity(data.fechaSeguridadSocial, 1, data.ss || 'N/A');
 
         const isAuthorized = 
-          safety360Validity.status === 'Vigente' && 
+          isSafety360Valid && 
           especificaValidity.status === 'Vigente' && 
           ssValidity.status === 'Vigente';
 

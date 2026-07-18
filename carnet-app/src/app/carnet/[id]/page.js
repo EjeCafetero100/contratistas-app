@@ -58,15 +58,15 @@ export default async function CarnetPage({ params }) {
   const defaultAvatar = `/avatars/${roleType}.png`;
   const avatarSrc = user.foto || defaultAvatar;
 
-  const safety360Validity = user.induccion360 === 'Con certificado' 
-    ? calculateValidity(user.fechaInduccion360, 6) 
-    : { status: user.induccion360 || 'Sin certificado', date: null };
+  const s360ValidityObj = calculateValidity(user.fechaInduccion360, 6);
+  const isSafety360Valid = user.induccion360 === 'Con certificado' && s360ValidityObj.status === 'Vigente';
+  const safety360Text = user.induccion360 === 'Con certificado' ? 'Con certificado' : 'Sin certificado';
 
   const especificaValidity = calculateValidity(user.fechaInduccionEspecifica, 6, user.induccionEspecifica || 'N/A');
   const ssValidity = calculateValidity(user.fechaSeguridadSocial, 1, user.ss || 'N/A');
 
   const isAuthorized = 
-    safety360Validity.status === 'Vigente' && 
+    isSafety360Valid && 
     especificaValidity.status === 'Vigente' && 
     ssValidity.status === 'Vigente';
 
@@ -154,7 +154,7 @@ export default async function CarnetPage({ params }) {
             <p style={{ gridColumn: '1 / -1' }}><strong>Empresa:</strong> {user.empresa}</p>
             <p><strong>Tipo:</strong> {user.tipo}</p>
             <p><strong>Fecha Reg:</strong> {user.fecha}</p>
-            <p><strong>Safety 360:</strong> <span className={safety360Validity.status === 'Vencida' ? 'badge badge-danger' : ''}>{safety360Validity.status}</span> {safety360Validity.date ? `(${safety360Validity.date})` : ''}</p>
+            <p><strong>Safety 360:</strong> <span className={isSafety360Valid ? 'badge badge-success' : 'badge badge-danger'}>{safety360Text}</span> {user.induccion360 === 'Con certificado' && s360ValidityObj.date ? `(Vence: ${s360ValidityObj.date})` : ''}</p>
             <p><strong>Ind. Específica:</strong> <span className={especificaValidity.status === 'Vencida' ? 'badge badge-danger' : ''}>{especificaValidity.status}</span> {especificaValidity.date ? `(${especificaValidity.date})` : ''}</p>
             <p><strong>S. Social:</strong> <span className={ssValidity.status === 'Vencida' ? 'badge badge-danger' : ''}>{ssValidity.status}</span> {ssValidity.date ? `(${ssValidity.date})` : ''}</p>
             
