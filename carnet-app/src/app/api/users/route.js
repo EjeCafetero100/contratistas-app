@@ -44,6 +44,17 @@ export async function POST(request) {
       induccion360, fechaInduccion360, induccionEspecifica, fechaInduccionEspecifica, ss, fechaSeguridadSocial, foto, estado 
     } = body;
 
+    // Verificar si está en la lista negra
+    const { data: noGratoData } = await db
+      .from('personal_no_grato')
+      .select('motivo')
+      .eq('cedula', cedula)
+      .single();
+
+    if (noGratoData) {
+      return NextResponse.json({ error: `ACCESO DENEGADO - PERSONAL NO GRATO. Motivo: ${noGratoData.motivo}` }, { status: 400 });
+    }
+
     const { data, error } = await db
       .from('personal')
       .insert([{

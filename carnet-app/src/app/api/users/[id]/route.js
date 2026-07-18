@@ -16,6 +16,13 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Verificar si está en la lista negra
+    const { data: noGratoData } = await db
+      .from('personal_no_grato')
+      .select('id')
+      .eq('cedula', user.cedula)
+      .single();
+
     // Mapear para compatibilidad
     const mappedUser = {
       id: user.id,
@@ -31,7 +38,8 @@ export async function GET(request, { params }) {
       ss: user.seguridad_social_vigente,
       fechaSeguridadSocial: user.fecha_seguridad_social,
       foto: user.foto,
-      estado: user.estado
+      estado: user.estado,
+      es_no_grato: !!noGratoData
     };
 
     return NextResponse.json(mappedUser);

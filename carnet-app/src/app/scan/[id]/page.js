@@ -37,11 +37,12 @@ export default function ScanPage() {
         const ssValidity = calculateValidity(data.fechaSeguridadSocial, 1, data.ss || 'N/A');
 
         const isAuthorized = 
+          !data.es_no_grato &&
           isSafety360Valid && 
           especificaValidity.status === 'Vigente' && 
           ssValidity.status === 'Vigente';
 
-        const statusStr = isAuthorized ? 'Autorizado' : 'No Autorizado';
+        const statusStr = data.es_no_grato ? 'No Grato' : (isAuthorized ? 'Autorizado' : 'No Autorizado');
         setAuthStatus(statusStr);
 
         // Log entry asynchronously
@@ -89,6 +90,24 @@ export default function ScanPage() {
 
   const isAuth = authStatus === 'Autorizado';
   const bgColor = isAuth ? '#10b981' : '#ef4444'; // Green : Red
+
+  if (user.es_no_grato) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000000', minHeight: '100vh', padding: '2rem 1rem', color: 'white', textAlign: 'center' }}>
+        <div style={{ fontSize: '6rem', marginBottom: '1rem' }}>⛔</div>
+        <h1 style={{ fontSize: '3rem', fontWeight: '900', color: '#ef4444', textTransform: 'uppercase', marginBottom: '1rem', letterSpacing: '2px' }}>
+          ACCESO DENEGADO
+        </h1>
+        <h2 style={{ fontSize: '2.5rem', fontWeight: '900', background: '#ef4444', color: 'white', padding: '0.5rem 1.5rem', borderRadius: '12px', display: 'inline-block' }}>
+          PERSONAL NO GRATO
+        </h2>
+        <div style={{ marginTop: '3rem', background: 'rgba(255,255,255,0.1)', padding: '2rem', borderRadius: '16px', width: '100%', maxWidth: '400px' }}>
+          <h3 style={{ fontSize: '1.5rem', margin: '0 0 0.5rem 0' }}>{user.nombre}</h3>
+          <p style={{ fontSize: '1.2rem', margin: 0, opacity: 0.8 }}>CC: {user.cedula}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#f0f4f8', minHeight: '100vh', padding: '2rem 1rem' }}>

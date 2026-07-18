@@ -30,6 +30,9 @@ export default function ClientLayout({ children }) {
           <Link href="/historial" className={`sidebar-link ${pathname === '/historial' ? 'active' : ''}`}>
             Historial Ingresos
           </Link>
+          <Link href="/no-grato" className={`sidebar-link ${pathname === '/no-grato' ? 'active' : ''}`} style={{ color: 'var(--danger)' }}>
+            Personal No Grato
+          </Link>
           {/* Espacio para futuros módulos */}
         </nav>
       </aside>
