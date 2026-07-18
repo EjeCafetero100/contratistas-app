@@ -41,7 +41,7 @@ export default async function CarnetPage({ params }) {
     estado: userData.estado
   };
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://contratistas-app.vercel.app';
   const qrData = `${baseUrl}/scan/${user.id}`;
   
   const qrCodeDataUri = await QRCode.toDataURL(qrData, {
@@ -158,10 +158,8 @@ export default async function CarnetPage({ params }) {
             <p><strong>Ind. Específica:</strong> <span className={especificaValidity.status === 'Vencida' ? 'badge badge-danger' : ''}>{especificaValidity.status}</span> {especificaValidity.date ? `(${especificaValidity.date})` : ''}</p>
             <p><strong>S. Social:</strong> <span className={ssValidity.status === 'Vencida' ? 'badge badge-danger' : ''}>{ssValidity.status}</span> {ssValidity.date ? `(${ssValidity.date})` : ''}</p>
             
-            <div style={{ gridColumn: '1 / -1', marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <strong>Estado:</strong> 
-              <span className={`badge ${user.estado === 'Activo' ? 'badge-success' : 'badge-danger'}`} style={{ padding: '0.25rem 0.75rem' }}>{user.estado}</span>
-            </div>
+            
+            {/* Estado removido según solicitud */}
           </div>
 
           {/* Código QR */}

@@ -40,8 +40,7 @@ export default function ScanPage() {
         const isAuthorized = 
           safety360Validity.status === 'Vigente' && 
           especificaValidity.status === 'Vigente' && 
-          ssValidity.status === 'Vigente' &&
-          data.estado === 'Activo';
+          ssValidity.status === 'Vigente';
 
         const statusStr = isAuthorized ? 'Autorizado' : 'No Autorizado';
         setAuthStatus(statusStr);
