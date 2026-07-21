@@ -6,10 +6,6 @@ export default function ControlDocumentalPage() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   async function fetchData() {
     try {
       const res = await fetch('/api/control-documental', { cache: 'no-store' });
@@ -23,6 +19,11 @@ export default function ControlDocumentalPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+  }, []);
 
   function getExpirationInfo(dateString) {
     if (!dateString) return { days: '-', color: '#6b7280', icon: '⚫', text: 'N/A' };
