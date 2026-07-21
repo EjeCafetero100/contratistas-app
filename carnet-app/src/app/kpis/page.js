@@ -131,16 +131,30 @@ export default function KPIDashboard() {
     if (val === null || val === undefined || meta === undefined) return '';
     let meetsMeta = false;
     let breaksDisparador = false;
-    if (comp === '>' || comp === '>=') {
-      meetsMeta = comp === '>=' ? val >= meta : val > meta;
-      breaksDisparador = comp === '>=' ? val < disp : val <= disp;
+
+    // Automatic direction inference based on numerical relationship between meta and disp
+    if (disp !== undefined && disp !== null && Number(meta) > Number(disp)) {
+      // More is better (e.g., Meta = 8, Disp = 3)
+      meetsMeta = Number(val) >= Number(meta);
+      breaksDisparador = Number(val) <= Number(disp);
+    } else if (disp !== undefined && disp !== null && Number(meta) < Number(disp)) {
+      // Less is better (e.g., Meta = 3, Disp = 8)
+      meetsMeta = Number(val) <= Number(meta);
+      breaksDisparador = Number(val) >= Number(disp);
     } else {
-      meetsMeta = comp === '<=' ? val <= meta : val < meta;
-      breaksDisparador = comp === '<=' ? val > disp : val >= disp;
+      // Fallback if Disp is not set or equals Meta
+      if (comp === '>' || comp === '>=') {
+        meetsMeta = comp === '>=' ? Number(val) >= Number(meta) : Number(val) > Number(meta);
+        breaksDisparador = comp === '>=' ? Number(val) < Number(disp) : Number(val) <= Number(disp);
+      } else {
+        meetsMeta = comp === '<=' ? Number(val) <= Number(meta) : Number(val) < Number(meta);
+        breaksDisparador = comp === '<=' ? Number(val) > Number(disp) : Number(val) >= Number(disp);
+      }
     }
-    if (meetsMeta) return '#10b981';
-    if (breaksDisparador) return '#3b82f6';
-    return '#ef4444';
+
+    if (meetsMeta) return '#10b981'; // Green (Cumple)
+    if (breaksDisparador) return '#3b82f6'; // Blue (Crítico)
+    return '#ef4444'; // Red (Atención, between Meta and Disp)
   };
 
   const getStateText = (color) => {
