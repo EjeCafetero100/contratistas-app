@@ -36,7 +36,9 @@ export default function ClientLayout({ children }) {
           <Link href="/control-documental" className={`sidebar-link ${pathname === '/control-documental' ? 'active' : ''}`}>
             Control Documental ABI
           </Link>
-          {/* Espacio para futuros módulos */}
+          <Link href="/kpis" className={`sidebar-link ${pathname?.startsWith('/kpis') ? 'active' : ''}`} style={{ borderTop: '1px solid #e2e8f0', marginTop: '1rem', paddingTop: '1rem' }}>
+            📊 Indicadores (KPIs)
+          </Link>
         </nav>
       </aside>
 
