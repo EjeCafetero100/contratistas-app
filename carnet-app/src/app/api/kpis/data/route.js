@@ -31,11 +31,13 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { kpi_id, anio, mes, semana, valor } = body;
+    const { kpi_id, anio, mes, semana, valor, observaciones, usuario } = body;
     
+    let finalData = null;
+
     // Check if exists to do UPSERT
-    const { data: existing, error: errSearch } = await db.from('kpi_data')
-      .select('id')
+    const { data: existing } = await db.from('kpi_data')
+      .select('id, valor')
       .eq('kpi_id', kpi_id)
       .eq('anio', anio)
       .eq('mes', mes)
@@ -45,19 +47,39 @@ export async function POST(request) {
     if (existing) {
       // Update
       const { data, error } = await db.from('kpi_data')
-        .update({ valor })
+        .update({ valor, observaciones })
         .eq('id', existing.id)
         .select();
       if (error) throw error;
-      return NextResponse.json(data[0], { status: 200 });
+      finalData = data[0];
+
+      // History
+      await db.from('kpi_history').insert([{
+        kpi_data_id: existing.id,
+        usuario: usuario || 'Desconocido',
+        valor_anterior: existing.valor,
+        valor_nuevo: valor,
+        observacion: observaciones || 'Edición de registro'
+      }]);
     } else {
       // Insert
       const { data, error } = await db.from('kpi_data').insert([{
-        kpi_id, anio, mes, semana, valor
+        kpi_id, anio, mes, semana, valor, observaciones
       }]).select();
       if (error) throw error;
-      return NextResponse.json(data[0], { status: 201 });
+      finalData = data[0];
+
+      // History
+      await db.from('kpi_history').insert([{
+        kpi_data_id: finalData.id,
+        usuario: usuario || 'Desconocido',
+        valor_anterior: null,
+        valor_nuevo: valor,
+        observacion: observaciones || 'Creación inicial'
+      }]);
     }
+
+    return NextResponse.json(finalData, { status: existing ? 200 : 201 });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
