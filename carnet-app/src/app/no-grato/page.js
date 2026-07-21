@@ -6,6 +6,7 @@ export default function NoGratoPage() {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [formData, setFormData] = useState({
     cedula: "",
@@ -73,8 +74,23 @@ export default function NoGratoPage() {
     }
   };
 
-  const handleDelete = async (id, nombre) => {
-    if (confirm(`¿Estás seguro de que deseas eliminar a ${nombre} de la lista negra?`)) {
+  const handleQuitarBloqueo = async (id, nombre) => {
+    if (confirm(`¿Estás seguro de que deseas quitar el bloqueo a ${nombre}?`)) {
+      try {
+        const res = await fetch(`/api/no-grato/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          setRecords(records.filter(r => r.id !== id));
+        } else {
+          alert("Error al quitar bloqueo");
+        }
+      } catch (err) {
+        alert("Error de conexión");
+      }
+    }
+  };
+
+  const handleHardDelete = async (id) => {
+    if (confirm(`¿Está seguro de eliminar este registro? Esta acción no se puede deshacer.`)) {
       try {
         const res = await fetch(`/api/no-grato/${id}`, { method: 'DELETE' });
         if (res.ok) {
@@ -88,6 +104,19 @@ export default function NoGratoPage() {
     }
   };
 
+  const toggleAdmin = () => {
+    if (isAdmin) {
+      setIsAdmin(false);
+    } else {
+      const pwd = prompt("Ingrese contraseña de administrador para habilitar eliminación de registros:");
+      if (pwd === "admin123") {
+        setIsAdmin(true);
+      } else if (pwd) {
+        alert("Contraseña incorrecta");
+      }
+    }
+  };
+
   return (
     <div className="container">
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
@@ -95,6 +124,13 @@ export default function NoGratoPage() {
           <h1 style={{ color: 'var(--danger)' }}>Personal No Grato</h1>
           <p style={{ color: 'var(--text-muted)' }}>Gestión de accesos denegados</p>
         </div>
+        <button 
+          onClick={toggleAdmin} 
+          className={`btn ${isAdmin ? 'btn-danger' : 'btn-primary'}`}
+          style={{ backgroundColor: isAdmin ? '#ef4444' : '#3b82f6', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '8px', cursor: 'pointer' }}
+        >
+          {isAdmin ? '🔒 Salir Modo Admin' : '🔓 Modo Admin'}
+        </button>
       </header>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem', alignItems: 'start' }}>
@@ -195,7 +231,7 @@ export default function NoGratoPage() {
                     <th>CD</th>
                     <th>Motivo</th>
                     <th>Fecha Registro</th>
-                    <th>Acción</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -207,12 +243,23 @@ export default function NoGratoPage() {
                       <td>{r.motivo}</td>
                       <td>{new Date(r.fecha_registro).toLocaleDateString()}</td>
                       <td>
-                        <button 
-                          onClick={() => handleDelete(r.id, r.nombre)} 
-                          style={{ background: 'none', border: 'none', color: '#10b981', fontWeight: '500', cursor: 'pointer', padding: 0 }}
-                        >
-                          Quitar Bloqueo
-                        </button>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                          <button 
+                            onClick={() => handleQuitarBloqueo(r.id, r.nombre)} 
+                            style={{ background: 'none', border: 'none', color: '#10b981', fontWeight: '500', cursor: 'pointer', padding: 0 }}
+                          >
+                            Quitar Bloqueo
+                          </button>
+                          
+                          {isAdmin && (
+                            <button 
+                              onClick={() => handleHardDelete(r.id)} 
+                              style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '500', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              🗑️ Eliminar
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
