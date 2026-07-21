@@ -244,6 +244,9 @@ export default function KPIDashboard() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
             {filteredKpis.map(kpi => {
               const tgtMen = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Mes' && t.periodo === mesName);
+              const anyWeeklyTgt = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana');
+              const activeTgt = tgtMen || anyWeeklyTgt;
+              const isWeeklyFallback = !tgtMen && !!anyWeeklyTgt;
               
               let sum = 0; let count = 0;
               const chartData = [];
@@ -256,7 +259,7 @@ export default function KPIDashboard() {
               });
 
               const mtdVal = count > 0 ? (kpi.agregacion === 'PROMEDIO' ? sum / count : sum) : null;
-              const mtdColor = mtdVal !== null && tgtMen?.meta !== undefined ? getCellColor(mtdVal, tgtMen.meta, tgtMen.disparador, kpi.comparador) : '#94a3b8';
+              const mtdColor = mtdVal !== null && activeTgt?.meta !== undefined ? getCellColor(mtdVal, activeTgt.meta, activeTgt.disparador, kpi.comparador) : '#94a3b8';
               
               return (
                 <div key={kpi.id} className="kpi-card glass-panel" style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem', position: 'relative' }}>
@@ -301,14 +304,16 @@ export default function KPIDashboard() {
 
                   {/* Target Info */}
                   <div style={{ background: 'var(--surface-bg)', padding: '1rem', borderRadius: '8px', marginTop: '1.5rem', border: '1px solid var(--surface-border)' }}>
-                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Límites Mensuales</h4>
-                    {tgtMen ? (
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      Límites {isWeeklyFallback ? 'Semanales' : 'Mensuales'}
+                    </h4>
+                    {activeTgt ? (
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
-                        <div><span style={{ color: '#10b981' }}>🟢 Meta:</span> <strong>{kpi.comparador} {tgtMen.meta}</strong></div>
-                        <div><span style={{ color: '#3b82f6' }}>🔵 Disparador:</span> <strong>{tgtMen.disparador}</strong></div>
+                        <div><span style={{ color: '#10b981' }}>🟢 Meta:</span> <strong>{kpi.comparador} {activeTgt.meta}</strong></div>
+                        <div><span style={{ color: '#3b82f6' }}>🔵 Disparador:</span> <strong>{activeTgt.disparador}</strong></div>
                       </div>
                     ) : (
-                      <span style={{ color: '#ef4444', fontSize: '0.85rem' }}>⚠️ Falta Configurar Meta del Mes</span>
+                      <span style={{ color: '#ef4444', fontSize: '0.85rem' }}>⚠️ Falta Configurar Metas</span>
                     )}
                   </div>
 
