@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ExcelUploader from "@/components/ExcelUploader";
 
 export default function Register() {
   const router = useRouter();
@@ -52,9 +53,10 @@ export default function Register() {
   return (
     <div className="container" style={{ maxWidth: '800px' }}>
       
+      <ExcelUploader />
       
       <div className="glass-panel">
-        <h2 style={{ marginBottom: '2rem' }}>Registrar Nueva Persona</h2>
+        <h2 style={{ marginBottom: '2rem' }}>Registrar Manualmente</h2>
         <form onSubmit={handleSubmit}>
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
