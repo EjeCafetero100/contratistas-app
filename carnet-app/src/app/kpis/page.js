@@ -15,6 +15,38 @@ export default function KPIDashboard() {
   const [selectedResp, setSelectedResp] = useState('Todos');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedWeek, setSelectedWeek] = useState(1);
+
+  const handleQuickSave = async (kpiId, valorStr) => {
+    if (valorStr === '') return;
+    try {
+      const res = await fetch('/api/kpis/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kpi_id: kpiId,
+          anio: selectedYear,
+          mes: selectedMonth,
+          semana: selectedWeek,
+          valor: Number(valorStr)
+        })
+      });
+      if (res.ok) {
+        const savedData = await res.json();
+        setData(prev => {
+          const idx = prev.findIndex(d => d.kpi_id === kpiId && d.anio === selectedYear && d.mes === selectedMonth && d.semana === selectedWeek);
+          if (idx >= 0) {
+            const newData = [...prev];
+            newData[idx] = savedData;
+            return newData;
+          }
+          return [...prev, savedData];
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -103,9 +135,6 @@ export default function KPIDashboard() {
                 <p style={{ color: 'var(--text-muted)' }}>Módulo de seguimiento y cumplimiento</p>
               </div>
               <div style={{ display: 'flex', gap: '1rem' }}>
-                <Link href="/kpis/ingreso" className="btn" style={{ background: 'white', color: 'black', border: '1px solid #cbd5e1' }}>
-                  📝 Ingresar Valor Semanal
-                </Link>
                 {profile.role === 'admin' && (
                   <Link href="/kpis/admin" className="btn btn-primary">
                     ⚙️ Administrar KPIs
@@ -163,6 +192,17 @@ export default function KPIDashboard() {
                   <option value={12}>Diciembre</option>
                 </select>
               </div>
+
+              <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '150px' }}>
+                <label>Semana Actual</label>
+                <select value={selectedWeek} onChange={e => setSelectedWeek(Number(e.target.value))}>
+                  <option value={1}>Semana 1</option>
+                  <option value={2}>Semana 2</option>
+                  <option value={3}>Semana 3</option>
+                  <option value={4}>Semana 4</option>
+                  <option value={5}>Semana 5</option>
+                </select>
+              </div>
             </div>
 
             {loading ? (
@@ -206,6 +246,24 @@ export default function KPIDashboard() {
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
+
+                    {/* Quick Entry Box */}
+                    {profile.role !== 'admin' && (
+                      <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Cargar Sem {selectedWeek}:</span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <input 
+                            type="number" 
+                            step="any"
+                            placeholder="Valor..."
+                            defaultValue={kpi.chartData[selectedWeek - 1].valor !== 0 ? kpi.chartData[selectedWeek - 1].valor : ''}
+                            onBlur={(e) => handleQuickSave(kpi.id, e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleQuickSave(kpi.id, e.target.value); }}
+                            style={{ width: '80px', padding: '0.25rem 0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
