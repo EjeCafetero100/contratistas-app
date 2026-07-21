@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import db from '@/database/db';
 
 export default function ControlDocumentalPage() {
   const [data, setData] = useState([]);
@@ -13,12 +12,10 @@ export default function ControlDocumentalPage() {
 
   const fetchData = async () => {
     try {
-      const { data: records, error } = await db
-        .from('control_documental')
-        .select('*')
-        .order('nombre');
+      const res = await fetch('/api/control-documental', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Error al cargar datos');
+      const records = await res.json();
       
-      if (error) throw error;
       setData(records || []);
     } catch (err) {
       console.error('Error fetching data:', err);
