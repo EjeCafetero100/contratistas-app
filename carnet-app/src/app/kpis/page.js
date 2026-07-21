@@ -318,8 +318,8 @@ export default function KPIDashboard() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
                       {weeksOfSelectedMonth.map(w => {
                         const rec = data.find(d => d.kpi_id === kpi.id && d.anio === selectedYear && d.semana === w);
-                        // Default to monthly target 'tgt' if no weekly target exists for coloring
-                        const tgtSemRep = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && weeksOfSelectedMonth.includes(Number(t.periodo))) || tgt || {};
+                        // Default to monthly target 'tgtMen' if no weekly target exists for coloring
+                        const tgtSemRep = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && weeksOfSelectedMonth.includes(Number(t.periodo))) || tgtMen || {};
                         const tgtSem = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && t.periodo === String(w)) || tgtSemRep;
                         
                         const val = rec ? Number(rec.valor) : null;
