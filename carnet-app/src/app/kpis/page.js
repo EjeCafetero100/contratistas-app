@@ -176,14 +176,11 @@ export default function KPIDashboard() {
                     <th key={w} style={{ padding: '0.75rem', minWidth: '60px' }}>sem {w}</th>
                   ))}
                   <th style={{ padding: '0.75rem' }}>Gráfico</th>
-                  <th style={{ padding: '0.75rem', background: '#1e293b' }}>Meta Men</th>
-                  <th style={{ padding: '0.75rem', background: '#1e293b' }}>Disp-Men</th>
                   <th style={{ padding: '0.75rem' }}>MTD</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredKpis.map(kpi => {
-                  const tgtMen = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Mes' && t.periodo === mesName) || {};
                   const tgtSemRep = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && weeksOfSelectedMonth.includes(Number(t.periodo))) || {};
                   
                   const weekData = [];
@@ -203,7 +200,7 @@ export default function KPIDashboard() {
                   });
 
                   const mtdVal = count > 0 ? (kpi.agregacion === 'PROMEDIO' ? sum / count : sum) : null;
-                  const mtdColor = mtdVal !== null && tgtMen.meta !== undefined ? getCellColor(mtdVal, tgtMen.meta, tgtMen.disparador, kpi.comparador) : '';
+                  const mtdColor = mtdVal !== null && tgtSemRep.meta !== undefined ? getCellColor(mtdVal, tgtSemRep.meta, tgtSemRep.disparador, kpi.comparador) : '';
 
                   return (
                     <tr key={kpi.id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
@@ -226,8 +223,6 @@ export default function KPIDashboard() {
                           <ResponsiveContainer width="100%" height={30}><LineChart data={chartData}><Line type="monotone" dataKey="val" stroke="#64748b" strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer>
                         ) : '-'}
                       </td>
-                      <td style={{ padding: '0.75rem', background: '#f8fafc', color: '#10b981' }}>{tgtMen.meta ?? '-'}</td>
-                      <td style={{ padding: '0.75rem', background: '#f8fafc', color: '#3b82f6' }}>{tgtMen.disparador ?? '-'}</td>
                       <td style={{ padding: '0.75rem', fontWeight: 'bold', color: mtdColor || 'inherit' }}>
                         {mtdVal !== null ? (kpi.unidad === '%' ? mtdVal.toFixed(1) + '%' : mtdVal.toFixed(1)) : '-'}
                       </td>
@@ -321,8 +316,8 @@ export default function KPIDashboard() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
                       {weeksOfSelectedMonth.map(w => {
                         const rec = data.find(d => d.kpi_id === kpi.id && d.anio === selectedYear && d.semana === w);
-                        // Default to monthly target 'tgtMen' if no weekly target exists for coloring
-                        const tgtSemRep = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && weeksOfSelectedMonth.includes(Number(t.periodo))) || tgtMen || {};
+                        // Default to any weekly target if specific weekly target is not found
+                        const tgtSemRep = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && weeksOfSelectedMonth.includes(Number(t.periodo))) || anyWeeklyTgt || {};
                         const tgtSem = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && t.periodo === String(w)) || tgtSemRep;
                         
                         const val = rec ? Number(rec.valor) : null;
