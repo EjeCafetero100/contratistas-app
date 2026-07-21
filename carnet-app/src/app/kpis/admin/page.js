@@ -1,51 +1,90 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import ProfileSelector from '@/components/ProfileSelector';
 
 export default function AdminKPIs() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [kpis, setKpis] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  // Form for New KPI
+  const [isCreating, setIsCreating] = useState(false);
   const [formData, setFormData] = useState({
     cd: 'Pereira',
     responsable: '',
     nombre: '',
     unidad: '%',
-    meta_semanal: '',
     meta_mensual: '',
+    disparador: '',
     comparador: '>=',
     agregacion: 'SUMA'
   });
 
-  const handleChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Modal for Edit KPI
+  const [editModal, setEditModal] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSubmit = async (e) => {
+  useEffect(() => {
+    fetch('/api/kpis')
+      .then(r => r.json())
+      .then(data => {
+        setKpis(data);
+        setLoading(false);
+      });
+  }, []);
+
+  const handleCreate = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setIsSaving(true);
     try {
       const res = await fetch('/api/kpis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          meta_semanal: Number(formData.meta_semanal),
-          meta_mensual: Number(formData.meta_mensual)
+          meta_mensual: Number(formData.meta_mensual),
+          meta_semanal: Number(formData.meta_mensual),
+          disparador: Number(formData.disparador)
         })
       });
       if (res.ok) {
+        const newKpi = await res.json();
+        setKpis([...kpis, newKpi]);
         alert('KPI Creado exitosamente');
-        setFormData({ ...formData, nombre: '', responsable: '', meta_semanal: '', meta_mensual: '' });
-      } else {
-        const err = await res.json();
-        alert('Error: ' + err.error);
+        setIsCreating(false);
       }
     } catch (err) {
       alert('Error de red');
     } finally {
-      setLoading(false);
+      setIsSaving(false);
+    }
+  };
+
+  const handleEdit = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/kpis', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editModal.id,
+          meta_mensual: Number(editModal.meta_mensual),
+          disparador: Number(editModal.disparador),
+          comparador: editModal.comparador,
+          usuario: 'Administrador Nacional'
+        })
+      });
+      if (res.ok) {
+        const updatedKpi = await res.json();
+        setKpis(prev => prev.map(k => k.id === updatedKpi.id ? updatedKpi : k));
+        setEditModal(null);
+      }
+    } catch (err) {
+      alert('Error guardando configuración');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -63,79 +102,152 @@ export default function AdminKPIs() {
         }
 
         return (
-          <div className="container" style={{ maxWidth: '800px' }}>
+          <div className="container" style={{ maxWidth: '1200px' }}>
             <div style={{ marginBottom: '1rem' }}>
               <Link href="/kpis" style={{ color: 'var(--primary)', textDecoration: 'none' }}>
                 &larr; Volver al Dashboard
               </Link>
             </div>
 
-            <div className="glass-panel">
-              <h2 style={{ marginBottom: '0.5rem' }}>⚙️ Administración de Indicadores</h2>
-              <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Crea nuevos KPIs. Estarán disponibles automáticamente en el CD seleccionado.</p>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+              <div>
+                <h1>⚙️ Administración de KPIs</h1>
+                <p style={{ color: 'var(--text-muted)' }}>Configuración global, metas, disparadores y reglas de color.</p>
+              </div>
+              <button className="btn btn-primary" onClick={() => setIsCreating(!isCreating)}>
+                {isCreating ? 'Cancelar' : '➕ Crear Nuevo KPI'}
+              </button>
+            </header>
 
-              <form onSubmit={handleSubmit}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  
-                  <div className="form-group">
-                    <label>Centro de Distribución (CD)</label>
-                    <select name="cd" required value={formData.cd} onChange={handleChange}>
-                      <option value="Pereira">Pereira</option>
-                      <option value="Armenia">Armenia</option>
-                      <option value="Barrancabermeja">Barrancabermeja</option>
-                    </select>
+            {isCreating && (
+              <div className="glass-panel" style={{ marginBottom: '2rem' }}>
+                <h3>Crear Nuevo Indicador</h3>
+                <form onSubmit={handleCreate}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div className="form-group">
+                      <label>Centro de Distribución</label>
+                      <select required value={formData.cd} onChange={e => setFormData({...formData, cd: e.target.value})}>
+                        <option value="Pereira">Pereira</option>
+                        <option value="Armenia">Armenia</option>
+                        <option value="Barrancabermeja">Barrancabermeja</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Responsable</label>
+                      <input type="text" required value={formData.responsable} onChange={e => setFormData({...formData, responsable: e.target.value})} placeholder="Ej: UC" />
+                    </div>
+                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                      <label>Nombre del Indicador</label>
+                      <input type="text" required value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Comparador (Éxito)</label>
+                      <select required value={formData.comparador} onChange={e => setFormData({...formData, comparador: e.target.value})}>
+                        <option value=">">Mayor que ({'>'})</option>
+                        <option value=">=">Mayor o igual ({'>='})</option>
+                        <option value="<">Menor que ({'<'})</option>
+                        <option value="<=">Menor o igual ({'<='})</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Unidad de Medida</label>
+                      <input type="text" required value={formData.unidad} onChange={e => setFormData({...formData, unidad: e.target.value})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Meta (Verde 🟢)</label>
+                      <input type="number" step="any" required value={formData.meta_mensual} onChange={e => setFormData({...formData, meta_mensual: e.target.value})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Disparador (Azul 🔵)</label>
+                      <input type="number" step="any" required value={formData.disparador} onChange={e => setFormData({...formData, disparador: e.target.value})} />
+                    </div>
                   </div>
+                  <button type="submit" className="btn btn-primary" style={{ marginTop: '1.5rem', width: '100%' }} disabled={isSaving}>
+                    Guardar KPI
+                  </button>
+                </form>
+              </div>
+            )}
 
-                  <div className="form-group">
-                    <label>Responsable (Ej: UC, OL, ABI...)</label>
-                    <input type="text" name="responsable" required value={formData.responsable} onChange={handleChange} placeholder="Ej: UC" />
-                  </div>
-
-                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label>Nombre del Indicador (KPI)</label>
-                    <input type="text" name="nombre" required value={formData.nombre} onChange={handleChange} placeholder="Ej: % Vehículos Despachados a Tiempo" />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Unidad de Medida</label>
-                    <input type="text" name="unidad" required value={formData.unidad} onChange={handleChange} placeholder="Ej: %, Cajas, $, Días" />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Comparador de Éxito</label>
-                    <select name="comparador" required value={formData.comparador} onChange={handleChange}>
-                      <option value=">">Mayor que ({'>'})</option>
-                      <option value=">=">Mayor o igual ({'>='})</option>
-                      <option value="<">Menor que ({'<'})</option>
-                      <option value="<=">Menor o igual ({'<='})</option>
-                    </select>
-                    <small style={{ color: 'var(--text-muted)' }}>Define qué significa cumplir la meta (Ej: Accidentes deben ser menores a la meta).</small>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Comportamiento Mensual (MTD)</label>
-                    <select name="agregacion" required value={formData.agregacion} onChange={handleChange}>
-                      <option value="SUMA">Suma de las semanas (Ej: Volumen Total)</option>
-                      <option value="PROMEDIO">Promedio de las semanas (Ej: % Eficiencia)</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group">
-                    <label>Meta Semanal Esperada</label>
-                    <input type="number" step="any" name="meta_semanal" required value={formData.meta_semanal} onChange={handleChange} />
-                  </div>
-
-                  <div className="form-group">
-                    <label>Meta Mensual Esperada (MTD)</label>
-                    <input type="number" step="any" name="meta_mensual" required value={formData.meta_mensual} onChange={handleChange} />
-                  </div>
-                </div>
-
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '2rem' }} disabled={loading}>
-                  {loading ? 'Guardando...' : 'Crear Nuevo Indicador'}
-                </button>
-              </form>
+            <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+              <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--surface-border)' }}>
+                <h3 style={{ margin: 0 }}>Tabla Maestra de Configuración</h3>
+              </div>
+              
+              <div className="table-container" style={{ border: 'none', borderRadius: 0 }}>
+                {loading ? (
+                  <p style={{ padding: '2rem' }}>Cargando datos...</p>
+                ) : (
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>CD</th>
+                        <th>Resp.</th>
+                        <th>Indicador</th>
+                        <th>UM</th>
+                        <th>Comp.</th>
+                        <th>Meta 🟢</th>
+                        <th>Disp. 🔵</th>
+                        <th>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {kpis.map(k => (
+                        <tr key={k.id}>
+                          <td><span className="badge" style={{ background: '#e2e8f0' }}>{k.cd}</span></td>
+                          <td>{k.responsable}</td>
+                          <td style={{ fontWeight: 600 }}>{k.nombre}</td>
+                          <td>{k.unidad}</td>
+                          <td style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{k.comparador}</td>
+                          <td style={{ color: '#10b981', fontWeight: 'bold' }}>{k.meta_mensual}</td>
+                          <td style={{ color: '#3b82f6', fontWeight: 'bold' }}>{k.disparador}</td>
+                          <td>
+                            <button className="btn" style={{ padding: '0.4rem 0.8rem', background: 'var(--surface-border)' }} onClick={() => setEditModal(k)}>
+                              ✏️ Editar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
+
+            {/* Modal Editar */}
+            {editModal && (
+              <div className="modal-overlay">
+                <div className="modal-content glass-panel" style={{ maxWidth: '400px' }}>
+                  <h3>✏️ Configuración Rápida</h3>
+                  <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{editModal.nombre}</p>
+                  
+                  <form onSubmit={handleEdit}>
+                    <div className="form-group">
+                      <label>Comparador</label>
+                      <select required value={editModal.comparador} onChange={e => setEditModal({...editModal, comparador: e.target.value})}>
+                        <option value=">">Mayor que ({'>'})</option>
+                        <option value=">=">Mayor o igual ({'>='})</option>
+                        <option value="<">Menor que ({'<'})</option>
+                        <option value="<=">Menor o igual ({'<='})</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Meta (Verde 🟢)</label>
+                      <input type="number" step="any" required value={editModal.meta_mensual} onChange={e => setEditModal({...editModal, meta_mensual: e.target.value})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Disparador (Azul 🔵)</label>
+                      <input type="number" step="any" required value={editModal.disparador ?? editModal.meta_mensual} onChange={e => setEditModal({...editModal, disparador: e.target.value})} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
+                      <button type="button" className="btn" onClick={() => setEditModal(null)}>Cancelar</button>
+                      <button type="submit" className="btn btn-primary" disabled={isSaving}>Actualizar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
           </div>
         );
       }}

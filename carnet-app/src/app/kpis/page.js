@@ -20,6 +20,7 @@ export default function KPIDashboard() {
   const [editModal, setEditModal] = useState(null); // { kpi: {}, existingData: {}, weekToEdit: number }
   const [historyModal, setHistoryModal] = useState(null); // { kpi: {}, logs: [] }
   const [expandedChart, setExpandedChart] = useState(null); // { kpi: {} }
+  const [configModal, setConfigModal] = useState(null); // { kpi: {} }
 
   // Form State
   const [formValor, setFormValor] = useState('');
@@ -101,6 +102,40 @@ export default function KPIDashboard() {
     }
   };
 
+  const handleSaveConfig = async (e, profile) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/kpis', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: configModal.kpi.id,
+          meta_mensual: Number(configModal.meta),
+          disparador: Number(configModal.disp),
+          comparador: configModal.comp,
+          usuario: profile.role === 'admin' ? 'Administrador' : `Operador ${profile.cd}`
+        })
+      });
+      if (res.ok) {
+        const savedConfig = await res.json();
+        setKpis(prev => {
+          const newData = [...prev];
+          const idx = newData.findIndex(k => k.id === savedConfig.id);
+          if (idx >= 0) newData[idx] = savedConfig;
+          return newData;
+        });
+        setConfigModal(null);
+      } else {
+        alert('Error al guardar configuración');
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <ProfileSelector>
       {(profile) => {
@@ -122,26 +157,33 @@ export default function KPIDashboard() {
             mtd = kpi.agregacion === 'PROMEDIO' ? sum / kpiDataThisMonth.length : sum;
           }
 
-          let isGood = false;
-          let isWarning = false;
-          let color = '#ef4444';
-          let icon = '🔴';
-          
           const meta = Number(kpi.meta_mensual);
+          const disp = Number(kpi.disparador ?? meta);
           const val = Number(mtd);
           const comp = kpi.comparador;
 
-          if (comp === '>') isGood = val > meta;
-          else if (comp === '<') isGood = val < meta;
-          else if (comp === '>=') isGood = val >= meta;
-          else if (comp === '<=') isGood = val <= meta;
+          let meetsMeta = false;
+          let breaksDisparador = false;
 
-          const diffPct = meta === 0 ? 0 : Math.abs((val - meta) / meta);
-          if (!isGood && diffPct <= 0.1) isWarning = true;
+          if (comp === '>' || comp === '>=') {
+            meetsMeta = comp === '>=' ? val >= meta : val > meta;
+            breaksDisparador = comp === '>=' ? val < disp : val <= disp;
+          } else {
+            meetsMeta = comp === '<=' ? val <= meta : val < meta;
+            breaksDisparador = comp === '<=' ? val > disp : val >= disp;
+          }
 
-          if (isGood) { color = '#10b981'; icon = '🟢'; }
-          else if (isWarning) { color = '#f59e0b'; icon = '🟡'; }
+          let color = '#ef4444'; // Rojo (In between)
+          let icon = '🔴';
 
+          if (meetsMeta) {
+            color = '#10b981'; // Verde
+            icon = '🟢';
+          } else if (breaksDisparador) {
+            color = '#3b82f6'; // Azul (Crítico)
+            icon = '🔵';
+          } 
+          
           const chartData = [1,2,3,4,5].map(w => {
             const row = kpiDataThisMonth.find(d => d.semana === w);
             return { name: `Sem ${w}`, valor: row ? Number(row.valor) : 0 };
@@ -221,6 +263,9 @@ export default function KPIDashboard() {
                       <div className="kpi-dropdown glass-panel">
                         {profile.role !== 'admin' && (
                           <button onClick={() => openEditModal(kpi)}>➕ Registrar / Editar Dato</button>
+                        )}
+                        {profile.role === 'admin' && (
+                          <button onClick={() => setConfigModal({ kpi, meta: kpi.meta_mensual, disp: kpi.disparador ?? kpi.meta_mensual, comp: kpi.comparador })}>⚙️ Configurar KPI</button>
                         )}
                         <button onClick={() => loadHistory(kpi)}>📊 Ver Historial</button>
                         <button onClick={() => setExpandedChart(kpi)}>📈 Ver Gráfico Ampliado</button>
@@ -371,6 +416,45 @@ export default function KPIDashboard() {
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal: Configurar KPI */}
+            {configModal && (
+              <div className="modal-overlay">
+                <div className="modal-content glass-panel" style={{ maxWidth: '400px' }}>
+                  <h3>⚙️ Configuración del KPI</h3>
+                  <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{configModal.kpi.nombre}</p>
+                  
+                  <form onSubmit={(e) => handleSaveConfig(e, profile)}>
+                    <div className="form-group">
+                      <label>Comparador de Éxito</label>
+                      <select required value={configModal.comp} onChange={e => setConfigModal({...configModal, comp: e.target.value})}>
+                        <option value=">">Mayor que ({'>'})</option>
+                        <option value=">=">Mayor o igual ({'>='})</option>
+                        <option value="<">Menor que ({'<'})</option>
+                        <option value="<=">Menor o igual ({'<='})</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Meta (Límite Verde 🟢)</label>
+                      <input type="number" step="any" required value={configModal.meta} onChange={e => setConfigModal({...configModal, meta: e.target.value})} />
+                    </div>
+                    <div className="form-group">
+                      <label>Disparador (Límite Azul 🔵)</label>
+                      <input type="number" step="any" required value={configModal.disp} onChange={e => setConfigModal({...configModal, disp: e.target.value})} />
+                      <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                        Cualquier valor entre la Meta y el Disparador será marcado en Rojo 🔴 (Requiere atención).
+                      </small>
+                    </div>
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
+                      <button type="button" className="btn" onClick={() => setConfigModal(null)}>Cancelar</button>
+                      <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                        {isSaving ? 'Guardando...' : '💾 Actualizar'}
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             )}
