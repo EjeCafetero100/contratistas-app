@@ -13,6 +13,8 @@ export default function AdminKPIs() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedTipo, setSelectedTipo] = useState('Mes');
   const [selectedPeriodo, setSelectedPeriodo] = useState('Julio');
+  const [selectedCd, setSelectedCd] = useState('Todos');
+  const [selectedResp, setSelectedResp] = useState('Todos');
 
   // Modal for Edit Target
   const [editModal, setEditModal] = useState(null); // { kpi: {}, target: {} }
@@ -149,34 +151,70 @@ export default function AdminKPIs() {
               </div>
               
               {/* Filtros Globales */}
-              <div className="glass-panel" style={{ padding: '1rem', display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>Año</label>
-                  <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
-                    <option value={2025}>2025</option>
-                    <option value={2026}>2026</option>
-                    <option value={2027}>2027</option>
-                  </select>
+              <div className="glass-panel" style={{ padding: '1rem' }}>
+                <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div className="form-group" style={{ marginBottom: 0, minWidth: '100px' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>Año</label>
+                    <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
+                      <option value={2024}>2024</option>
+                      <option value={2025}>2025</option>
+                      <option value={2026}>2026</option>
+                      <option value={2027}>2027</option>
+                    </select>
+                  </div>
+                  
+                  <div className="form-group" style={{ marginBottom: 0, minWidth: '120px' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>Tipo Período</label>
+                    <select value={selectedTipo} onChange={e => {
+                      setSelectedTipo(e.target.value);
+                      setSelectedPeriodo(e.target.value === 'Mes' ? 'Enero' : '1');
+                    }}>
+                      <option value="Semana">Semana</option>
+                      <option value="Mes">Mes</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0, minWidth: '150px' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>Período</label>
+                    <select value={selectedPeriodo} onChange={e => setSelectedPeriodo(e.target.value)}>
+                      {periodosDisponibles.map(p => (
+                        <option key={p} value={p}>{selectedTipo === 'Semana' ? `Semana ${p}` : p}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0, minWidth: '130px' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>CD</label>
+                    <select value={selectedCd} onChange={e => setSelectedCd(e.target.value)}>
+                      <option value="Todos">Todos</option>
+                      <option value="Pereira">Pereira</option>
+                      <option value="Cartago">Cartago</option>
+                      <option value="Armenia">Armenia</option>
+                      <option value="Manizales">Manizales</option>
+                      <option value="Pasto">Pasto</option>
+                      <option value="Popayan">Popayan</option>
+                      <option value="Tulua">Tulua</option>
+                      <option value="Buenaventura">Buenaventura</option>
+                      <option value="Palmira">Palmira</option>
+                      <option value="Buga">Buga</option>
+                      <option value="Cali">Cali</option>
+                      <option value="Santander">Santander</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0, minWidth: '120px' }}>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>Responsable</label>
+                    <select value={selectedResp} onChange={e => setSelectedResp(e.target.value)}>
+                      <option value="Todos">Todos</option>
+                      <option value="UC">UC</option>
+                      <option value="OL">OL</option>
+                    </select>
+                  </div>
+                  
+                  <button className="btn" style={{ marginLeft: 'auto', background: '#fbbf24', color: '#000', fontWeight: 'bold' }} onClick={() => setCopyModal(true)}>
+                    📋 COPIAR
+                  </button>
                 </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>Tipo Período</label>
-                  <select value={selectedTipo} onChange={e => {
-                    setSelectedTipo(e.target.value);
-                    setSelectedPeriodo(e.target.value === 'Mes' ? 'Julio' : '1');
-                  }}>
-                    <option value="Mes">Mes</option>
-                    <option value="Semana">Semana</option>
-                  </select>
-                </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label>Período</label>
-                  <select value={selectedPeriodo} onChange={e => setSelectedPeriodo(e.target.value)}>
-                    {periodosDisponibles.map(p => <option key={p} value={p}>{selectedTipo === 'Semana' ? `Semana ${p}` : p}</option>)}
-                  </select>
-                </div>
-                <button className="btn btn-primary" style={{ padding: '0.75rem 1rem' }} onClick={() => setCopyModal(true)}>
-                  📋 Copiar
-                </button>
               </div>
             </header>
 
@@ -202,7 +240,9 @@ export default function AdminKPIs() {
                       </tr>
                     </thead>
                     <tbody>
-                      {kpis.map(k => {
+                      {kpis
+                        .filter(k => (selectedCd === 'Todos' || k.cd === selectedCd) && (selectedResp === 'Todos' || k.responsable === selectedResp))
+                        .map(k => {
                         const tgt = targets.find(t => t.kpi_id === k.id);
                         return (
                           <tr key={k.id}>
