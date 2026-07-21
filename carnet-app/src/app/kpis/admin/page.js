@@ -6,58 +6,44 @@ import ProfileSelector from '@/components/ProfileSelector';
 
 export default function AdminKPIs() {
   const [kpis, setKpis] = useState([]);
+  const [targets, setTargets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Form for New KPI
-  const [isCreating, setIsCreating] = useState(false);
-  const [formData, setFormData] = useState({
-    cd: 'Pereira',
-    responsable: '',
-    nombre: '',
-    unidad: '%',
-    meta_mensual: '',
-    disparador: '',
-    comparador: '>=',
-    agregacion: 'SUMA'
-  });
+  // Filters for Targets
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedTipo, setSelectedTipo] = useState('Mes');
+  const [selectedPeriodo, setSelectedPeriodo] = useState('Julio');
 
-  // Modal for Edit KPI
-  const [editModal, setEditModal] = useState(null);
+  // Modal for Edit Target
+  const [editModal, setEditModal] = useState(null); // { kpi: {}, target: {} }
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    fetch('/api/kpis')
-      .then(r => r.json())
-      .then(data => {
-        setKpis(data);
-        setLoading(false);
-      });
-  }, []);
+  // Copy Config Modal
+  const [copyModal, setCopyModal] = useState(false);
+  const [copyToYear, setCopyToYear] = useState(new Date().getFullYear());
+  const [copyToTipo, setCopyToTipo] = useState('Mes');
+  const [copyToPeriodo, setCopyToPeriodo] = useState('Agosto');
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    setIsSaving(true);
+  useEffect(() => {
+    fetchData();
+  }, [selectedYear, selectedTipo, selectedPeriodo]);
+
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const res = await fetch('/api/kpis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          meta_mensual: Number(formData.meta_mensual),
-          meta_semanal: Number(formData.meta_mensual),
-          disparador: Number(formData.disparador)
-        })
-      });
-      if (res.ok) {
-        const newKpi = await res.json();
-        setKpis([...kpis, newKpi]);
-        alert('KPI Creado exitosamente');
-        setIsCreating(false);
-      }
-    } catch (err) {
-      alert('Error de red');
+      const [kpiRes, targetRes] = await Promise.all([
+        fetch('/api/kpis'),
+        fetch(`/api/kpis/targets?anio=${selectedYear}&tipo_periodo=${selectedTipo}&periodo=${selectedPeriodo}`)
+      ]);
+      const kpiData = await kpiRes.json();
+      const targetData = await targetRes.json();
+      
+      setKpis(kpiData);
+      setTargets(targetData);
+    } catch (e) {
+      console.error(e);
     } finally {
-      setIsSaving(false);
+      setLoading(false);
     }
   };
 
@@ -65,20 +51,28 @@ export default function AdminKPIs() {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const res = await fetch('/api/kpis', {
+      const res = await fetch('/api/kpis/targets', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: editModal.id,
-          meta_mensual: Number(editModal.meta_mensual),
-          disparador: Number(editModal.disparador),
-          comparador: editModal.comparador,
-          usuario: 'Administrador Nacional'
+          kpi_id: editModal.kpi.id,
+          anio: selectedYear,
+          tipo_periodo: selectedTipo,
+          periodo: selectedPeriodo,
+          meta: Number(editModal.target.meta),
+          disparador: Number(editModal.target.disparador),
+          comparador: editModal.target.comparador
         })
       });
       if (res.ok) {
-        const updatedKpi = await res.json();
-        setKpis(prev => prev.map(k => k.id === updatedKpi.id ? updatedKpi : k));
+        const updatedTarget = await res.json();
+        setTargets(prev => {
+          const exists = prev.find(t => t.id === updatedTarget.id);
+          if (exists) {
+            return prev.map(t => t.id === updatedTarget.id ? updatedTarget : t);
+          }
+          return [...prev, updatedTarget];
+        });
         setEditModal(null);
       }
     } catch (err) {
@@ -87,6 +81,46 @@ export default function AdminKPIs() {
       setIsSaving(false);
     }
   };
+
+  const handleCopy = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/kpis/targets/copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from_anio: selectedYear,
+          from_tipo: selectedTipo,
+          from_periodo: selectedPeriodo,
+          to_anio: copyToYear,
+          to_tipo: copyToTipo,
+          to_periodo: copyToPeriodo
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`¡Copiados ${data.copiedCount} indicadores exitosamente!`);
+        setCopyModal(false);
+        // Si copió a la vista actual, recargamos
+        if (selectedYear === copyToYear && selectedTipo === copyToTipo && selectedPeriodo === copyToPeriodo) {
+          fetchData();
+        }
+      } else {
+        alert(data.message || 'Error al copiar');
+      }
+    } catch (err) {
+      alert('Error de red');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const semanas = Array.from({length: 53}, (_, i) => (i + 1).toString());
+
+  const periodosDisponibles = selectedTipo === 'Mes' ? meses : semanas;
+  const copyPeriodosDisponibles = copyToTipo === 'Mes' ? meses : semanas;
 
   return (
     <ProfileSelector>
@@ -109,69 +143,47 @@ export default function AdminKPIs() {
               </Link>
             </div>
 
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
-                <h1>⚙️ Administración de KPIs</h1>
-                <p style={{ color: 'var(--text-muted)' }}>Configuración global, metas, disparadores y reglas de color.</p>
+                <h1>⚙️ Metas Dinámicas</h1>
+                <p style={{ color: 'var(--text-muted)' }}>Configura metas y disparadores por Semana o Mes.</p>
               </div>
-              <button className="btn btn-primary" onClick={() => setIsCreating(!isCreating)}>
-                {isCreating ? 'Cancelar' : '➕ Crear Nuevo KPI'}
-              </button>
+              
+              {/* Filtros Globales */}
+              <div className="glass-panel" style={{ padding: '1rem', display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label>Año</label>
+                  <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
+                    <option value={2025}>2025</option>
+                    <option value={2026}>2026</option>
+                    <option value={2027}>2027</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label>Tipo Período</label>
+                  <select value={selectedTipo} onChange={e => {
+                    setSelectedTipo(e.target.value);
+                    setSelectedPeriodo(e.target.value === 'Mes' ? 'Julio' : '1');
+                  }}>
+                    <option value="Mes">Mes</option>
+                    <option value="Semana">Semana</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label>Período</label>
+                  <select value={selectedPeriodo} onChange={e => setSelectedPeriodo(e.target.value)}>
+                    {periodosDisponibles.map(p => <option key={p} value={p}>{selectedTipo === 'Semana' ? `Semana ${p}` : p}</option>)}
+                  </select>
+                </div>
+                <button className="btn btn-primary" style={{ padding: '0.75rem 1rem' }} onClick={() => setCopyModal(true)}>
+                  📋 Copiar
+                </button>
+              </div>
             </header>
-
-            {isCreating && (
-              <div className="glass-panel" style={{ marginBottom: '2rem' }}>
-                <h3>Crear Nuevo Indicador</h3>
-                <form onSubmit={handleCreate}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div className="form-group">
-                      <label>Centro de Distribución</label>
-                      <select required value={formData.cd} onChange={e => setFormData({...formData, cd: e.target.value})}>
-                        <option value="Pereira">Pereira</option>
-                        <option value="Armenia">Armenia</option>
-                        <option value="Barrancabermeja">Barrancabermeja</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Responsable</label>
-                      <input type="text" required value={formData.responsable} onChange={e => setFormData({...formData, responsable: e.target.value})} placeholder="Ej: UC" />
-                    </div>
-                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                      <label>Nombre del Indicador</label>
-                      <input type="text" required value={formData.nombre} onChange={e => setFormData({...formData, nombre: e.target.value})} />
-                    </div>
-                    <div className="form-group">
-                      <label>Comparador (Éxito)</label>
-                      <select required value={formData.comparador} onChange={e => setFormData({...formData, comparador: e.target.value})}>
-                        <option value=">">Mayor que ({'>'})</option>
-                        <option value=">=">Mayor o igual ({'>='})</option>
-                        <option value="<">Menor que ({'<'})</option>
-                        <option value="<=">Menor o igual ({'<='})</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Unidad de Medida</label>
-                      <input type="text" required value={formData.unidad} onChange={e => setFormData({...formData, unidad: e.target.value})} />
-                    </div>
-                    <div className="form-group">
-                      <label>Meta (Verde 🟢)</label>
-                      <input type="number" step="any" required value={formData.meta_mensual} onChange={e => setFormData({...formData, meta_mensual: e.target.value})} />
-                    </div>
-                    <div className="form-group">
-                      <label>Disparador (Azul 🔵)</label>
-                      <input type="number" step="any" required value={formData.disparador} onChange={e => setFormData({...formData, disparador: e.target.value})} />
-                    </div>
-                  </div>
-                  <button type="submit" className="btn btn-primary" style={{ marginTop: '1.5rem', width: '100%' }} disabled={isSaving}>
-                    Guardar KPI
-                  </button>
-                </form>
-              </div>
-            )}
 
             <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
               <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--surface-border)' }}>
-                <h3 style={{ margin: 0 }}>Tabla Maestra de Configuración</h3>
+                <h3 style={{ margin: 0 }}>Tabla de Configuración: {selectedTipo} {selectedPeriodo} ({selectedYear})</h3>
               </div>
               
               <div className="table-container" style={{ border: 'none', borderRadius: 0 }}>
@@ -183,31 +195,50 @@ export default function AdminKPIs() {
                       <tr>
                         <th>CD</th>
                         <th>Resp.</th>
-                        <th>Indicador</th>
-                        <th>UM</th>
+                        <th>KPI</th>
                         <th>Comp.</th>
                         <th>Meta 🟢</th>
                         <th>Disp. 🔵</th>
+                        <th>Estado</th>
                         <th>Acción</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {kpis.map(k => (
-                        <tr key={k.id}>
-                          <td><span className="badge" style={{ background: '#e2e8f0' }}>{k.cd}</span></td>
-                          <td>{k.responsable}</td>
-                          <td style={{ fontWeight: 600 }}>{k.nombre}</td>
-                          <td>{k.unidad}</td>
-                          <td style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{k.comparador}</td>
-                          <td style={{ color: '#10b981', fontWeight: 'bold' }}>{k.meta_mensual}</td>
-                          <td style={{ color: '#3b82f6', fontWeight: 'bold' }}>{k.disparador}</td>
-                          <td>
-                            <button className="btn" style={{ padding: '0.4rem 0.8rem', background: 'var(--surface-border)' }} onClick={() => setEditModal(k)}>
-                              ✏️ Editar
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {kpis.map(k => {
+                        const tgt = targets.find(t => t.kpi_id === k.id);
+                        return (
+                          <tr key={k.id}>
+                            <td><span className="badge" style={{ background: '#e2e8f0' }}>{k.cd}</span></td>
+                            <td>{k.responsable}</td>
+                            <td style={{ fontWeight: 600 }}>{k.nombre}</td>
+                            
+                            {tgt ? (
+                              <>
+                                <td style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{tgt.comparador}</td>
+                                <td style={{ color: '#10b981', fontWeight: 'bold' }}>{tgt.meta}</td>
+                                <td style={{ color: '#3b82f6', fontWeight: 'bold' }}>{tgt.disparador}</td>
+                                <td><span className="badge badge-success">Configurado</span></td>
+                              </>
+                            ) : (
+                              <>
+                                <td style={{ color: 'var(--text-muted)' }}>-</td>
+                                <td style={{ color: 'var(--text-muted)' }}>-</td>
+                                <td style={{ color: 'var(--text-muted)' }}>-</td>
+                                <td><span className="badge badge-danger">Sin Configurar</span></td>
+                              </>
+                            )}
+
+                            <td>
+                              <button className="btn" style={{ padding: '0.4rem 0.8rem', background: 'var(--surface-border)' }} onClick={() => setEditModal({
+                                kpi: k,
+                                target: tgt || { comparador: '<=', meta: 0, disparador: 0 }
+                              })}>
+                                ✏️ Editar
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
@@ -218,13 +249,13 @@ export default function AdminKPIs() {
             {editModal && (
               <div className="modal-overlay">
                 <div className="modal-content glass-panel" style={{ maxWidth: '400px' }}>
-                  <h3>✏️ Configuración Rápida</h3>
-                  <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{editModal.nombre}</p>
+                  <h3>✏️ Configurar: {selectedTipo} {selectedPeriodo}</h3>
+                  <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{editModal.kpi.nombre} ({editModal.kpi.cd})</p>
                   
                   <form onSubmit={handleEdit}>
                     <div className="form-group">
                       <label>Comparador</label>
-                      <select required value={editModal.comparador} onChange={e => setEditModal({...editModal, comparador: e.target.value})}>
+                      <select required value={editModal.target.comparador} onChange={e => setEditModal({...editModal, target: {...editModal.target, comparador: e.target.value}})}>
                         <option value=">">Mayor que ({'>'})</option>
                         <option value=">=">Mayor o igual ({'>='})</option>
                         <option value="<">Menor que ({'<'})</option>
@@ -233,15 +264,59 @@ export default function AdminKPIs() {
                     </div>
                     <div className="form-group">
                       <label>Meta (Verde 🟢)</label>
-                      <input type="number" step="any" required value={editModal.meta_mensual} onChange={e => setEditModal({...editModal, meta_mensual: e.target.value})} />
+                      <input type="number" step="any" required value={editModal.target.meta} onChange={e => setEditModal({...editModal, target: {...editModal.target, meta: e.target.value}})} />
                     </div>
                     <div className="form-group">
                       <label>Disparador (Azul 🔵)</label>
-                      <input type="number" step="any" required value={editModal.disparador ?? editModal.meta_mensual} onChange={e => setEditModal({...editModal, disparador: e.target.value})} />
+                      <input type="number" step="any" required value={editModal.target.disparador} onChange={e => setEditModal({...editModal, target: {...editModal.target, disparador: e.target.value}})} />
                     </div>
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
                       <button type="button" className="btn" onClick={() => setEditModal(null)}>Cancelar</button>
-                      <button type="submit" className="btn btn-primary" disabled={isSaving}>Actualizar</button>
+                      <button type="submit" className="btn btn-primary" disabled={isSaving}>Guardar</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Copiar */}
+            {copyModal && (
+              <div className="modal-overlay">
+                <div className="modal-content glass-panel" style={{ maxWidth: '400px' }}>
+                  <h3>📋 Copiar Configuración</h3>
+                  <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
+                    Vas a copiar las metas de <strong>{selectedTipo} {selectedPeriodo} {selectedYear}</strong> hacia otro período.
+                  </p>
+                  
+                  <form onSubmit={handleCopy}>
+                    <div className="form-group">
+                      <label>Copiar HACIA (Año)</label>
+                      <select value={copyToYear} onChange={e => setCopyToYear(Number(e.target.value))}>
+                        <option value={2025}>2025</option>
+                        <option value={2026}>2026</option>
+                        <option value={2027}>2027</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Copiar HACIA (Tipo)</label>
+                      <select value={copyToTipo} onChange={e => {
+                        setCopyToTipo(e.target.value);
+                        setCopyToPeriodo(e.target.value === 'Mes' ? 'Julio' : '1');
+                      }}>
+                        <option value="Mes">Mes</option>
+                        <option value="Semana">Semana</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Copiar HACIA (Período)</label>
+                      <select value={copyToPeriodo} onChange={e => setCopyToPeriodo(e.target.value)}>
+                        {copyPeriodosDisponibles.map(p => <option key={p} value={p}>{copyToTipo === 'Semana' ? `Semana ${p}` : p}</option>)}
+                      </select>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
+                      <button type="button" className="btn" onClick={() => setCopyModal(false)}>Cancelar</button>
+                      <button type="submit" className="btn btn-primary" disabled={isSaving}>Ejecutar Copia</button>
                     </div>
                   </form>
                 </div>

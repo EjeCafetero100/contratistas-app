@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 
 export default function KPIDashboard() {
   const [kpis, setKpis] = useState([]);
+  const [targets, setTargets] = useState([]);
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -14,13 +15,12 @@ export default function KPIDashboard() {
   const [selectedCD, setSelectedCD] = useState('Todos');
   const [selectedResp, setSelectedResp] = useState('Todos');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedTipo, setSelectedTipo] = useState('Mes');
+  const [selectedPeriodo, setSelectedPeriodo] = useState('Julio');
 
   // Modals state
-  const [editModal, setEditModal] = useState(null); // { kpi: {}, existingData: {}, weekToEdit: number }
-  const [historyModal, setHistoryModal] = useState(null); // { kpi: {}, logs: [] }
-  const [expandedChart, setExpandedChart] = useState(null); // { kpi: {} }
-  const [configModal, setConfigModal] = useState(null); // { kpi: {} }
+  const [editModal, setEditModal] = useState(null);
+  const [historyModal, setHistoryModal] = useState(null);
 
   // Form State
   const [formValor, setFormValor] = useState('');
@@ -28,27 +28,60 @@ export default function KPIDashboard() {
   const [formObs, setFormObs] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const mesesNum = { 'Enero':1, 'Febrero':2, 'Marzo':3, 'Abril':4, 'Mayo':5, 'Junio':6, 'Julio':7, 'Agosto':8, 'Septiembre':9, 'Octubre':10, 'Noviembre':11, 'Diciembre':12 };
+  const semanas = Array.from({length: 53}, (_, i) => (i + 1).toString());
+  const periodosDisponibles = selectedTipo === 'Mes' ? meses : semanas;
+
   useEffect(() => {
-    Promise.all([
-      fetch('/api/kpis').then(r => r.json()),
-      fetch('/api/kpis/data').then(r => r.json())
-    ]).then(([kpiDefs, kpiData]) => {
+    fetchData();
+  }, [selectedYear, selectedTipo, selectedPeriodo]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // If Month, we need data for all weeks in that month. If Week, we need data just for that week.
+      let dataUrl = '/api/kpis/data';
+      if (selectedTipo === 'Mes') {
+        dataUrl += `?anio=${selectedYear}&mes=${mesesNum[selectedPeriodo]}`;
+      } else {
+        // Technically our GET /api/kpis/data doesn't filter by semana yet, so we fetch all and filter in JS.
+        // Actually, let's just fetch all data and filter in JS to keep it simple, or update the endpoint.
+        dataUrl += `?anio=${selectedYear}`;
+      }
+
+      const [kpiDefs, targetData, kpiData] = await Promise.all([
+        fetch('/api/kpis').then(r => r.json()),
+        fetch(`/api/kpis/targets?anio=${selectedYear}&tipo_periodo=${selectedTipo}&periodo=${selectedPeriodo}`).then(r => r.json()),
+        fetch(dataUrl).then(r => r.json())
+      ]);
+
       setKpis(kpiDefs);
+      setTargets(targetData);
       setData(kpiData);
+    } catch (e) {
+      console.error(e);
+    } finally {
       setLoading(false);
-    });
-  }, []);
+    }
+  };
 
   const openEditModal = (kpi) => {
     setEditModal({ kpi });
-    setFormSemana(1);
-    setFormValor('');
+    if (selectedTipo === 'Semana') {
+      setFormSemana(Number(selectedPeriodo));
+      const existing = data.find(d => d.kpi_id === kpi.id && d.anio === selectedYear && d.semana === Number(selectedPeriodo));
+      setFormValor(existing ? existing.valor : '');
+    } else {
+      setFormSemana(1);
+      setFormValor('');
+    }
     setFormObs('');
   };
 
   const loadHistory = async (kpi) => {
     try {
-      const res = await fetch(`/api/kpis/history?kpi_id=${kpi.id}&anio=${selectedYear}&mes=${selectedMonth}`);
+      const res = await fetch(`/api/kpis/history?kpi_id=${kpi.id}&anio=${selectedYear}`);
       const logs = await res.json();
       setHistoryModal({ kpi, logs });
     } catch (e) {
@@ -59,12 +92,16 @@ export default function KPIDashboard() {
   const handleSaveData = async (e, profile) => {
     e.preventDefault();
     
-    // Ver si ya existe
-    const existing = data.find(d => d.kpi_id === editModal.kpi.id && d.anio === selectedYear && d.mes === selectedMonth && d.semana === Number(formSemana));
+    // El mes a usar depende del modal. Si es una semana específica, requerimos adivinar el mes o forzarlo.
+    // Para simplificar: le pedimos el mes en el formulario también, o usamos el mes actual de la vista si es Mes.
+    let targetMes = selectedTipo === 'Mes' ? mesesNum[selectedPeriodo] : new Date().getMonth() + 1;
+
+    const existing = data.find(d => d.kpi_id === editModal.kpi.id && d.anio === selectedYear && d.semana === Number(formSemana));
     
     if (existing) {
       const confirm = window.confirm(`Ya existe un registro de ${existing.valor} para la Semana ${formSemana}. ¿Desea reemplazar este valor?`);
       if (!confirm) return;
+      targetMes = existing.mes; // Keep original month if editing
     }
 
     setIsSaving(true);
@@ -75,7 +112,7 @@ export default function KPIDashboard() {
         body: JSON.stringify({
           kpi_id: editModal.kpi.id,
           anio: selectedYear,
-          mes: selectedMonth,
+          mes: targetMes,
           semana: Number(formSemana),
           valor: Number(formValor),
           observaciones: formObs,
@@ -83,51 +120,8 @@ export default function KPIDashboard() {
         })
       });
       if (res.ok) {
-        const savedData = await res.json();
-        setData(prev => {
-          const idx = prev.findIndex(d => d.kpi_id === editModal.kpi.id && d.anio === selectedYear && d.mes === selectedMonth && d.semana === Number(formSemana));
-          if (idx >= 0) {
-            const newData = [...prev];
-            newData[idx] = savedData;
-            return newData;
-          }
-          return [...prev, savedData];
-        });
+        fetchData();
         setEditModal(null);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleSaveConfig = async (e, profile) => {
-    e.preventDefault();
-    setIsSaving(true);
-    try {
-      const res = await fetch('/api/kpis', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: configModal.kpi.id,
-          meta_mensual: Number(configModal.meta),
-          disparador: Number(configModal.disp),
-          comparador: configModal.comp,
-          usuario: profile.role === 'admin' ? 'Administrador' : `Operador ${profile.cd}`
-        })
-      });
-      if (res.ok) {
-        const savedConfig = await res.json();
-        setKpis(prev => {
-          const newData = [...prev];
-          const idx = newData.findIndex(k => k.id === savedConfig.id);
-          if (idx >= 0) newData[idx] = savedConfig;
-          return newData;
-        });
-        setConfigModal(null);
-      } else {
-        alert('Error al guardar configuración');
       }
     } catch (err) {
       console.error(err);
@@ -139,7 +133,6 @@ export default function KPIDashboard() {
   return (
     <ProfileSelector>
       {(profile) => {
-        
         const currentCDFilter = profile.role === 'admin' ? selectedCD : profile.cd;
 
         let filteredKpis = kpis;
@@ -147,59 +140,68 @@ export default function KPIDashboard() {
         if (selectedResp !== 'Todos') filteredKpis = filteredKpis.filter(k => k.responsable === selectedResp);
 
         const dashboardData = filteredKpis.map(kpi => {
-          const kpiDataThisMonth = data.filter(d => 
-            d.kpi_id === kpi.id && d.anio === selectedYear && d.mes === selectedMonth
-          );
+          let kpiDataPeriod = [];
+          if (selectedTipo === 'Mes') {
+            kpiDataPeriod = data.filter(d => d.kpi_id === kpi.id && d.anio === selectedYear && d.mes === mesesNum[selectedPeriodo]);
+          } else {
+            kpiDataPeriod = data.filter(d => d.kpi_id === kpi.id && d.anio === selectedYear && d.semana === Number(selectedPeriodo));
+          }
 
           let mtd = 0;
-          if (kpiDataThisMonth.length > 0) {
-            const sum = kpiDataThisMonth.reduce((acc, curr) => acc + Number(curr.valor), 0);
-            mtd = kpi.agregacion === 'PROMEDIO' ? sum / kpiDataThisMonth.length : sum;
+          if (kpiDataPeriod.length > 0) {
+            const sum = kpiDataPeriod.reduce((acc, curr) => acc + Number(curr.valor), 0);
+            mtd = kpi.agregacion === 'PROMEDIO' ? sum / kpiDataPeriod.length : sum;
           }
 
-          const meta = Number(kpi.meta_mensual);
-          const disp = Number(kpi.disparador ?? meta);
-          const val = Number(mtd);
-          const comp = kpi.comparador;
-
-          let meetsMeta = false;
-          let breaksDisparador = false;
-
-          if (comp === '>' || comp === '>=') {
-            meetsMeta = comp === '>=' ? val >= meta : val > meta;
-            breaksDisparador = comp === '>=' ? val < disp : val <= disp;
-          } else {
-            meetsMeta = comp === '<=' ? val <= meta : val < meta;
-            breaksDisparador = comp === '<=' ? val > disp : val >= disp;
-          }
-
-          let color = '#ef4444'; // Rojo (In between)
-          let icon = '🔴';
-
-          if (meetsMeta) {
-            color = '#10b981'; // Verde
-            icon = '🟢';
-          } else if (breaksDisparador) {
-            color = '#3b82f6'; // Azul (Crítico)
-            icon = '🔵';
-          } 
+          const target = targets.find(t => t.kpi_id === kpi.id);
           
-          const chartData = [1,2,3,4,5].map(w => {
-            const row = kpiDataThisMonth.find(d => d.semana === w);
-            return { name: `Sem ${w}`, valor: row ? Number(row.valor) : 0 };
-          });
+          let color = '#94a3b8'; // Gris por defecto si no hay meta
+          let icon = '⚪';
+          let state = 'Sin Meta';
 
-          return { ...kpi, mtd, color, icon, chartData };
+          if (target) {
+            const val = Number(mtd);
+            const comp = target.comparador;
+            const meta = Number(target.meta);
+            const disp = Number(target.disparador);
+
+            let meetsMeta = false;
+            let breaksDisparador = false;
+
+            if (comp === '>' || comp === '>=') {
+              meetsMeta = comp === '>=' ? val >= meta : val > meta;
+              breaksDisparador = comp === '>=' ? val < disp : val <= disp;
+            } else {
+              meetsMeta = comp === '<=' ? val <= meta : val < meta;
+              breaksDisparador = comp === '<=' ? val > disp : val >= disp;
+            }
+
+            color = '#ef4444'; // Rojo (In between)
+            icon = '🔴';
+            state = 'Atención';
+
+            if (meetsMeta) {
+              color = '#10b981'; // Verde
+              icon = '🟢';
+              state = 'Cumple';
+            } else if (breaksDisparador) {
+              color = '#3b82f6'; // Azul (Crítico)
+              icon = '🔵';
+              state = 'Crítico';
+            } 
+          }
+
+          return { ...kpi, mtd, color, icon, state, target };
         });
 
         const responsibles = [...new Set(kpis.map(k => k.responsable))];
 
         return (
           <div className="container" style={{ maxWidth: '1200px', position: 'relative' }}>
-            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <h1>📊 Panel de Indicadores (KPIs)</h1>
-                <p style={{ color: 'var(--text-muted)' }}>Dashboard Corporativo Multi-CD</p>
+                <p style={{ color: 'var(--text-muted)' }}>Análisis de {selectedTipo}: {selectedPeriodo} del {selectedYear}</p>
               </div>
               <div style={{ display: 'flex', gap: '1rem' }}>
                 {profile.role === 'admin' && (
@@ -212,35 +214,45 @@ export default function KPIDashboard() {
 
             <div className="glass-panel" style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               {profile.role === 'admin' && (
-                <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '200px' }}>
-                  <label>Centro de Distribución</label>
+                <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '150px' }}>
+                  <label>📍 CD</label>
                   <select value={selectedCD} onChange={e => setSelectedCD(e.target.value)}>
-                    <option value="Todos">Todos los CD</option>
+                    <option value="Todos">Todos</option>
                     <option value="Pereira">Pereira</option>
                     <option value="Armenia">Armenia</option>
                     <option value="Barrancabermeja">Barrancabermeja</option>
                   </select>
                 </div>
               )}
-              <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '200px' }}>
-                <label>Responsable</label>
+              <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '100px' }}>
+                <label>👤 Responsable</label>
                 <select value={selectedResp} onChange={e => setSelectedResp(e.target.value)}>
                   <option value="Todos">Todos</option>
                   {responsibles.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '100px' }}>
-                <label>Año</label>
+                <label>📅 Año</label>
                 <select value={selectedYear} onChange={e => setSelectedYear(Number(e.target.value))}>
                   <option value={2025}>2025</option>
                   <option value={2026}>2026</option>
                   <option value={2027}>2027</option>
                 </select>
               </div>
-              <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '150px' }}>
-                <label>Mes</label>
-                <select value={selectedMonth} onChange={e => setSelectedMonth(Number(e.target.value))}>
-                  {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => <option key={m} value={m}>{m}</option>)}
+              <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '120px' }}>
+                <label>📊 Tipo de Período</label>
+                <select value={selectedTipo} onChange={e => {
+                  setSelectedTipo(e.target.value);
+                  setSelectedPeriodo(e.target.value === 'Mes' ? 'Julio' : '1');
+                }}>
+                  <option value="Mes">Mes</option>
+                  <option value="Semana">Semana</option>
+                </select>
+              </div>
+              <div className="form-group" style={{ margin: 0, flex: 1, minWidth: '120px' }}>
+                <label>📆 Período</label>
+                <select value={selectedPeriodo} onChange={e => setSelectedPeriodo(e.target.value)}>
+                  {periodosDisponibles.map(p => <option key={p} value={p}>{selectedTipo === 'Semana' ? `Semana ${p}` : p}</option>)}
                 </select>
               </div>
             </div>
@@ -251,24 +263,20 @@ export default function KPIDashboard() {
                 <p style={{ color: 'var(--text-muted)' }}>Ajusta los filtros o pide al Administrador que cree un nuevo indicador.</p>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
                 {dashboardData.map(kpi => (
                   <div key={kpi.id} className="kpi-card glass-panel" style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem', position: 'relative' }}>
                     
                     {/* Hover Menu (CSS based) */}
-                    <div className="kpi-menu-container" style={{ position: 'absolute', top: '1rem', right: '1rem' }}>
+                    <div className="kpi-menu-container" style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 50 }}>
                       <button className="kpi-menu-trigger" style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>
                         ⋮
                       </button>
                       <div className="kpi-dropdown glass-panel">
                         {profile.role !== 'admin' && (
-                          <button onClick={() => openEditModal(kpi)}>➕ Registrar / Editar Dato</button>
+                          <button onClick={() => openEditModal(kpi)}>➕ Registrar Dato</button>
                         )}
-                        {profile.role === 'admin' && (
-                          <button onClick={() => setConfigModal({ kpi, meta: kpi.meta_mensual, disp: kpi.disparador ?? kpi.meta_mensual, comp: kpi.comparador })}>⚙️ Configurar KPI</button>
-                        )}
-                        <button onClick={() => loadHistory(kpi)}>📊 Ver Historial</button>
-                        <button onClick={() => setExpandedChart(kpi)}>📈 Ver Gráfico Ampliado</button>
+                        <button onClick={() => loadHistory(kpi)}>📊 Ver Historial de Datos</button>
                       </div>
                     </div>
 
@@ -277,65 +285,67 @@ export default function KPIDashboard() {
                         <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>
                           {kpi.cd} • {kpi.responsable}
                         </span>
-                        <h3 style={{ margin: '0.5rem 0' }}>{kpi.nombre}</h3>
-                        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>Meta mensual: {kpi.comparador} {kpi.meta_mensual} {kpi.unidad}</p>
+                        <h3 style={{ margin: '0.5rem 0', minHeight: '3rem' }}>{kpi.nombre}</h3>
+                        
+                        {kpi.target ? (
+                           <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                             Meta: {kpi.target.comparador} {kpi.target.meta} {kpi.unidad}
+                           </p>
+                        ) : (
+                           <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--danger)' }}>
+                             Falta Configurar Meta
+                           </p>
+                        )}
                       </div>
                     </div>
                     
-                    <div style={{ marginTop: '1.5rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: kpi.color }}>
+                    <div style={{ marginTop: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '3rem', fontWeight: '900', color: kpi.color, lineHeight: 1 }}>
                         {kpi.mtd.toFixed(1)}
                       </span>
                       <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>{kpi.unidad}</span>
-                      <div style={{ marginLeft: 'auto', fontSize: '1.5rem' }}>{kpi.icon}</div>
                     </div>
 
-                    <div style={{ height: '150px', width: '100%', marginTop: 'auto', cursor: 'pointer' }} onClick={() => setExpandedChart(kpi)}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={kpi.chartData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                          <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                          <Line type="monotone" dataKey="valor" stroke={kpi.color} strokeWidth={3} dot={{ r: 4, fill: kpi.color, strokeWidth: 0 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                    <div style={{ marginTop: 'auto', paddingTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '1.5rem' }}>{kpi.icon}</span>
+                      <span style={{ fontSize: '0.9rem', fontWeight: '600', color: kpi.color }}>{kpi.state}</span>
                     </div>
+
                   </div>
                 ))}
               </div>
             )}
 
-            {/* MODALS */}
-
-            {/* Modal: Editar/Registrar */}
+            {/* Modal: Editar/Registrar Dato */}
             {editModal && (
               <div className="modal-overlay">
                 <div className="modal-content glass-panel" style={{ maxWidth: '500px' }}>
-                  <h3>✏️ Registrar / Editar Indicador</h3>
+                  <h3>✏️ Registrar Dato</h3>
                   <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{editModal.kpi.nombre} ({editModal.kpi.cd})</p>
                   
                   <form onSubmit={(e) => handleSaveData(e, profile)}>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                      <div className="form-group">
-                        <label>Año</label>
-                        <input type="text" disabled value={selectedYear} />
+                      <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                        <label>Ingreso para: {selectedTipo} {selectedPeriodo}</label>
                       </div>
-                      <div className="form-group">
-                        <label>Mes</label>
-                        <input type="text" disabled value={selectedMonth} />
-                      </div>
-                      <div className="form-group">
-                        <label>Semana</label>
-                        <select required value={formSemana} onChange={e => {
-                          const w = Number(e.target.value);
-                          setFormSemana(w);
-                          const existing = data.find(d => d.kpi_id === editModal.kpi.id && d.anio === selectedYear && d.mes === selectedMonth && d.semana === w);
-                          setFormValor(existing ? existing.valor : '');
-                        }}>
-                          {[1,2,3,4,5].map(w => <option key={w} value={w}>Semana {w}</option>)}
-                        </select>
-                      </div>
-                      <div className="form-group">
+                      
+                      {selectedTipo === 'Mes' && (
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                          <label>Semana Específica</label>
+                          <select required value={formSemana} onChange={e => {
+                            const w = Number(e.target.value);
+                            setFormSemana(w);
+                            // Target month lookup based on period name could be complex here. 
+                            // Simplified for the UI since they only enter per week anyway
+                            const existing = data.find(d => d.kpi_id === editModal.kpi.id && d.anio === selectedYear && d.mes === mesesNum[selectedPeriodo] && d.semana === w);
+                            setFormValor(existing ? existing.valor : '');
+                          }}>
+                            {[1,2,3,4,5].map(w => <option key={w} value={w}>Semana {w}</option>)}
+                          </select>
+                        </div>
+                      )}
+
+                      <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                         <label>Valor obtenido ({editModal.kpi.unidad})</label>
                         <input type="number" step="any" required value={formValor} onChange={e => setFormValor(e.target.value)} />
                       </div>
@@ -347,7 +357,7 @@ export default function KPIDashboard() {
                     <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
                       <button type="button" className="btn" onClick={() => setEditModal(null)}>Cancelar</button>
                       <button type="submit" className="btn btn-primary" disabled={isSaving}>
-                        {isSaving ? 'Guardando...' : '💾 Guardar'}
+                        {isSaving ? 'Guardando...' : '💾 Guardar Dato'}
                       </button>
                     </div>
                   </form>
@@ -363,10 +373,10 @@ export default function KPIDashboard() {
                     <h3>📊 Historial de Trazabilidad</h3>
                     <button className="btn" onClick={() => setHistoryModal(null)}>Cerrar</button>
                   </div>
-                  <p style={{ color: 'var(--text-muted)' }}>{historyModal.kpi.nombre} ({selectedYear}-{selectedMonth})</p>
+                  <p style={{ color: 'var(--text-muted)' }}>{historyModal.kpi.nombre}</p>
                   
                   {historyModal.logs.length === 0 ? (
-                    <p>No hay registros de historial para este mes.</p>
+                    <p>No hay registros de historial para este año.</p>
                   ) : (
                     <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
                       <thead>
@@ -393,68 +403,6 @@ export default function KPIDashboard() {
                       </tbody>
                     </table>
                   )}
-                </div>
-              </div>
-            )}
-
-            {/* Modal: Gráfico Ampliado */}
-            {expandedChart && (
-              <div className="modal-overlay">
-                <div className="modal-content glass-panel" style={{ maxWidth: '900px', width: '100%' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                    <h3>📈 Tendencia: {expandedChart.nombre}</h3>
-                    <button className="btn" onClick={() => setExpandedChart(null)}>Cerrar</button>
-                  </div>
-                  <div style={{ height: '400px', width: '100%' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={expandedChart.chartData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip />
-                        <Line type="monotone" dataKey="valor" stroke={expandedChart.color || 'var(--primary)'} strokeWidth={4} dot={{ r: 6 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Modal: Configurar KPI */}
-            {configModal && (
-              <div className="modal-overlay">
-                <div className="modal-content glass-panel" style={{ maxWidth: '400px' }}>
-                  <h3>⚙️ Configuración del KPI</h3>
-                  <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>{configModal.kpi.nombre}</p>
-                  
-                  <form onSubmit={(e) => handleSaveConfig(e, profile)}>
-                    <div className="form-group">
-                      <label>Comparador de Éxito</label>
-                      <select required value={configModal.comp} onChange={e => setConfigModal({...configModal, comp: e.target.value})}>
-                        <option value=">">Mayor que ({'>'})</option>
-                        <option value=">=">Mayor o igual ({'>='})</option>
-                        <option value="<">Menor que ({'<'})</option>
-                        <option value="<=">Menor o igual ({'<='})</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Meta (Límite Verde 🟢)</label>
-                      <input type="number" step="any" required value={configModal.meta} onChange={e => setConfigModal({...configModal, meta: e.target.value})} />
-                    </div>
-                    <div className="form-group">
-                      <label>Disparador (Límite Azul 🔵)</label>
-                      <input type="number" step="any" required value={configModal.disp} onChange={e => setConfigModal({...configModal, disp: e.target.value})} />
-                      <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
-                        Cualquier valor entre la Meta y el Disparador será marcado en Rojo 🔴 (Requiere atención).
-                      </small>
-                    </div>
-                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
-                      <button type="button" className="btn" onClick={() => setConfigModal(null)}>Cancelar</button>
-                      <button type="submit" className="btn btn-primary" disabled={isSaving}>
-                        {isSaving ? 'Guardando...' : '💾 Actualizar'}
-                      </button>
-                    </div>
-                  </form>
                 </div>
               </div>
             )}
