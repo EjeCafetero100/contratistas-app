@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ProfileSelector from '@/components/ProfileSelector';
-import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
 // Helper to get ISO weeks for a given month/year
 function getWeeksInMonth(year, month) {
@@ -18,11 +18,11 @@ function getWeeksInMonth(year, month) {
     weeks.add(weekNo);
     date.setDate(date.getDate() + 1);
   }
-  // Sometimes Dec 31 falls in week 1 of next year, filter it if we want, but it's okay.
   return Array.from(weeks).sort((a, b) => a - b);
 }
 
 export default function KPIDashboard() {
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' | 'matrix'
   const [kpis, setKpis] = useState([]);
   const [targets, setTargets] = useState([]);
   const [data, setData] = useState([]);
@@ -32,10 +32,11 @@ export default function KPIDashboard() {
   const [selectedCD, setSelectedCD] = useState('Todos');
   const [selectedResp, setSelectedResp] = useState('Todos');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMes, setSelectedMes] = useState(new Date().getMonth() + 1); // 1-12
+  const [selectedMes, setSelectedMes] = useState(new Date().getMonth() + 1);
 
   // Modals state
   const [editModal, setEditModal] = useState(null); // { kpi, semana }
+  const [historyModal, setHistoryModal] = useState(null);
 
   // Form State
   const [formValor, setFormValor] = useState('');
@@ -58,13 +59,8 @@ export default function KPIDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch targets for Month and the Weeks of this month
-      const mesName = meses.find(m => m.num === selectedMes).name;
-      
       const [kpiDefs, targetsData, kpiData] = await Promise.all([
         fetch('/api/kpis').then(r => r.json()),
-        // In a real app we'd fetch all targets and filter, or use a better query.
-        // We'll fetch ALL targets for this year and filter in JS to avoid N+1 fetches.
         fetch(`/api/kpis/targets?anio=${selectedYear}`).then(r => r.json()),
         fetch(`/api/kpis/data?anio=${selectedYear}`).then(r => r.json())
       ]);
@@ -86,12 +82,22 @@ export default function KPIDashboard() {
     setFormObs(existing ? existing.observacion || '' : '');
   };
 
+  const loadHistory = async (kpi) => {
+    try {
+      const res = await fetch(`/api/kpis/history?kpi_id=${kpi.id}&anio=${selectedYear}`);
+      const logs = await res.json();
+      setHistoryModal({ kpi, logs });
+    } catch (e) {
+      alert('Error cargando historial');
+    }
+  };
+
   const handleSaveData = async (e, profile) => {
     e.preventDefault();
     const existing = data.find(d => d.kpi_id === editModal.kpi.id && d.anio === selectedYear && d.semana === editModal.semana);
     
     if (existing && existing.valor === Number(formValor) && existing.observacion === formObs) {
-      setEditModal(null); // No changes
+      setEditModal(null);
       return;
     }
 
@@ -122,7 +128,7 @@ export default function KPIDashboard() {
   };
 
   const getCellColor = (val, meta, disp, comp) => {
-    if (val === null || val === undefined || meta === undefined) return ''; // no color
+    if (val === null || val === undefined || meta === undefined) return '';
     let meetsMeta = false;
     let breaksDisparador = false;
     if (comp === '>' || comp === '>=') {
@@ -132,10 +138,16 @@ export default function KPIDashboard() {
       meetsMeta = comp === '<=' ? val <= meta : val < meta;
       breaksDisparador = comp === '<=' ? val > disp : val >= disp;
     }
-    
-    if (meetsMeta) return '#10b981'; // Green
-    if (breaksDisparador) return '#3b82f6'; // Blue
-    return '#ef4444'; // Red
+    if (meetsMeta) return '#10b981';
+    if (breaksDisparador) return '#3b82f6';
+    return '#ef4444';
+  };
+
+  const getStateText = (color) => {
+    if (color === '#10b981') return '🟢 Cumple';
+    if (color === '#3b82f6') return '🔵 Crítico';
+    if (color === '#ef4444') return '🔴 Atención';
+    return '⚪ Sin Dato';
   };
 
   return (
@@ -150,14 +162,204 @@ export default function KPIDashboard() {
         const responsibles = [...new Set(kpis.map(k => k.responsable))];
         const mesName = meses.find(m => m.num === selectedMes).name;
 
+        // Render Matrix
+        const renderMatrix = () => (
+          <div className="glass-panel" style={{ padding: 0, overflowX: 'auto' }}>
+            <table className="matrix-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
+              <thead style={{ background: '#0f172a', color: 'white' }}>
+                <tr>
+                  <th style={{ padding: '0.75rem', textAlign: 'left', minWidth: '200px' }}>KPI</th>
+                  <th style={{ padding: '0.75rem' }}>UM</th>
+                  <th style={{ padding: '0.75rem', background: '#1e293b' }}>Disp Sem</th>
+                  <th style={{ padding: '0.75rem', background: '#1e293b' }}>Meta Sem</th>
+                  {weeksOfSelectedMonth.map(w => (
+                    <th key={w} style={{ padding: '0.75rem', minWidth: '60px' }}>sem {w}</th>
+                  ))}
+                  <th style={{ padding: '0.75rem' }}>Gráfico</th>
+                  <th style={{ padding: '0.75rem', background: '#1e293b' }}>Meta Men</th>
+                  <th style={{ padding: '0.75rem', background: '#1e293b' }}>Disp-Men</th>
+                  <th style={{ padding: '0.75rem' }}>MTD</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredKpis.map(kpi => {
+                  const tgtMen = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Mes' && t.periodo === mesName) || {};
+                  const tgtSemRep = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && weeksOfSelectedMonth.includes(Number(t.periodo))) || {};
+                  
+                  const weekData = [];
+                  const chartData = [];
+                  let sum = 0; let count = 0;
+
+                  weeksOfSelectedMonth.forEach(w => {
+                    const rec = data.find(d => d.kpi_id === kpi.id && d.anio === selectedYear && d.semana === w);
+                    const tgtSem = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && t.periodo === String(w)) || tgtSemRep;
+                    const val = rec ? Number(rec.valor) : null;
+                    
+                    if (val !== null) {
+                      sum += val; count++; chartData.push({ name: `s${w}`, val });
+                    }
+                    const color = val !== null && tgtSem.meta !== undefined ? getCellColor(val, tgtSem.meta, tgtSem.disparador, kpi.comparador) : '';
+                    weekData.push({ semana: w, valor: val, color });
+                  });
+
+                  const mtdVal = count > 0 ? (kpi.agregacion === 'PROMEDIO' ? sum / count : sum) : null;
+                  const mtdColor = mtdVal !== null && tgtMen.meta !== undefined ? getCellColor(mtdVal, tgtMen.meta, tgtMen.disparador, kpi.comparador) : '';
+
+                  return (
+                    <tr key={kpi.id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
+                      <td style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600 }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{kpi.cd} - {kpi.responsable}</div>
+                        {kpi.nombre}
+                      </td>
+                      <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{kpi.unidad}</td>
+                      <td style={{ padding: '0.75rem', background: '#f8fafc', color: '#3b82f6' }}>{tgtSemRep.disparador ?? '-'}</td>
+                      <td style={{ padding: '0.75rem', background: '#f8fafc', color: '#10b981' }}>{tgtSemRep.meta ?? '-'}</td>
+                      {weekData.map(wd => (
+                        <td key={wd.semana} onClick={() => openEditModal(kpi, wd.semana)}
+                            style={{ padding: '0.75rem', cursor: 'pointer', color: wd.color || 'inherit', fontWeight: wd.color ? 'bold' : 'normal' }}
+                            className="editable-cell" title="Clic para editar">
+                          {wd.valor !== null ? (kpi.unidad === '%' ? wd.valor + '%' : wd.valor) : '-'}
+                        </td>
+                      ))}
+                      <td style={{ padding: '0.75rem', width: '80px' }}>
+                        {chartData.length > 0 ? (
+                          <ResponsiveContainer width="100%" height={30}><LineChart data={chartData}><Line type="monotone" dataKey="val" stroke="#64748b" strokeWidth={2} dot={false} /></LineChart></ResponsiveContainer>
+                        ) : '-'}
+                      </td>
+                      <td style={{ padding: '0.75rem', background: '#f8fafc', color: '#10b981' }}>{tgtMen.meta ?? '-'}</td>
+                      <td style={{ padding: '0.75rem', background: '#f8fafc', color: '#3b82f6' }}>{tgtMen.disparador ?? '-'}</td>
+                      <td style={{ padding: '0.75rem', fontWeight: 'bold', color: mtdColor || 'inherit' }}>
+                        {mtdVal !== null ? (kpi.unidad === '%' ? mtdVal.toFixed(1) + '%' : mtdVal.toFixed(1)) : '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+
+        // Render Cards
+        const renderCards = () => (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
+            {filteredKpis.map(kpi => {
+              const tgtMen = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Mes' && t.periodo === mesName);
+              
+              let sum = 0; let count = 0;
+              const chartData = [];
+              weeksOfSelectedMonth.forEach(w => {
+                const rec = data.find(d => d.kpi_id === kpi.id && d.anio === selectedYear && d.semana === w);
+                if (rec) {
+                  sum += Number(rec.valor); count++;
+                  chartData.push({ name: `S${w}`, val: Number(rec.valor) });
+                }
+              });
+
+              const mtdVal = count > 0 ? (kpi.agregacion === 'PROMEDIO' ? sum / count : sum) : null;
+              const mtdColor = mtdVal !== null && tgtMen?.meta !== undefined ? getCellColor(mtdVal, tgtMen.meta, tgtMen.disparador, kpi.comparador) : '#94a3b8';
+              
+              return (
+                <div key={kpi.id} className="kpi-card glass-panel" style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem', position: 'relative' }}>
+                  
+                  {/* Menu */}
+                  <div className="kpi-menu-container" style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 50 }}>
+                    <button className="kpi-menu-trigger" style={{ background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                      ⋮
+                    </button>
+                    <div className="kpi-dropdown glass-panel">
+                      {profile.role !== 'admin' && (
+                        <div style={{ padding: '0.5rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Ingresar Dato de Semana:</div>
+                      )}
+                      {profile.role !== 'admin' && weeksOfSelectedMonth.map(w => (
+                        <button key={w} onClick={() => openEditModal(kpi, w)}>Semana {w}</button>
+                      ))}
+                      <hr style={{ margin: '0.5rem 0', borderColor: 'var(--surface-border)' }} />
+                      <button onClick={() => loadHistory(kpi)}>📊 Ver Historial de Cambios</button>
+                    </div>
+                  </div>
+
+                  {/* Header */}
+                  <div style={{ paddingRight: '2rem' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'uppercase' }}>
+                      {kpi.cd} • {kpi.responsable}
+                    </span>
+                    <h3 style={{ margin: '0.5rem 0 1rem 0' }}>{kpi.nombre}</h3>
+                  </div>
+
+                  {/* Big Number MTD */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '3.5rem', fontWeight: '900', color: mtdColor, lineHeight: 1 }}>
+                      {mtdVal !== null ? (kpi.unidad === '%' ? mtdVal.toFixed(1) : mtdVal.toFixed(1)) : '-'}
+                    </span>
+                    <span style={{ fontSize: '1.2rem', color: 'var(--text-muted)' }}>{kpi.unidad}</span>
+                  </div>
+                  
+                  {/* Status Text */}
+                  <div style={{ fontWeight: '600', color: mtdColor, marginTop: '0.5rem', fontSize: '1.1rem' }}>
+                    {getStateText(mtdColor)}
+                  </div>
+
+                  {/* Target Info */}
+                  <div style={{ background: 'var(--surface-bg)', padding: '1rem', borderRadius: '8px', marginTop: '1.5rem', border: '1px solid var(--surface-border)' }}>
+                    <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Límites Mensuales</h4>
+                    {tgtMen ? (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
+                        <div><span style={{ color: '#10b981' }}>🟢 Meta:</span> <strong>{kpi.comparador} {tgtMen.meta}</strong></div>
+                        <div><span style={{ color: '#3b82f6' }}>🔵 Disparador:</span> <strong>{tgtMen.disparador}</strong></div>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#ef4444', fontSize: '0.85rem' }}>⚠️ Falta Configurar Meta del Mes</span>
+                    )}
+                  </div>
+
+                  {/* Sparkline for Context */}
+                  <div style={{ marginTop: 'auto', paddingTop: '1.5rem' }}>
+                    <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tendencia Semanal</p>
+                    {chartData.length > 0 ? (
+                       <ResponsiveContainer width="100%" height={50}>
+                         <BarChart data={chartData}>
+                           <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ background: '#1e293b', border: 'none', color: '#fff', borderRadius: '4px' }}/>
+                           <Bar dataKey="val" fill="#94a3b8" radius={[2, 2, 0, 0]} />
+                         </BarChart>
+                       </ResponsiveContainer>
+                    ) : (
+                      <div style={{ height: '50px', display: 'flex', alignItems: 'flex-end', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Sin datos aún</div>
+                    )}
+                  </div>
+
+                </div>
+              );
+            })}
+          </div>
+        );
+
         return (
           <div className="container" style={{ maxWidth: '1400px', position: 'relative' }}>
+            
+            {/* Header & Toggle */}
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
-                <h1>📊 Tablero de Gestión (Matriz)</h1>
+                <h1>📊 Tablero de Gestión</h1>
                 <p style={{ color: 'var(--text-muted)' }}>Análisis del mes de {mesName} {selectedYear}</p>
               </div>
-              <div style={{ display: 'flex', gap: '1rem' }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                
+                {/* Vista Toggle */}
+                <div style={{ display: 'flex', background: 'var(--surface-bg)', border: '1px solid var(--surface-border)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <button 
+                    onClick={() => setViewMode('cards')}
+                    style={{ padding: '0.5rem 1rem', border: 'none', background: viewMode === 'cards' ? 'var(--primary)' : 'transparent', color: viewMode === 'cards' ? 'white' : 'var(--text)', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    🗂️ Tarjetas
+                  </button>
+                  <button 
+                    onClick={() => setViewMode('matrix')}
+                    style={{ padding: '0.5rem 1rem', border: 'none', background: viewMode === 'matrix' ? 'var(--primary)' : 'transparent', color: viewMode === 'matrix' ? 'white' : 'var(--text)', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    📊 Matriz
+                  </button>
+                </div>
+
                 {profile.role === 'admin' && (
                   <Link href="/kpis/admin" className="btn btn-primary">
                     ⚙️ Administrar Configuración
@@ -202,117 +404,12 @@ export default function KPIDashboard() {
               </div>
             </div>
 
-            {loading ? <p>Cargando matriz...</p> : filteredKpis.length === 0 ? (
+            {loading ? <p>Cargando datos...</p> : filteredKpis.length === 0 ? (
               <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
                 <h3>No hay KPIs para mostrar</h3>
               </div>
             ) : (
-              <div className="glass-panel" style={{ padding: 0, overflowX: 'auto' }}>
-                <table className="matrix-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center' }}>
-                  <thead style={{ background: '#0f172a', color: 'white' }}>
-                    <tr>
-                      <th style={{ padding: '0.75rem', textAlign: 'left', minWidth: '200px' }}>KPI</th>
-                      <th style={{ padding: '0.75rem' }}>UM</th>
-                      <th style={{ padding: '0.75rem', background: '#1e293b' }}>Disp Sem</th>
-                      <th style={{ padding: '0.75rem', background: '#1e293b' }}>Meta Sem</th>
-                      {weeksOfSelectedMonth.map(w => (
-                        <th key={w} style={{ padding: '0.75rem', minWidth: '60px' }}>sem {w}</th>
-                      ))}
-                      <th style={{ padding: '0.75rem' }}>Gráfico</th>
-                      <th style={{ padding: '0.75rem', background: '#1e293b' }}>Meta Men</th>
-                      <th style={{ padding: '0.75rem', background: '#1e293b' }}>Disp-Men</th>
-                      <th style={{ padding: '0.75rem' }}>MTD</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredKpis.map(kpi => {
-                      // We find the monthly target
-                      const tgtMen = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Mes' && t.periodo === mesName) || {};
-                      
-                      // Find first weekly target to display in the header column as representative
-                      const tgtSemRep = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && weeksOfSelectedMonth.includes(Number(t.periodo))) || {};
-
-                      const weekData = [];
-                      const chartData = [];
-                      let sum = 0;
-                      let count = 0;
-
-                      weeksOfSelectedMonth.forEach(w => {
-                        const rec = data.find(d => d.kpi_id === kpi.id && d.anio === selectedYear && d.semana === w);
-                        const tgtSem = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && t.periodo === String(w)) || tgtSemRep;
-                        
-                        const val = rec ? Number(rec.valor) : null;
-                        if (val !== null) {
-                          sum += val;
-                          count++;
-                          chartData.push({ name: `sem ${w}`, val });
-                        }
-
-                        let color = '';
-                        if (val !== null && tgtSem.meta !== undefined) {
-                          color = getCellColor(val, tgtSem.meta, tgtSem.disparador, kpi.comparador);
-                        }
-
-                        weekData.push({ semana: w, valor: val, color });
-                      });
-
-                      const mtdVal = count > 0 ? (kpi.agregacion === 'PROMEDIO' ? sum / count : sum) : null;
-                      let mtdColor = '';
-                      if (mtdVal !== null && tgtMen.meta !== undefined) {
-                        mtdColor = getCellColor(mtdVal, tgtMen.meta, tgtMen.disparador, kpi.comparador);
-                      }
-
-                      return (
-                        <tr key={kpi.id} style={{ borderBottom: '1px solid var(--surface-border)' }}>
-                          <td style={{ padding: '0.75rem', textAlign: 'left', fontWeight: 600 }}>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{kpi.cd} - {kpi.responsable}</div>
-                            {kpi.nombre}
-                          </td>
-                          <td style={{ padding: '0.75rem', color: 'var(--text-muted)' }}>{kpi.unidad}</td>
-                          
-                          <td style={{ padding: '0.75rem', background: '#f8fafc', color: '#3b82f6' }}>{tgtSemRep.disparador ?? '-'}</td>
-                          <td style={{ padding: '0.75rem', background: '#f8fafc', color: '#10b981' }}>{tgtSemRep.meta ?? '-'}</td>
-
-                          {/* Semanas */}
-                          {weekData.map(wd => (
-                            <td 
-                              key={wd.semana} 
-                              onClick={() => openEditModal(kpi, wd.semana)}
-                              style={{ 
-                                padding: '0.75rem', 
-                                cursor: 'pointer',
-                                color: wd.color || 'inherit',
-                                fontWeight: wd.color ? 'bold' : 'normal'
-                              }}
-                              className="editable-cell"
-                              title="Clic para editar"
-                            >
-                              {wd.valor !== null ? (kpi.unidad === '%' ? wd.valor + '%' : wd.valor) : '-'}
-                            </td>
-                          ))}
-
-                          {/* Sparkline */}
-                          <td style={{ padding: '0.75rem', width: '80px' }}>
-                            {chartData.length > 0 ? (
-                              <ResponsiveContainer width="100%" height={30}>
-                                <LineChart data={chartData}>
-                                  <Line type="monotone" dataKey="val" stroke="#64748b" strokeWidth={2} dot={false} />
-                                </LineChart>
-                              </ResponsiveContainer>
-                            ) : '-'}
-                          </td>
-
-                          <td style={{ padding: '0.75rem', background: '#f8fafc', color: '#10b981' }}>{tgtMen.meta ?? '-'}</td>
-                          <td style={{ padding: '0.75rem', background: '#f8fafc', color: '#3b82f6' }}>{tgtMen.disparador ?? '-'}</td>
-                          <td style={{ padding: '0.75rem', fontWeight: 'bold', color: mtdColor || 'inherit' }}>
-                            {mtdVal !== null ? (kpi.unidad === '%' ? mtdVal.toFixed(1) + '%' : mtdVal.toFixed(1)) : '-'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              viewMode === 'matrix' ? renderMatrix() : renderCards()
             )}
 
             {/* Edit Data Modal */}
@@ -340,6 +437,48 @@ export default function KPIDashboard() {
                       </button>
                     </div>
                   </form>
+                </div>
+              </div>
+            )}
+
+            {/* Modal: Historial */}
+            {historyModal && (
+              <div className="modal-overlay">
+                <div className="modal-content glass-panel" style={{ maxWidth: '800px', maxHeight: '80vh', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h3>📊 Historial de Trazabilidad</h3>
+                    <button className="btn" onClick={() => setHistoryModal(null)}>Cerrar</button>
+                  </div>
+                  <p style={{ color: 'var(--text-muted)' }}>{historyModal.kpi.nombre}</p>
+                  
+                  {historyModal.logs.length === 0 ? (
+                    <p>No hay registros de historial para este año.</p>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+                          <th style={{ padding: '0.5rem' }}>Fecha</th>
+                          <th style={{ padding: '0.5rem' }}>Semana</th>
+                          <th style={{ padding: '0.5rem' }}>Usuario</th>
+                          <th style={{ padding: '0.5rem' }}>Anterior</th>
+                          <th style={{ padding: '0.5rem' }}>Nuevo</th>
+                          <th style={{ padding: '0.5rem' }}>Observación</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {historyModal.logs.map(log => (
+                          <tr key={log.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                            <td style={{ padding: '0.5rem', fontSize: '0.85rem' }}>{new Date(log.created_at).toLocaleString()}</td>
+                            <td style={{ padding: '0.5rem' }}>{log.semana}</td>
+                            <td style={{ padding: '0.5rem' }}>{log.usuario}</td>
+                            <td style={{ padding: '0.5rem', color: 'var(--text-muted)' }}>{log.valor_anterior ?? '-'}</td>
+                            <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>{log.valor_nuevo}</td>
+                            <td style={{ padding: '0.5rem', fontSize: '0.85rem' }}>{log.observacion}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                 </div>
               </div>
             )}
