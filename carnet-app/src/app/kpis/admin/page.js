@@ -104,10 +104,10 @@ export default function AdminKPIs() {
                   <div className="form-group">
                     <label>Comparador de Éxito</label>
                     <select name="comparador" required value={formData.comparador} onChange={handleChange}>
-                      <option value=">">Mayor que (>)</option>
-                      <option value=">=">Mayor o igual (>=)</option>
-                      <option value="<">Menor que (<)</option>
-                      <option value="<=">Menor o igual (<=)</option>
+                      <option value=">">Mayor que ({'>'})</option>
+                      <option value=">=">Mayor o igual ({'>='})</option>
+                      <option value="<">Menor que ({'<'})</option>
+                      <option value="<=">Menor o igual ({'<='})</option>
                     </select>
                     <small style={{ color: 'var(--text-muted)' }}>Define qué significa cumplir la meta (Ej: Accidentes deben ser menores a la meta).</small>
                   </div>
