@@ -6,6 +6,7 @@ import Link from "next/link";
 export default function Home() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetch('/api/users', { cache: 'no-store' })
@@ -45,7 +46,19 @@ export default function Home() {
       </header>
 
       <div className="glass-panel">
-        <h2>Personal Registrado</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <h2 style={{ margin: 0 }}>Personal Registrado</h2>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '1.2rem' }}>🔍</span>
+            <input 
+              type="text" 
+              placeholder="Buscar por cédula o nombre..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', minWidth: '250px' }}
+            />
+          </div>
+        </div>
         
         {loading ? (
           <p>Cargando datos...</p>
@@ -65,7 +78,13 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {users.map(user => (
+                {users
+                  .filter(u => {
+                    if (!searchTerm) return true;
+                    const term = searchTerm.toLowerCase();
+                    return String(u.cedula).toLowerCase().includes(term) || String(u.nombre).toLowerCase().includes(term);
+                  })
+                  .map(user => (
                   <tr key={user.id}>
                     <td style={{ fontWeight: 500 }}>{user.nombre}</td>
                     <td>{user.cedula}</td>
