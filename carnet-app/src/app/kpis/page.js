@@ -312,19 +312,30 @@ export default function KPIDashboard() {
                     )}
                   </div>
 
-                  {/* Sparkline for Context */}
+                  {/* Tendencia Semanal (Detalle de Semanas) */}
                   <div style={{ marginTop: 'auto', paddingTop: '1.5rem' }}>
-                    <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Tendencia Semanal</p>
-                    {chartData.length > 0 ? (
-                       <ResponsiveContainer width="100%" height={50}>
-                         <BarChart data={chartData}>
-                           <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ background: '#1e293b', border: 'none', color: '#fff', borderRadius: '4px' }}/>
-                           <Bar dataKey="val" fill="#94a3b8" radius={[2, 2, 0, 0]} />
-                         </BarChart>
-                       </ResponsiveContainer>
-                    ) : (
-                      <div style={{ height: '50px', display: 'flex', alignItems: 'flex-end', color: 'var(--text-muted)', fontSize: '0.8rem' }}>Sin datos aún</div>
-                    )}
+                    <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Desglose Semanal</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--surface-bg)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--surface-border)' }}>
+                      {weeksOfSelectedMonth.map(w => {
+                        const rec = data.find(d => d.kpi_id === kpi.id && d.anio === selectedYear && d.semana === w);
+                        
+                        // We need tgtSemRep for fallback
+                        const tgtSemRep = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && weeksOfSelectedMonth.includes(Number(t.periodo))) || {};
+                        const tgtSem = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && t.periodo === String(w)) || tgtSemRep;
+                        
+                        const val = rec ? Number(rec.valor) : null;
+                        const color = val !== null && tgtSem.meta !== undefined ? getCellColor(val, tgtSem.meta, tgtSem.disparador, kpi.comparador) : '';
+                        
+                        return (
+                          <div key={w} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S{w}</span>
+                            <span style={{ fontSize: '1rem', fontWeight: 'bold', color: color || 'var(--text-muted)' }}>
+                              {val !== null ? val : '-'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
 
                 </div>
