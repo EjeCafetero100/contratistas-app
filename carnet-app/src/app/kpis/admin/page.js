@@ -61,7 +61,7 @@ export default function AdminKPIs() {
           periodo: selectedPeriodo,
           meta: Number(editModal.target.meta),
           disparador: Number(editModal.target.disparador),
-          comparador: editModal.target.comparador
+          comparador: editModal.kpi.comparador
         })
       });
       if (res.ok) {
@@ -214,14 +214,14 @@ export default function AdminKPIs() {
                             
                             {tgt ? (
                               <>
-                                <td style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{tgt.comparador}</td>
+                                <td style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>{k.comparador}</td>
                                 <td style={{ color: '#10b981', fontWeight: 'bold' }}>{tgt.meta}</td>
                                 <td style={{ color: '#3b82f6', fontWeight: 'bold' }}>{tgt.disparador}</td>
                                 <td><span className="badge badge-success">Configurado</span></td>
                               </>
                             ) : (
                               <>
-                                <td style={{ color: 'var(--text-muted)' }}>-</td>
+                                <td style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>{k.comparador}</td>
                                 <td style={{ color: 'var(--text-muted)' }}>-</td>
                                 <td style={{ color: 'var(--text-muted)' }}>-</td>
                                 <td><span className="badge badge-danger">Sin Configurar</span></td>
@@ -231,7 +231,7 @@ export default function AdminKPIs() {
                             <td>
                               <button className="btn" style={{ padding: '0.4rem 0.8rem', background: 'var(--surface-border)' }} onClick={() => setEditModal({
                                 kpi: k,
-                                target: tgt || { comparador: '<=', meta: 0, disparador: 0 }
+                                target: tgt || { meta: 0, disparador: 0 }
                               })}>
                                 ✏️ Editar
                               </button>
@@ -254,16 +254,7 @@ export default function AdminKPIs() {
                   
                   <form onSubmit={handleEdit}>
                     <div className="form-group">
-                      <label>Comparador</label>
-                      <select required value={editModal.target.comparador} onChange={e => setEditModal({...editModal, target: {...editModal.target, comparador: e.target.value}})}>
-                        <option value=">">Mayor que ({'>'})</option>
-                        <option value=">=">Mayor o igual ({'>='})</option>
-                        <option value="<">Menor que ({'<'})</option>
-                        <option value="<=">Menor o igual ({'<='})</option>
-                      </select>
-                    </div>
-                    <div className="form-group">
-                      <label>Meta (Verde 🟢)</label>
+                      <label>Meta (Verde 🟢) - {editModal.kpi.comparador}</label>
                       <input type="number" step="any" required value={editModal.target.meta} onChange={e => setEditModal({...editModal, target: {...editModal.target, meta: e.target.value}})} />
                     </div>
                     <div className="form-group">
