@@ -21,7 +21,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { cedula, nombre, motivo } = body;
+    const { cedula, nombre, motivo, cd } = body;
 
     // Verificar si ya existe en la lista negra
     const { data: existing } = await db
@@ -39,7 +39,8 @@ export async function POST(request) {
       .insert([{
         cedula: cedula,
         nombre: nombre,
-        motivo: motivo
+        motivo: motivo,
+        cd: cd || null
       }])
       .select();
 

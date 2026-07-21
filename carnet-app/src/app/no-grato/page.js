@@ -10,7 +10,8 @@ export default function NoGratoPage() {
   const [formData, setFormData] = useState({
     cedula: "",
     nombre: "",
-    motivo: ""
+    motivo: "",
+    cd: ""
   });
   const [adding, setAdding] = useState(false);
 
@@ -39,7 +40,7 @@ export default function NoGratoPage() {
     
     const found = records.find(r => r.cedula === searchCedula.trim());
     if (found) {
-      setSearchResult({ status: 'NO GRATO', motivo: found.motivo, nombre: found.nombre });
+      setSearchResult({ status: 'NO GRATO', motivo: found.motivo, nombre: found.nombre, cd: found.cd });
     } else {
       setSearchResult({ status: 'GRATO' });
     }
@@ -60,7 +61,7 @@ export default function NoGratoPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setFormData({ cedula: "", nombre: "", motivo: "" });
+        setFormData({ cedula: "", nombre: "", motivo: "", cd: "" });
         fetchRecords();
       } else {
         alert("Error: " + data.error);
@@ -109,6 +110,10 @@ export default function NoGratoPage() {
             <div className="form-group">
               <label>Nombre Completo</label>
               <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required />
+            </div>
+            <div className="form-group">
+              <label>Centro de Distribución (CD)</label>
+              <input type="text" name="cd" value={formData.cd} onChange={handleChange} required placeholder="Ej. CD Bogotá" />
             </div>
             <div className="form-group">
               <label>Motivo del Bloqueo</label>
@@ -162,6 +167,7 @@ export default function NoGratoPage() {
                       <span style={{ fontSize: '1.5rem' }}>❌</span> ESTA PERSONA ES NO GRATA
                     </div>
                     <p style={{ margin: '0.5rem 0 0 2rem' }}><strong>Nombre:</strong> {searchResult.nombre}</p>
+                    <p style={{ margin: '0.2rem 0 0 2rem' }}><strong>CD:</strong> {searchResult.cd || 'N/A'}</p>
                     <p style={{ margin: '0.2rem 0 0 2rem' }}><strong>Motivo:</strong> {searchResult.motivo}</p>
                   </div>
                 )}
@@ -186,6 +192,7 @@ export default function NoGratoPage() {
                   <tr>
                     <th>Cédula</th>
                     <th>Nombre</th>
+                    <th>CD</th>
                     <th>Motivo</th>
                     <th>Fecha Registro</th>
                     <th>Acción</th>
@@ -196,6 +203,7 @@ export default function NoGratoPage() {
                     <tr key={r.id}>
                       <td style={{ fontWeight: 600 }}>{r.cedula}</td>
                       <td>{r.nombre}</td>
+                      <td>{r.cd || 'N/A'}</td>
                       <td>{r.motivo}</td>
                       <td>{new Date(r.fecha_registro).toLocaleDateString()}</td>
                       <td>
