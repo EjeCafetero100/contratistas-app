@@ -32,7 +32,7 @@ export default function NoGratoPage() {
   };
 
   useEffect(() => {
-    fetchRecords();
+    setTimeout(() => fetchRecords(), 0);
   }, []);
 
   const handleSearch = (e) => {

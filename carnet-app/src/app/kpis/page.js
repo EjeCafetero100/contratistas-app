@@ -56,7 +56,7 @@ export default function KPIDashboard() {
     fetchData();
   }, [selectedYear, selectedMes]);
 
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true);
     try {
       const [kpiDefs, targetsData, kpiData] = await Promise.all([
@@ -73,7 +73,7 @@ export default function KPIDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const openEditModal = (kpi, semana) => {
     setEditModal({ kpi, semana });
@@ -314,12 +314,11 @@ export default function KPIDashboard() {
 
                   {/* Tendencia Semanal (Detalle de Semanas) */}
                   <div style={{ marginTop: 'auto', paddingTop: '1.5rem' }}>
-                    <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Desglose Semanal</p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--surface-bg)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--surface-border)' }}>
+                    <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>Desglose Semanal (Clic para ingresar)</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
                       {weeksOfSelectedMonth.map(w => {
                         const rec = data.find(d => d.kpi_id === kpi.id && d.anio === selectedYear && d.semana === w);
                         
-                        // We need tgtSemRep for fallback
                         const tgtSemRep = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && weeksOfSelectedMonth.includes(Number(t.periodo))) || {};
                         const tgtSem = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana' && t.periodo === String(w)) || tgtSemRep;
                         
@@ -327,10 +326,20 @@ export default function KPIDashboard() {
                         const color = val !== null && tgtSem.meta !== undefined ? getCellColor(val, tgtSem.meta, tgtSem.disparador, kpi.comparador) : '';
                         
                         return (
-                          <div key={w} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                          <div 
+                            key={w} 
+                            onClick={() => openEditModal(kpi, w)}
+                            className="weekly-btn"
+                            title={`Registrar Semana ${w}`}
+                            style={{ 
+                              display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1,
+                              background: 'var(--surface-bg)', padding: '0.5rem 0', borderRadius: '6px',
+                              border: '1px solid var(--surface-border)', cursor: 'pointer'
+                            }}
+                          >
                             <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S{w}</span>
                             <span style={{ fontSize: '1rem', fontWeight: 'bold', color: color || 'var(--text-muted)' }}>
-                              {val !== null ? val : '-'}
+                              {val !== null ? val : <span style={{ opacity: 0.5, fontSize: '0.8rem' }}>➕</span>}
                             </span>
                           </div>
                         );

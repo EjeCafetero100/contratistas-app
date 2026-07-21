@@ -7,11 +7,11 @@ export default function ProfileSelector({ children }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem('kpi_profile');
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('kpi_profile') : null;
     if (saved) {
-      setProfile(JSON.parse(saved));
+      setTimeout(() => setProfile(JSON.parse(saved)), 0);
     }
-    setIsLoading(false);
+    setTimeout(() => setIsLoading(false), 0);
   }, []);
 
   const handleSelect = (role, cd = null) => {

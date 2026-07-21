@@ -10,7 +10,7 @@ export default function ControlDocumentalPage() {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  async function fetchData() {
     try {
       const res = await fetch('/api/control-documental', { cache: 'no-store' });
       if (!res.ok) throw new Error('Error al cargar datos');
@@ -22,9 +22,9 @@ export default function ControlDocumentalPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const getExpirationInfo = (dateString) => {
+  function getExpirationInfo(dateString) {
     if (!dateString) return { days: '-', color: '#6b7280', icon: '⚫', text: 'N/A' };
     
     const targetDate = new Date(dateString);

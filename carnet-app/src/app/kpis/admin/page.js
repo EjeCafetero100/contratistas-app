@@ -28,26 +28,25 @@ export default function AdminKPIs() {
     fetchData();
   }, [selectedYear, selectedTipo, selectedPeriodo]);
 
-  const fetchData = async () => {
+  async function fetchData() {
     setLoading(true);
     try {
-      const [kpiRes, targetRes] = await Promise.all([
-        fetch('/api/kpis'),
-        fetch(`/api/kpis/targets?anio=${selectedYear}&tipo_periodo=${selectedTipo}&periodo=${selectedPeriodo}`)
+      const [kpiDefs, tgts] = await Promise.all([
+        fetch('/api/kpis').then(r => r.json()),
+        fetch(`/api/kpis/targets?anio=${selectedYear}`).then(r => r.json())
       ]);
-      const kpiData = await kpiRes.json();
-      const targetData = await targetRes.json();
+      setKpis(kpiDefs);
       
-      setKpis(kpiData);
-      setTargets(targetData);
+      const filteredTgts = tgts.filter(t => t.tipo_periodo === selectedTipo && t.periodo === selectedPeriodo);
+      setTargets(filteredTgts);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleEdit = async (e) => {
+  async function handleEdit(e) {
     e.preventDefault();
     setIsSaving(true);
     try {
