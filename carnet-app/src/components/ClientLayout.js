@@ -33,6 +33,9 @@ export default function ClientLayout({ children }) {
           <Link href="/no-grato" className={`sidebar-link ${pathname === '/no-grato' ? 'active' : ''}`} style={{ color: 'var(--danger)' }}>
             Personal No Grato
           </Link>
+          <Link href="/control-documental" className={`sidebar-link ${pathname === '/control-documental' ? 'active' : ''}`}>
+            Control Documental ABI
+          </Link>
           {/* Espacio para futuros módulos */}
         </nav>
       </aside>
