@@ -196,7 +196,6 @@ export default function AdminKPIs() {
                         <th>CD</th>
                         <th>Resp.</th>
                         <th>KPI</th>
-                        <th>Comp.</th>
                         <th>Meta 🟢</th>
                         <th>Disp. 🔵</th>
                         <th>Estado</th>
@@ -214,14 +213,12 @@ export default function AdminKPIs() {
                             
                             {tgt ? (
                               <>
-                                <td style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>{k.comparador}</td>
                                 <td style={{ color: '#10b981', fontWeight: 'bold' }}>{tgt.meta}</td>
                                 <td style={{ color: '#3b82f6', fontWeight: 'bold' }}>{tgt.disparador}</td>
                                 <td><span className="badge badge-success">Configurado</span></td>
                               </>
                             ) : (
                               <>
-                                <td style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>{k.comparador}</td>
                                 <td style={{ color: 'var(--text-muted)' }}>-</td>
                                 <td style={{ color: 'var(--text-muted)' }}>-</td>
                                 <td><span className="badge badge-danger">Sin Configurar</span></td>
