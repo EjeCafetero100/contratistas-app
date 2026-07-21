@@ -243,10 +243,8 @@ export default function KPIDashboard() {
         const renderCards = () => (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1.5rem' }}>
             {filteredKpis.map(kpi => {
-              const tgtMen = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Mes' && t.periodo === mesName);
               const anyWeeklyTgt = targets.find(t => t.kpi_id === kpi.id && t.tipo_periodo === 'Semana');
-              const activeTgt = tgtMen || anyWeeklyTgt;
-              const isWeeklyFallback = !tgtMen && !!anyWeeklyTgt;
+              const activeTgt = anyWeeklyTgt;
               
               let sum = 0; let count = 0;
               const chartData = [];
@@ -305,7 +303,7 @@ export default function KPIDashboard() {
                   {/* Target Info */}
                   <div style={{ background: 'var(--surface-bg)', padding: '1rem', borderRadius: '8px', marginTop: '1.5rem', border: '1px solid var(--surface-border)' }}>
                     <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                      Límites {isWeeklyFallback ? 'Semanales' : 'Mensuales'}
+                      Límites Semanales
                     </h4>
                     {activeTgt ? (
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
