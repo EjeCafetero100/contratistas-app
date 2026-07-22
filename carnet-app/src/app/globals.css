@@ -232,6 +232,7 @@ tr:hover {
 
 .badge-success { background: rgba(16, 185, 129, 0.15); color: var(--success); }
 .badge-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+.badge-warning { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
 
 /* Modals */
 .modal-overlay {
