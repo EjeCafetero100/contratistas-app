@@ -14,6 +14,7 @@ export default function Credit360Page() {
 
   // Filters
   const [selectedUnit, setSelectedUnit] = useState('Todas');
+  const [selectedYear, setSelectedYear] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleFileUpload = (e) => {
@@ -150,6 +151,9 @@ export default function Credit360Page() {
     if (selectedUnit !== 'Todas') {
       result = result.filter(d => d.unidad === selectedUnit);
     }
+    if (selectedYear !== 'Todos') {
+      result = result.filter(d => d.fecha.getFullYear().toString() === selectedYear.toString());
+    }
     if (searchTerm) {
       result = result.filter(d => 
         d.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -158,7 +162,7 @@ export default function Credit360Page() {
       );
     }
     return result;
-  }, [data, selectedUnit, searchTerm]);
+  }, [data, selectedUnit, selectedYear, searchTerm]);
 
   // KPIs
   const totalIncidents = filteredData.length;
@@ -190,6 +194,11 @@ export default function Credit360Page() {
   }, [filteredData]);
 
   const uniqueUnits = useMemo(() => ['Todas', ...new Set(data.map(d => d.unidad))], [data]);
+  
+  const uniqueYears = useMemo(() => {
+    const years = new Set(data.map(d => d.fecha.getFullYear()));
+    return ['Todos', ...Array.from(years).sort((a,b) => b-a)];
+  }, [data]);
 
   const COLORS = ['#00205b', '#fcd116', '#ef4444', '#10b981', '#3b82f6', '#f97316', '#8b5cf6'];
 
@@ -233,10 +242,16 @@ export default function Credit360Page() {
         <>
           {/* Controles de Filtro */}
           <div className="glass-panel" style={{ display: 'flex', gap: '1.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-            <div className="form-group" style={{ margin: 0, minWidth: '200px', flex: 1 }}>
+            <div className="form-group" style={{ margin: 0, minWidth: '150px', flex: 1 }}>
               <label>📍 Filtrar por Unidad (CD)</label>
               <select value={selectedUnit} onChange={(e) => setSelectedUnit(e.target.value)}>
                 {uniqueUnits.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ margin: 0, minWidth: '120px', flex: 1 }}>
+              <label>📅 Año</label>
+              <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+                {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
             <div className="form-group" style={{ margin: 0, minWidth: '250px', flex: 1 }}>
