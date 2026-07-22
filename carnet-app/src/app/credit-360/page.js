@@ -15,6 +15,7 @@ export default function Credit360Page() {
   // Filters
   const [selectedUnit, setSelectedUnit] = useState('Todas');
   const [selectedYear, setSelectedYear] = useState('Todos');
+  const [selectedMonth, setSelectedMonth] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleFileUpload = (e) => {
@@ -154,6 +155,9 @@ export default function Credit360Page() {
     if (selectedYear !== 'Todos') {
       result = result.filter(d => d.fecha.getFullYear().toString() === selectedYear.toString());
     }
+    if (selectedMonth !== 'Todos') {
+      result = result.filter(d => (d.fecha.getMonth() + 1).toString() === selectedMonth.toString());
+    }
     if (searchTerm) {
       result = result.filter(d => 
         d.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -162,7 +166,7 @@ export default function Credit360Page() {
       );
     }
     return result;
-  }, [data, selectedUnit, selectedYear, searchTerm]);
+  }, [data, selectedUnit, selectedYear, selectedMonth, searchTerm]);
 
   // KPIs
   const totalIncidents = filteredData.length;
@@ -198,6 +202,11 @@ export default function Credit360Page() {
   const uniqueYears = useMemo(() => {
     const years = new Set(data.map(d => d.fecha.getFullYear()));
     return ['Todos', ...Array.from(years).sort((a,b) => b-a)];
+  }, [data]);
+
+  const uniqueMonths = useMemo(() => {
+    const months = new Set(data.map(d => d.fecha.getMonth() + 1));
+    return ['Todos', ...Array.from(months).sort((a,b) => a-b)];
   }, [data]);
 
   const COLORS = ['#00205b', '#fcd116', '#ef4444', '#10b981', '#3b82f6', '#f97316', '#8b5cf6'];
@@ -252,6 +261,16 @@ export default function Credit360Page() {
               <label>📅 Año</label>
               <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
                 {uniqueYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ margin: 0, minWidth: '120px', flex: 1 }}>
+              <label>📆 Mes</label>
+              <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                {uniqueMonths.map(m => (
+                  <option key={m} value={m}>
+                    {m === 'Todos' ? 'Todos' : new Date(2000, m - 1, 1).toLocaleString('es-CO', { month: 'long' }).replace(/^\w/, c => c.toUpperCase())}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="form-group" style={{ margin: 0, minWidth: '250px', flex: 1 }}>
