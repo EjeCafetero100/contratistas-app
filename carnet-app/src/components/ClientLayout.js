@@ -39,7 +39,10 @@ export default function ClientLayout({ children }) {
           <Link href="/botiquin" className={`sidebar-link ${pathname?.startsWith('/botiquin') ? 'active' : ''}`}>
             🚑 Botiquín
           </Link>
-          <Link href="/kpis" className={`sidebar-link ${pathname?.startsWith('/kpis') ? 'active' : ''}`} style={{ borderTop: '1px solid #e2e8f0', marginTop: '1rem', paddingTop: '1rem' }}>
+          <Link href="/credit-360" className={`sidebar-link ${pathname?.startsWith('/credit-360') ? 'active' : ''}`}>
+            📈 Credit 360
+          </Link>
+          <Link href="/kpis" className={`sidebar-link ${pathname?.startsWith('/kpis') ? 'active' : ''}`} style={{ borderTop: '1px solid rgba(252, 209, 22, 0.2)', marginTop: '1rem', paddingTop: '1rem' }}>
             📊 Indicadores (KPIs)
           </Link>
         </nav>
