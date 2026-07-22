@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -83,6 +83,66 @@ export default function Credit360Page() {
     };
     reader.readAsBinaryString(file);
   };
+
+  // Auto-cargar archivo desde la carpeta public
+  useEffect(() => {
+    const loadDefaultExcel = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch('/credit-360.xlsx');
+        if (!response.ok) throw new Error('No se encontró el archivo por defecto');
+        
+        const arrayBuffer = await response.arrayBuffer();
+        const wb = XLSX.read(arrayBuffer, { type: 'array' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        
+        const jsonData = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        const headers = jsonData[0];
+        const rows = jsonData.slice(1).filter(r => r && r.length > 0);
+
+        const getColIdx = (name) => headers.findIndex(h => typeof h === 'string' && h.includes(name));
+        
+        const idxUnidad = getColIdx('Unidad');
+        const idxClasificacion = getColIdx('Clasificación de incidentes');
+        const idxCategoria = getColIdx('Categoría del incidente');
+        const idxFecha = getColIdx('Fecha en que ocurrió el incidente');
+        const idxNombre = getColIdx('Nombre');
+        const idxCargo = getColIdx('Cargo');
+        const idxDesc = getColIdx('Descripción del incidente');
+
+        const excelDateToJSDate = (excelDate) => {
+          if (!excelDate || isNaN(excelDate)) return new Date();
+          return new Date((excelDate - (25567 + 2)) * 86400 * 1000); 
+        };
+
+        const parsedData = rows.map((row, i) => {
+          const dateVal = row[idxFecha];
+          const jsDate = excelDateToJSDate(dateVal);
+
+          return {
+            id: i,
+            unidad: row[idxUnidad] || 'Desconocida',
+            clasificacion: row[idxClasificacion] || 'Sin Clasificar',
+            categoria: row[idxCategoria] || 'Desconocida',
+            fecha: jsDate,
+            fechaStr: jsDate.toLocaleDateString('es-CO'),
+            mesAño: `${jsDate.getFullYear()}-${String(jsDate.getMonth() + 1).padStart(2, '0')}`,
+            nombre: row[idxNombre] || 'N/A',
+            cargo: row[idxCargo] || 'N/A',
+            descripcion: row[idxDesc] || 'Sin descripción'
+          };
+        });
+
+        setData(parsedData);
+      } catch (err) {
+        console.log('No default excel found or error parsing:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDefaultExcel();
+  }, []);
 
   // --- Derived Data for Charts ---
   const filteredData = useMemo(() => {
