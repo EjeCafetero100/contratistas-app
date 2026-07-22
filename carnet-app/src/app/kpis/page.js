@@ -56,8 +56,8 @@ export default function KPIDashboard() {
     fetchData();
   }, [selectedYear, selectedMes]);
 
-  async function fetchData() {
-    setLoading(true);
+  async function fetchData(showLoader = true) {
+    if (showLoader) setLoading(true);
     try {
       const [kpiDefs, targetsData, kpiData] = await Promise.all([
         fetch('/api/kpis').then(r => r.json()),
@@ -71,7 +71,7 @@ export default function KPIDashboard() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
   }
 
@@ -117,7 +117,7 @@ export default function KPIDashboard() {
         })
       });
       if (res.ok) {
-        fetchData();
+        fetchData(false);
         setEditModal(null);
       }
     } catch (err) {
