@@ -134,18 +134,18 @@ export default function ControlDocumentalPage() {
         ) : (
           <div className="table-container" style={{ overflowX: 'auto', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
-              <thead style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
+              <thead>
                 <tr>
-                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle', color: '#334155' }}>👤 Nombre</th>
-                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle', color: '#334155' }}>🚗 Placa</th>
-                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle', color: '#334155' }}>📄 CC/NIT</th>
-                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle', color: '#334155' }}>🛡️ SOAT</th>
-                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle', color: '#334155' }}>Estado SOAT</th>
-                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle', color: '#334155' }}>🔧 Tecnomecánica</th>
-                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle', color: '#334155' }}>Estado Tecno.</th>
-                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle', color: '#334155' }}>Tipo Licencia</th>
-                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle', color: '#334155' }}>🪪 Licencia</th>
-                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle', color: '#334155' }}>Estado Lic.</th>
+                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>👤 Nombre</th>
+                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>🚗 Placa</th>
+                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>📄 CC/NIT</th>
+                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>🛡️ SOAT</th>
+                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>Estado SOAT</th>
+                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>🔧 Tecnomecánica</th>
+                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>Estado Tecno.</th>
+                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>Tipo Licencia</th>
+                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>🪪 Licencia</th>
+                  <th style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>Estado Lic.</th>
                 </tr>
               </thead>
               <tbody>
