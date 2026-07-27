@@ -36,11 +36,17 @@ export default function ClientLayout({ children }) {
           <Link href="/control-documental" className={`sidebar-link ${pathname === '/control-documental' ? 'active' : ''}`}>
             Control Documental ABI
           </Link>
-          <Link href="/botiquin" className={`sidebar-link ${pathname?.startsWith('/botiquin') ? 'active' : ''}`}>
+          <Link href="/botiquin" className={`sidebar-link ${pathname?.startsWith('/botiquin') && !pathname?.startsWith('/botiquin-2') ? 'active' : ''}`}>
             🚑 Botiquín
+          </Link>
+          <Link href="/botiquin-2" className={`sidebar-link ${pathname?.startsWith('/botiquin-2') ? 'active' : ''}`}>
+            🚑 Botiquín 2
           </Link>
           <Link href="/extintores" className={`sidebar-link ${pathname?.startsWith('/extintores') ? 'active' : ''}`}>
             🧯 Extintores
+          </Link>
+          <Link href="/extintores2" className={`sidebar-link ${pathname?.startsWith('/extintores2') ? 'active' : ''}`}>
+            🧯 Extintores 2
           </Link>
           <Link href="/credit-360" className={`sidebar-link ${pathname?.startsWith('/credit-360') ? 'active' : ''}`}>
             📈 Credit 360
