@@ -1,160 +1,185 @@
 "use client";
 
 import { useState } from "react";
+import { extintoresMockData } from "../../data/extintores";
 
 const preguntasExtintores = [
-  "El extintor cuenta con la señalización la cual indica el tipo de extintor, clase de fuego y forma de emplearlo",
-  "La aguja del manómetro del extintor se encuentra en la mitad indicando una presión normal dentro del extintor",
-  "La manguera del extintor se encuentra en buenas condiciones (si la tiene)",
-  "La boquilla del extintor o la punta de la manguera se encuentran limpios (sin restos de agente extintor ni obstrucciones)",
-  "El extintor presenta pin de seguridad",
-  "La etiqueta del cilindro del extintor se encuentra en buen estado (clara, identificable, sin deterioro)",
-  "La pintura del extintor se encuentra en buen estado (sin peladuras)",
-  "El extintor se encuentra libre de obstáculos",
-  "El acceso al extintor se encuentra libre de obstáculos",
-  "El extintor está instalado de forma segura, ya sea colgado mediante soporte fijo o ubicado sobre una base de piso que le brinda soporte y estabilidad",
-  "La palanca de accionamiento se encuentra fija asegurada por el pin de seguridad",
-  "La palanca fija se encuentra en buenas condiciones (sin bordes o puntas peligrosas y asegurada)",
-  "El extintor presenta anillo de garantía",
-  "El extintor se encuentra libre de objetos colgados sobre él o ubicados frente a este que obstruyan su acceso o visibilidad",
-  "La tarjeta de revisión mensual se encuentra actualizada de acuerdo al mes de revisión",
-  "El extintor se encuentra vigente y dentro de la fecha de recarga establecida",
-  "El personal se encuentra capacitado y entrenado para el uso del extintor"
+  "Señalización (tipo, clase, uso)",
+  "Manómetro en verde / presión normal",
+  "Manguera en buenas condiciones",
+  "Boquilla limpia sin obstrucciones",
+  "Pin de seguridad presente",
+  "Etiqueta del cilindro en buen estado",
+  "Pintura en buen estado (sin peladuras)",
+  "Extintor libre de obstáculos",
+  "Acceso libre de obstáculos",
+  "Instalado de forma segura (soporte fijo o base)",
+  "Palanca fija asegurada por pin",
+  "Palanca en buenas condiciones (sin bordes)",
+  "Anillo de garantía presente",
+  "Sin objetos colgados o que obstruyan visibilidad",
+  "Tarjeta de revisión mensual actualizada",
+  "Vigente / dentro de fecha de recarga",
+  "Personal capacitado para uso"
 ];
 
 const preguntasBotiquin = [
-  "El botiquín está ubicado en un lugar visible y de fácil acceso",
-  "Los elementos del botiquín están vigentes (no vencidos)",
-  "El botiquín cuenta con inventario actualizado",
-  "El botiquín está limpio y en buenas condiciones",
-  "Se cuenta con camilla rígida y dotación anexa en buen estado"
+  "Ubicación visible y accesible",
+  "Elementos vigentes (no vencidos)",
+  "Inventario actualizado",
+  "Limpio y en buenas condiciones",
+  "Camilla y dotación en buen estado"
 ];
 
 export default function InspeccionesPage() {
   const [tipoElemento, setTipoElemento] = useState("Extintor");
-  const [identificador, setIdentificador] = useState("");
   const [mes, setMes] = useState("Agosto");
   
-  const [respuestas, setRespuestas] = useState({});
-  const [comentarios, setComentarios] = useState("");
+  // Estado para guardar las respuestas de la matriz.
+  // Forma: { "EXT-001": { q0: "C", q1: "NC", obs: "ok" }, ... }
+  const [respuestasMatrix, setRespuestasMatrix] = useState({});
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert(`Inspección guardada con éxito para el ${tipoElemento} ${identificador} en el mes de ${mes}.`);
-    setIdentificador("");
-    setComentarios("");
-    setRespuestas({});
+    alert(`Inspecciones del mes de ${mes} guardadas con éxito.`);
+    // Aquí se enviaría a la DB
   };
 
-  const handleRespuestaChange = (qIndex, val) => {
-    setRespuestas({ ...respuestas, [qIndex]: val });
+  const handleRespuestaChange = (itemId, field, val) => {
+    setRespuestasMatrix(prev => ({
+      ...prev,
+      [itemId]: {
+        ...prev[itemId],
+        [field]: val
+      }
+    }));
   };
 
   const preguntasActuales = tipoElemento === "Extintor" ? preguntasExtintores : preguntasBotiquin;
+  const itemsActuales = tipoElemento === "Extintor" ? extintoresMockData : []; // Aquí se cargarían botiquines reales luego
 
   return (
-    <div className="container" style={{ maxWidth: '800px' }}>
+    <div className="container" style={{ maxWidth: '100%', padding: '0 2rem' }}>
       <header style={{ marginBottom: '2rem' }}>
-        <h1>📝 Inspecciones Mensuales</h1>
+        <h1>📝 Matriz de Inspecciones Mensuales</h1>
         <p style={{ color: 'var(--text-muted)' }}>
-          Registro de inspecciones de equipos de emergencia.
+          Registro masivo de inspecciones. Marca Cumple (C), No Cumple (NC) o No Aplica (NA).
         </p>
       </header>
 
-      <div className="glass-panel">
-        <form onSubmit={handleSubmit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-            
-            <div className="form-group" style={{ margin: 0 }}>
-              <label>Mes de Inspección</label>
-              <select value={mes} onChange={(e) => setMes(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <option value="Enero">Enero</option>
-                <option value="Febrero">Febrero</option>
-                <option value="Marzo">Marzo</option>
-                <option value="Abril">Abril</option>
-                <option value="Mayo">Mayo</option>
-                <option value="Junio">Junio</option>
-                <option value="Julio">Julio</option>
-                <option value="Agosto">Agosto</option>
-                <option value="Septiembre">Septiembre</option>
-                <option value="Octubre">Octubre</option>
-                <option value="Noviembre">Noviembre</option>
-                <option value="Diciembre">Diciembre</option>
-              </select>
-            </div>
-
-            <div className="form-group" style={{ margin: 0 }}>
-              <label>Tipo de Elemento</label>
-              <select value={tipoElemento} onChange={(e) => { setTipoElemento(e.target.value); setRespuestas({}); }} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <option value="Extintor">🧯 Extintores</option>
-                <option value="Botiquin">🚑 Botiquines</option>
-              </select>
-            </div>
-
-            <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
-              <label>Identificador o Ubicación (Ej: EXT-001, Botiquín Pasillo)</label>
-              <input 
-                type="text" 
-                required 
-                value={identificador} 
-                onChange={(e) => setIdentificador(e.target.value)} 
-                placeholder="Escribe el ID..."
-                style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}
-              />
-            </div>
+      <div className="glass-panel" style={{ padding: '2rem' }}>
+        <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+          <div className="form-group" style={{ margin: 0, minWidth: '200px' }}>
+            <label>Mes a evaluar</label>
+            <select value={mes} onChange={(e) => setMes(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              {["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"].map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
           </div>
 
-          <hr style={{ border: '0', borderTop: '1px solid #e2e8f0', margin: '2rem 0' }} />
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.5rem' }}>
-            <h3 style={{ color: 'var(--primary)', margin: 0 }}>Condición a Observar</h3>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>C=Cumple | NC=No Cumple | NA=No Aplica</span>
+          <div className="form-group" style={{ margin: 0, minWidth: '200px' }}>
+            <label>Tipo de Equipo</label>
+            <select value={tipoElemento} onChange={(e) => { setTipoElemento(e.target.value); setRespuestasMatrix({}); }} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <option value="Extintor">🧯 Extintores</option>
+              <option value="Botiquin">🚑 Botiquines</option>
+            </select>
           </div>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            
-            {preguntasActuales.map((pregunta, index) => (
-              <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <p style={{ fontWeight: 500, margin: 0, fontSize: '0.95rem' }}>
-                  {index + 1}. {pregunta}
-                </p>
-                <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
-                    <input type="radio" name={`q${index}`} required checked={respuestas[index] === 'C'} onChange={() => handleRespuestaChange(index, 'C')} /> 
-                    <span style={{ fontWeight: respuestas[index] === 'C' ? 'bold' : 'normal', color: respuestas[index] === 'C' ? '#10b981' : 'inherit' }}>C</span>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
-                    <input type="radio" name={`q${index}`} required checked={respuestas[index] === 'NC'} onChange={() => handleRespuestaChange(index, 'NC')} /> 
-                    <span style={{ fontWeight: respuestas[index] === 'NC' ? 'bold' : 'normal', color: respuestas[index] === 'NC' ? '#ef4444' : 'inherit' }}>NC</span>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
-                    <input type="radio" name={`q${index}`} required checked={respuestas[index] === 'NA'} onChange={() => handleRespuestaChange(index, 'NA')} /> 
-                    <span style={{ fontWeight: respuestas[index] === 'NA' ? 'bold' : 'normal', color: respuestas[index] === 'NA' ? '#64748b' : 'inherit' }}>NA</span>
-                  </label>
-                </div>
-              </div>
-            ))}
-
-          </div>
-
-          <div className="form-group" style={{ marginTop: '2rem' }}>
-            <label>Comentarios / Observaciones Finales</label>
-            <textarea 
-              rows="3" 
-              value={comentarios} 
-              onChange={(e) => setComentarios(e.target.value)}
-              style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0', resize: 'vertical' }}
-              placeholder="Escribe aquí cualquier hallazgo..."
-            ></textarea>
-          </div>
-
-          <div style={{ marginTop: '2rem', textAlign: 'right' }}>
-            <button type="submit" className="btn btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '1.1rem' }}>
-              💾 Guardar Inspección
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'flex-end' }}>
+             <button onClick={handleSubmit} className="btn btn-primary" style={{ padding: '0.75rem 2rem', fontSize: '1.1rem' }}>
+              💾 Guardar Mes completo
             </button>
           </div>
+        </div>
 
-        </form>
+        {itemsActuales.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
+            No hay elementos registrados para este tipo.
+          </div>
+        ) : (
+          <div className="table-container" style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+            <table style={{ minWidth: '1500px', width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+              <thead>
+                <tr style={{ background: '#0f172a', color: 'white' }}>
+                  <th style={{ padding: '1rem', textAlign: 'left', position: 'sticky', left: 0, background: '#0f172a', zIndex: 2, minWidth: '100px' }}>ID</th>
+                  <th style={{ padding: '1rem', textAlign: 'left', position: 'sticky', left: '100px', background: '#0f172a', zIndex: 2, minWidth: '200px' }}>Ubicación</th>
+                  
+                  {preguntasActuales.map((p, i) => (
+                    <th key={i} style={{ padding: '1rem 0.5rem', minWidth: '80px', textAlign: 'center' }} title={p}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <span style={{ fontSize: '1.2rem', color: '#38bdf8' }}>P{i+1}</span>
+                      </div>
+                    </th>
+                  ))}
+                  <th style={{ padding: '1rem', minWidth: '200px' }}>Observaciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itemsActuales.map((item, rowIndex) => (
+                  <tr key={item.id} style={{ borderBottom: '1px solid #e2e8f0', background: rowIndex % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
+                    
+                    <td style={{ padding: '0.5rem 1rem', fontWeight: 600, position: 'sticky', left: 0, background: rowIndex % 2 === 0 ? '#ffffff' : '#f8fafc', zIndex: 1, borderRight: '1px solid #e2e8f0' }}>
+                      {item.id}
+                    </td>
+                    <td style={{ padding: '0.5rem 1rem', position: 'sticky', left: '100px', background: rowIndex % 2 === 0 ? '#ffffff' : '#f8fafc', zIndex: 1, borderRight: '2px solid #cbd5e1' }}>
+                      <div style={{ fontWeight: 500 }}>{item.ubicacion}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.tipo} - {item.capacidad}</div>
+                    </td>
+
+                    {preguntasActuales.map((p, i) => {
+                      const val = respuestasMatrix[item.id]?.[`q${i}`] || "";
+                      return (
+                        <td key={i} style={{ padding: '0.5rem', textAlign: 'center', borderRight: '1px solid #e2e8f0' }}>
+                          <select 
+                            value={val}
+                            onChange={(e) => handleRespuestaChange(item.id, `q${i}`, e.target.value)}
+                            style={{ 
+                              padding: '0.4rem', 
+                              borderRadius: '4px', 
+                              border: '1px solid #cbd5e1', 
+                              background: val === 'C' ? '#d1fae5' : val === 'NC' ? '#fee2e2' : val === 'NA' ? '#f1f5f9' : 'white',
+                              color: val === 'C' ? '#065f46' : val === 'NC' ? '#991b1b' : 'var(--text-main)',
+                              fontWeight: val ? 'bold' : 'normal',
+                              cursor: 'pointer',
+                              width: '100%'
+                            }}
+                          >
+                            <option value="">-</option>
+                            <option value="C">C</option>
+                            <option value="NC">NC</option>
+                            <option value="NA">NA</option>
+                          </select>
+                        </td>
+                      );
+                    })}
+
+                    <td style={{ padding: '0.5rem' }}>
+                       <input 
+                          type="text" 
+                          placeholder="Observaciones..."
+                          value={respuestasMatrix[item.id]?.obs || ""}
+                          onChange={(e) => handleRespuestaChange(item.id, 'obs', e.target.value)}
+                          style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                        />
+                    </td>
+
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        
+        <div style={{ marginTop: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', fontSize: '0.85rem' }}>
+          <strong>Leyenda de Preguntas (Extintores):</strong>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem', marginTop: '0.5rem', color: 'var(--text-muted)' }}>
+             {preguntasActuales.map((p, i) => (
+                <div key={i}><strong>P{i+1}:</strong> {p}</div>
+             ))}
+          </div>
+        </div>
+
       </div>
     </div>
   );

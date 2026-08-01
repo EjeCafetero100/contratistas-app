@@ -1,28 +1,6 @@
 "use client";
 
-import { useState } from "react";
-
-// Función auxiliar para sumar días a una fecha
-const addDays = (date, days) => {
-  const result = new Date(date);
-  result.setDate(result.getDate() + days);
-  return result;
-};
-
-// Generar datos inventados con fechas de vencimiento variables
-const today = new Date();
-const mockData = [
-  { id: "EXT-001", ubicacion: "Oficina Principal", tipo: "CO2", capacidad: "10 lbs", fechaVencimiento: addDays(today, 15), observacion: "Vence pronto" }, 
-  { id: "EXT-002", ubicacion: "Bodega Zona A", tipo: "PQS", capacidad: "20 lbs", fechaVencimiento: addDays(today, 45), observacion: "Manguera con ligero desgaste" }, 
-  { id: "EXT-003", ubicacion: "Pasillo Central", tipo: "Solagua", capacidad: "2.5 Gal", fechaVencimiento: addDays(today, 120), observacion: "Revisado ok" }, 
-  { id: "EXT-004", ubicacion: "Comedor", tipo: "PQS", capacidad: "10 lbs", fechaVencimiento: addDays(today, 5), observacion: "Urgente recarga" }, 
-  { id: "EXT-005", ubicacion: "Sala de Juntas", tipo: "CO2", capacidad: "5 lbs", fechaVencimiento: addDays(today, 35), observacion: "Falta señalización" }, 
-  { id: "EXT-006", ubicacion: "Recepción", tipo: "PQS", capacidad: "10 lbs", fechaVencimiento: addDays(today, 95), observacion: "" }, 
-  { id: "EXT-007", ubicacion: "Parqueadero VIP", tipo: "PQS", capacidad: "20 lbs", fechaVencimiento: addDays(today, 55), observacion: "Etiqueta ilegible" }, 
-  { id: "EXT-008", ubicacion: "Cuarto de Máquinas", tipo: "CO2", capacidad: "15 lbs", fechaVencimiento: addDays(today, 25), observacion: "Programado para cambio" }, 
-  { id: "EXT-009", ubicacion: "Bodega Zona B", tipo: "PQS", capacidad: "20 lbs", fechaVencimiento: addDays(today, 200), observacion: "Nuevo" }, 
-  { id: "EXT-010", ubicacion: "Laboratorio", tipo: "Solagua", capacidad: "2.5 Gal", fechaVencimiento: addDays(today, 80), observacion: "" }, 
-];
+import { extintoresMockData, addDays } from "../../data/extintores";
 
 export default function ExtintoresPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,7 +19,7 @@ export default function ExtintoresPage() {
     }
   };
 
-  const filteredData = mockData.filter(item => 
+  const filteredData = extintoresMockData.filter(item => 
     item.ubicacion.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.tipo.toLowerCase().includes(searchTerm.toLowerCase())
@@ -64,19 +42,19 @@ export default function ExtintoresPage() {
         <div className="glass-panel" style={{ borderLeft: '4px solid #ef4444', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1.5rem' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase' }}>Crítico (&lt; 30 días)</h3>
           <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#ef4444' }}>
-            {mockData.filter(d => getStatus(d.fechaVencimiento).text === "Crítico").length}
+            {extintoresMockData.filter(d => getStatus(d.fechaVencimiento).text === "Crítico").length}
           </span>
         </div>
         <div className="glass-panel" style={{ borderLeft: '4px solid #f59e0b', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1.5rem' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase' }}>Atención (30-60 días)</h3>
           <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#f59e0b' }}>
-            {mockData.filter(d => getStatus(d.fechaVencimiento).text === "Atención").length}
+            {extintoresMockData.filter(d => getStatus(d.fechaVencimiento).text === "Atención").length}
           </span>
         </div>
         <div className="glass-panel" style={{ borderLeft: '4px solid #10b981', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1.5rem' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase' }}>Óptimo (&gt; 60 días)</h3>
           <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#10b981' }}>
-            {mockData.filter(d => getStatus(d.fechaVencimiento).text === "Óptimo").length}
+            {extintoresMockData.filter(d => getStatus(d.fechaVencimiento).text === "Óptimo").length}
           </span>
         </div>
       </div>
