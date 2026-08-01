@@ -2,38 +2,62 @@
 
 import { useState } from "react";
 
+const preguntasExtintores = [
+  "El extintor cuenta con la señalización la cual indica el tipo de extintor, clase de fuego y forma de emplearlo",
+  "La aguja del manómetro del extintor se encuentra en la mitad indicando una presión normal dentro del extintor",
+  "La manguera del extintor se encuentra en buenas condiciones (si la tiene)",
+  "La boquilla del extintor o la punta de la manguera se encuentran limpios (sin restos de agente extintor ni obstrucciones)",
+  "El extintor presenta pin de seguridad",
+  "La etiqueta del cilindro del extintor se encuentra en buen estado (clara, identificable, sin deterioro)",
+  "La pintura del extintor se encuentra en buen estado (sin peladuras)",
+  "El extintor se encuentra libre de obstáculos",
+  "El acceso al extintor se encuentra libre de obstáculos",
+  "El extintor está instalado de forma segura, ya sea colgado mediante soporte fijo o ubicado sobre una base de piso que le brinda soporte y estabilidad",
+  "La palanca de accionamiento se encuentra fija asegurada por el pin de seguridad",
+  "La palanca fija se encuentra en buenas condiciones (sin bordes o puntas peligrosas y asegurada)",
+  "El extintor presenta anillo de garantía",
+  "El extintor se encuentra libre de objetos colgados sobre él o ubicados frente a este que obstruyan su acceso o visibilidad",
+  "La tarjeta de revisión mensual se encuentra actualizada de acuerdo al mes de revisión",
+  "El extintor se encuentra vigente y dentro de la fecha de recarga establecida",
+  "El personal se encuentra capacitado y entrenado para el uso del extintor"
+];
+
+const preguntasBotiquin = [
+  "El botiquín está ubicado en un lugar visible y de fácil acceso",
+  "Los elementos del botiquín están vigentes (no vencidos)",
+  "El botiquín cuenta con inventario actualizado",
+  "El botiquín está limpio y en buenas condiciones",
+  "Se cuenta con camilla rígida y dotación anexa en buen estado"
+];
+
 export default function InspeccionesPage() {
   const [tipoElemento, setTipoElemento] = useState("Extintor");
   const [identificador, setIdentificador] = useState("");
   const [mes, setMes] = useState("Agosto");
   
-  // Estas son las preguntas "dummy". El usuario las enviará luego para actualizarlas.
-  const [respuestas, setRespuestas] = useState({
-    q1: "Sí",
-    q2: "Sí",
-    q3: "No aplica",
-  });
-
+  const [respuestas, setRespuestas] = useState({});
   const [comentarios, setComentarios] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
     alert(`Inspección guardada con éxito para el ${tipoElemento} ${identificador} en el mes de ${mes}.`);
-    // Aquí en el futuro se guardaría en base de datos.
     setIdentificador("");
     setComentarios("");
+    setRespuestas({});
   };
 
-  const handleRespuestaChange = (qId, val) => {
-    setRespuestas({ ...respuestas, [qId]: val });
+  const handleRespuestaChange = (qIndex, val) => {
+    setRespuestas({ ...respuestas, [qIndex]: val });
   };
+
+  const preguntasActuales = tipoElemento === "Extintor" ? preguntasExtintores : preguntasBotiquin;
 
   return (
     <div className="container" style={{ maxWidth: '800px' }}>
       <header style={{ marginBottom: '2rem' }}>
         <h1>📝 Inspecciones Mensuales</h1>
         <p style={{ color: 'var(--text-muted)' }}>
-          Módulo de pre-lanzamiento. Por favor, <strong>envíame las preguntas reales</strong> para añadirlas a este formulario.
+          Registro de inspecciones de equipos de emergencia.
         </p>
       </header>
 
@@ -61,9 +85,9 @@ export default function InspeccionesPage() {
 
             <div className="form-group" style={{ margin: 0 }}>
               <label>Tipo de Elemento</label>
-              <select value={tipoElemento} onChange={(e) => setTipoElemento(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <option value="Extintor">🧯 Extintor</option>
-                <option value="Botiquin">🚑 Botiquín</option>
+              <select value={tipoElemento} onChange={(e) => { setTipoElemento(e.target.value); setRespuestas({}); }} style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <option value="Extintor">🧯 Extintores</option>
+                <option value="Botiquin">🚑 Botiquines</option>
               </select>
             </div>
 
@@ -82,39 +106,34 @@ export default function InspeccionesPage() {
 
           <hr style={{ border: '0', borderTop: '1px solid #e2e8f0', margin: '2rem 0' }} />
 
-          <h3 style={{ marginBottom: '1.5rem', color: 'var(--primary)' }}>Lista de Chequeo (Ejemplo)</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.5rem' }}>
+            <h3 style={{ color: 'var(--primary)', margin: 0 }}>Condición a Observar</h3>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>C=Cumple | NC=No Cumple | NA=No Aplica</span>
+          </div>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             
-            {/* Pregunta 1 */}
-            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
-              <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>1. ¿El elemento está libre de obstáculos y es de fácil acceso?</p>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <label><input type="radio" name="q1" checked={respuestas.q1 === 'Sí'} onChange={() => handleRespuestaChange('q1', 'Sí')} /> Sí</label>
-                <label><input type="radio" name="q1" checked={respuestas.q1 === 'No'} onChange={() => handleRespuestaChange('q1', 'No')} /> No</label>
-                <label><input type="radio" name="q1" checked={respuestas.q1 === 'No aplica'} onChange={() => handleRespuestaChange('q1', 'No aplica')} /> N/A</label>
+            {preguntasActuales.map((pregunta, index) => (
+              <div key={index} style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <p style={{ fontWeight: 500, margin: 0, fontSize: '0.95rem' }}>
+                  {index + 1}. {pregunta}
+                </p>
+                <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
+                    <input type="radio" name={`q${index}`} required checked={respuestas[index] === 'C'} onChange={() => handleRespuestaChange(index, 'C')} /> 
+                    <span style={{ fontWeight: respuestas[index] === 'C' ? 'bold' : 'normal', color: respuestas[index] === 'C' ? '#10b981' : 'inherit' }}>C</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
+                    <input type="radio" name={`q${index}`} required checked={respuestas[index] === 'NC'} onChange={() => handleRespuestaChange(index, 'NC')} /> 
+                    <span style={{ fontWeight: respuestas[index] === 'NC' ? 'bold' : 'normal', color: respuestas[index] === 'NC' ? '#ef4444' : 'inherit' }}>NC</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}>
+                    <input type="radio" name={`q${index}`} required checked={respuestas[index] === 'NA'} onChange={() => handleRespuestaChange(index, 'NA')} /> 
+                    <span style={{ fontWeight: respuestas[index] === 'NA' ? 'bold' : 'normal', color: respuestas[index] === 'NA' ? '#64748b' : 'inherit' }}>NA</span>
+                  </label>
+                </div>
               </div>
-            </div>
-
-            {/* Pregunta 2 */}
-            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
-              <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>2. ¿El manómetro (si aplica) se encuentra en zona verde / óptima?</p>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <label><input type="radio" name="q2" checked={respuestas.q2 === 'Sí'} onChange={() => handleRespuestaChange('q2', 'Sí')} /> Sí</label>
-                <label><input type="radio" name="q2" checked={respuestas.q2 === 'No'} onChange={() => handleRespuestaChange('q2', 'No')} /> No</label>
-                <label><input type="radio" name="q2" checked={respuestas.q2 === 'No aplica'} onChange={() => handleRespuestaChange('q2', 'No aplica')} /> N/A</label>
-              </div>
-            </div>
-
-            {/* Pregunta 3 */}
-            <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '8px' }}>
-              <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>3. ¿La señalización es visible y el equipo está limpio?</p>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <label><input type="radio" name="q3" checked={respuestas.q3 === 'Sí'} onChange={() => handleRespuestaChange('q3', 'Sí')} /> Sí</label>
-                <label><input type="radio" name="q3" checked={respuestas.q3 === 'No'} onChange={() => handleRespuestaChange('q3', 'No')} /> No</label>
-                <label><input type="radio" name="q3" checked={respuestas.q3 === 'No aplica'} onChange={() => handleRespuestaChange('q3', 'No aplica')} /> N/A</label>
-              </div>
-            </div>
+            ))}
 
           </div>
 
