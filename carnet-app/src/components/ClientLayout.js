@@ -42,6 +42,9 @@ export default function ClientLayout({ children }) {
           <Link href="/botiquin-2" className={`sidebar-link ${pathname?.startsWith('/botiquin-2') ? 'active' : ''}`}>
             🚑 Botiquín 2
           </Link>
+          <Link href="/calculadora-accidentes" className={`sidebar-link ${pathname?.startsWith('/calculadora-accidentes') ? 'active' : ''}`}>
+            ⏱️ Calculadora Accidentes
+          </Link>
           <Link href="/extintores" className={`sidebar-link ${pathname?.startsWith('/extintores') ? 'active' : ''}`}>
             🧯 Extintores
           </Link>
