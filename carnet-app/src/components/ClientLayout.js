@@ -45,6 +45,9 @@ export default function ClientLayout({ children }) {
           <Link href="/calculadora-accidentes" className={`sidebar-link ${pathname?.startsWith('/calculadora-accidentes') ? 'active' : ''}`}>
             ⏱️ Calculadora Accidentes
           </Link>
+          <Link href="/inspecciones" className={`sidebar-link ${pathname?.startsWith('/inspecciones') ? 'active' : ''}`}>
+            📝 Inspecciones Mensuales
+          </Link>
           <Link href="/extintores" className={`sidebar-link ${pathname?.startsWith('/extintores') ? 'active' : ''}`}>
             🧯 Extintores
           </Link>

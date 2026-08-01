@@ -12,16 +12,16 @@ const addDays = (date, days) => {
 // Generar datos inventados con fechas de vencimiento variables
 const today = new Date();
 const mockData = [
-  { id: "EXT-001", ubicacion: "Oficina Principal", tipo: "CO2", capacidad: "10 lbs", fechaVencimiento: addDays(today, 15) }, // Rojo (<30)
-  { id: "EXT-002", ubicacion: "Bodega Zona A", tipo: "PQS", capacidad: "20 lbs", fechaVencimiento: addDays(today, 45) }, // Amarillo (30-60)
-  { id: "EXT-003", ubicacion: "Pasillo Central", tipo: "Solagua", capacidad: "2.5 Gal", fechaVencimiento: addDays(today, 120) }, // Verde (>60)
-  { id: "EXT-004", ubicacion: "Comedor", tipo: "PQS", capacidad: "10 lbs", fechaVencimiento: addDays(today, 5) }, // Rojo (<30)
-  { id: "EXT-005", ubicacion: "Sala de Juntas", tipo: "CO2", capacidad: "5 lbs", fechaVencimiento: addDays(today, 35) }, // Amarillo (30-60)
-  { id: "EXT-006", ubicacion: "Recepción", tipo: "PQS", capacidad: "10 lbs", fechaVencimiento: addDays(today, 95) }, // Verde (>60)
-  { id: "EXT-007", ubicacion: "Parqueadero VIP", tipo: "PQS", capacidad: "20 lbs", fechaVencimiento: addDays(today, 55) }, // Amarillo (30-60)
-  { id: "EXT-008", ubicacion: "Cuarto de Máquinas", tipo: "CO2", capacidad: "15 lbs", fechaVencimiento: addDays(today, 25) }, // Rojo (<30)
-  { id: "EXT-009", ubicacion: "Bodega Zona B", tipo: "PQS", capacidad: "20 lbs", fechaVencimiento: addDays(today, 200) }, // Verde (>60)
-  { id: "EXT-010", ubicacion: "Laboratorio", tipo: "Solagua", capacidad: "2.5 Gal", fechaVencimiento: addDays(today, 80) }, // Verde (>60)
+  { id: "EXT-001", ubicacion: "Oficina Principal", tipo: "CO2", capacidad: "10 lbs", fechaVencimiento: addDays(today, 15), observacion: "Vence pronto" }, 
+  { id: "EXT-002", ubicacion: "Bodega Zona A", tipo: "PQS", capacidad: "20 lbs", fechaVencimiento: addDays(today, 45), observacion: "Manguera con ligero desgaste" }, 
+  { id: "EXT-003", ubicacion: "Pasillo Central", tipo: "Solagua", capacidad: "2.5 Gal", fechaVencimiento: addDays(today, 120), observacion: "Revisado ok" }, 
+  { id: "EXT-004", ubicacion: "Comedor", tipo: "PQS", capacidad: "10 lbs", fechaVencimiento: addDays(today, 5), observacion: "Urgente recarga" }, 
+  { id: "EXT-005", ubicacion: "Sala de Juntas", tipo: "CO2", capacidad: "5 lbs", fechaVencimiento: addDays(today, 35), observacion: "Falta señalización" }, 
+  { id: "EXT-006", ubicacion: "Recepción", tipo: "PQS", capacidad: "10 lbs", fechaVencimiento: addDays(today, 95), observacion: "" }, 
+  { id: "EXT-007", ubicacion: "Parqueadero VIP", tipo: "PQS", capacidad: "20 lbs", fechaVencimiento: addDays(today, 55), observacion: "Etiqueta ilegible" }, 
+  { id: "EXT-008", ubicacion: "Cuarto de Máquinas", tipo: "CO2", capacidad: "15 lbs", fechaVencimiento: addDays(today, 25), observacion: "Programado para cambio" }, 
+  { id: "EXT-009", ubicacion: "Bodega Zona B", tipo: "PQS", capacidad: "20 lbs", fechaVencimiento: addDays(today, 200), observacion: "Nuevo" }, 
+  { id: "EXT-010", ubicacion: "Laboratorio", tipo: "Solagua", capacidad: "2.5 Gal", fechaVencimiento: addDays(today, 80), observacion: "" }, 
 ];
 
 export default function ExtintoresPage() {
@@ -107,6 +107,7 @@ export default function ExtintoresPage() {
                 <th>Próxima Recarga</th>
                 <th>Días Restantes</th>
                 <th>Estado</th>
+                <th>Observaciones</th>
               </tr>
             </thead>
             <tbody>
@@ -134,12 +135,15 @@ export default function ExtintoresPage() {
                         {status.text}
                       </span>
                     </td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '200px' }}>
+                      {item.observacion || '-'}
+                    </td>
                   </tr>
                 );
               })}
               {sortedData.length === 0 && (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
+                  <td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
                     No se encontraron extintores con ese criterio.
                   </td>
                 </tr>
