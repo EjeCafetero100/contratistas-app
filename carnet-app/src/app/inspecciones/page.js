@@ -111,6 +111,16 @@ export default function InspeccionesPage() {
           </div>
         </div>
 
+        {/* Leyenda en la parte superior, antes de la tabla */}
+        <div style={{ marginBottom: '2rem', background: '#f8fafc', padding: '1.5rem', borderRadius: '12px', fontSize: '0.85rem', border: '1px solid #e2e8f0' }}>
+          <strong style={{ fontSize: '1rem', color: 'var(--primary)' }}>Leyenda de Preguntas (Condiciones a Observar):</strong>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem', marginTop: '1rem', color: 'var(--text-main)' }}>
+             {preguntasActuales.map((p, i) => (
+                <div key={i}><strong style={{ color: '#0284c7' }}>P{i+1}:</strong> {p}</div>
+             ))}
+          </div>
+        </div>
+
         {loading ? (
           <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
             Cargando inventario desde base de datos...
@@ -128,18 +138,9 @@ export default function InspeccionesPage() {
                   <th style={{ padding: '1rem', textAlign: 'left', position: 'sticky', left: '100px', background: '#0f172a', zIndex: 2, minWidth: '200px' }}>Ubicación</th>
                   
                   {preguntasActuales.map((p, i) => (
-                    <th key={i} style={{ padding: '0', minWidth: '40px', verticalAlign: 'bottom', borderRight: '1px solid #334155' }}>
-                      <div style={{ 
-                        writingMode: 'vertical-rl', 
-                        transform: 'rotate(180deg)', 
-                        height: '250px', 
-                        padding: '1rem 0.5rem', 
-                        textAlign: 'left',
-                        fontSize: '0.8rem',
-                        fontWeight: 'normal',
-                        color: '#cbd5e1'
-                      }}>
-                        {p}
+                    <th key={i} style={{ padding: '1rem 0.5rem', minWidth: '80px', textAlign: 'center' }} title={p}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <span style={{ fontSize: '1.2rem', color: '#38bdf8' }}>P{i+1}</span>
                       </div>
                     </th>
                   ))}
