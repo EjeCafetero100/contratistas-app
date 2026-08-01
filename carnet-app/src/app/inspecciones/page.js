@@ -128,9 +128,18 @@ export default function InspeccionesPage() {
                   <th style={{ padding: '1rem', textAlign: 'left', position: 'sticky', left: '100px', background: '#0f172a', zIndex: 2, minWidth: '200px' }}>Ubicación</th>
                   
                   {preguntasActuales.map((p, i) => (
-                    <th key={i} style={{ padding: '1rem 0.5rem', minWidth: '80px', textAlign: 'center' }} title={p}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <span style={{ fontSize: '1.2rem', color: '#38bdf8' }}>P{i+1}</span>
+                    <th key={i} style={{ padding: '0', minWidth: '40px', verticalAlign: 'bottom', borderRight: '1px solid #334155' }}>
+                      <div style={{ 
+                        writingMode: 'vertical-rl', 
+                        transform: 'rotate(180deg)', 
+                        height: '250px', 
+                        padding: '1rem 0.5rem', 
+                        textAlign: 'left',
+                        fontSize: '0.8rem',
+                        fontWeight: 'normal',
+                        color: '#cbd5e1'
+                      }}>
+                        {p}
                       </div>
                     </th>
                   ))}
@@ -193,14 +202,7 @@ export default function InspeccionesPage() {
           </div>
         )}
         
-        <div style={{ marginTop: '1rem', background: '#f8fafc', padding: '1rem', borderRadius: '8px', fontSize: '0.85rem' }}>
-          <strong>Leyenda de Preguntas (Extintores):</strong>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.5rem', marginTop: '0.5rem', color: 'var(--text-muted)' }}>
-             {preguntasActuales.map((p, i) => (
-                <div key={i}><strong>P{i+1}:</strong> {p}</div>
-             ))}
-          </div>
-        </div>
+        {/* Leyenda eliminada porque las preguntas ya están en el encabezado */}
 
       </div>
     </div>
