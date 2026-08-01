@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 
 import { extintoresMockData, addDays } from "../../data/extintores";
 
