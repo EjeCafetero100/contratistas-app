@@ -5,6 +5,9 @@ import { extintoresMockData, addDays } from "../../data/extintores";
 
 export default function ExtintoresPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [extintoresList, setExtintoresList] = useState(extintoresMockData);
+  const [editingId, setEditingId] = useState(null);
+  const [editDate, setEditDate] = useState("");
 
   const getStatus = (fechaVencimiento) => {
     const today = new Date();
@@ -20,7 +23,7 @@ export default function ExtintoresPage() {
     }
   };
 
-  const filteredData = extintoresMockData.filter(item => 
+  const filteredData = extintoresList.filter(item => 
     item.ubicacion.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.tipo.toLowerCase().includes(searchTerm.toLowerCase())
@@ -28,6 +31,22 @@ export default function ExtintoresPage() {
 
   // Ordenar por fecha de vencimiento (los más próximos a vencer primero)
   const sortedData = [...filteredData].sort((a, b) => a.fechaVencimiento - b.fechaVencimiento);
+
+  const startEdit = (item) => {
+    setEditingId(item.id);
+    const yyyy = item.fechaVencimiento.getFullYear();
+    const mm = String(item.fechaVencimiento.getMonth() + 1).padStart(2, '0');
+    const dd = String(item.fechaVencimiento.getDate()).padStart(2, '0');
+    setEditDate(`${yyyy}-${mm}-${dd}`);
+  };
+
+  const saveEdit = (id) => {
+    if (!editDate) return;
+    const [y, m, d] = editDate.split('-');
+    const newDate = new Date(y, m - 1, d);
+    setExtintoresList(prev => prev.map(item => item.id === id ? { ...item, fechaVencimiento: newDate } : item));
+    setEditingId(null);
+  };
 
   return (
     <div className="container">
@@ -43,19 +62,19 @@ export default function ExtintoresPage() {
         <div className="glass-panel" style={{ borderLeft: '4px solid #ef4444', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1.5rem' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase' }}>Crítico (&lt; 30 días)</h3>
           <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#ef4444' }}>
-            {extintoresMockData.filter(d => getStatus(d.fechaVencimiento).text === "Crítico").length}
+            {extintoresList.filter(d => getStatus(d.fechaVencimiento).text === "Crítico").length}
           </span>
         </div>
         <div className="glass-panel" style={{ borderLeft: '4px solid #f59e0b', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1.5rem' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase' }}>Atención (30-60 días)</h3>
           <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#f59e0b' }}>
-            {extintoresMockData.filter(d => getStatus(d.fechaVencimiento).text === "Atención").length}
+            {extintoresList.filter(d => getStatus(d.fechaVencimiento).text === "Atención").length}
           </span>
         </div>
         <div className="glass-panel" style={{ borderLeft: '4px solid #10b981', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '1.5rem' }}>
           <h3 style={{ margin: '0 0 0.5rem 0', color: 'var(--text-muted)', fontSize: '0.9rem', textTransform: 'uppercase' }}>Óptimo (&gt; 60 días)</h3>
           <span style={{ fontSize: '2.5rem', fontWeight: 'bold', color: '#10b981' }}>
-            {extintoresMockData.filter(d => getStatus(d.fechaVencimiento).text === "Óptimo").length}
+            {extintoresList.filter(d => getStatus(d.fechaVencimiento).text === "Óptimo").length}
           </span>
         </div>
       </div>
@@ -87,6 +106,7 @@ export default function ExtintoresPage() {
                 <th>Días Restantes</th>
                 <th>Estado</th>
                 <th>Observaciones</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -99,9 +119,18 @@ export default function ExtintoresPage() {
                     <td>{item.tipo}</td>
                     <td>{item.capacidad}</td>
                     <td>
-                      {item.fechaVencimiento.toLocaleDateString('es-CO', { 
-                        day: '2-digit', month: 'short', year: 'numeric' 
-                      })}
+                      {editingId === item.id ? (
+                        <input 
+                          type="date" 
+                          value={editDate} 
+                          onChange={(e) => setEditDate(e.target.value)} 
+                          style={{ padding: '0.25rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                        />
+                      ) : (
+                        item.fechaVencimiento.toLocaleDateString('es-CO', { 
+                          day: '2-digit', month: 'short', year: 'numeric' 
+                        })
+                      )}
                     </td>
                     <td>
                       <strong style={{ color: status.colorCode }}>
@@ -117,12 +146,23 @@ export default function ExtintoresPage() {
                     <td style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '200px' }}>
                       {item.observacion || '-'}
                     </td>
+                    <td>
+                      {editingId === item.id ? (
+                        <button onClick={() => saveEdit(item.id)} className="btn btn-primary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}>
+                          Guardar
+                        </button>
+                      ) : (
+                        <button onClick={() => startEdit(item)} className="btn btn-secondary" style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem', background: '#e2e8f0', color: '#1e293b' }}>
+                          ✏️ Editar
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
               {sortedData.length === 0 && (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
+                  <td colSpan="9" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
                     No se encontraron extintores con ese criterio.
                   </td>
                 </tr>
