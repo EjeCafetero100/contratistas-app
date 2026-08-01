@@ -1,7 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { extintoresMockData } from "../../data/extintores";
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const preguntasExtintores = [
   "Señalización (tipo, clase, uso)",
@@ -38,6 +42,20 @@ export default function InspeccionesPage() {
   // Estado para guardar las respuestas de la matriz.
   // Forma: { "EXT-001": { q0: "C", q1: "NC", obs: "ok" }, ... }
   const [respuestasMatrix, setRespuestasMatrix] = useState({});
+  const [extintoresBD, setExtintoresBD] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchExtintores = async () => {
+      setLoading(true);
+      const { data } = await supabase.from('extintores').select('*').order('id_extintor', { ascending: true });
+      if (data) {
+        setExtintoresBD(data);
+      }
+      setLoading(false);
+    };
+    fetchExtintores();
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -56,7 +74,7 @@ export default function InspeccionesPage() {
   };
 
   const preguntasActuales = tipoElemento === "Extintor" ? preguntasExtintores : preguntasBotiquin;
-  const itemsActuales = tipoElemento === "Extintor" ? extintoresMockData : []; // Aquí se cargarían botiquines reales luego
+  const itemsActuales = tipoElemento === "Extintor" ? extintoresBD : []; // Aquí se cargarían botiquines reales luego
 
   return (
     <div className="container" style={{ maxWidth: '100%', padding: '0 2rem' }}>
@@ -93,9 +111,13 @@ export default function InspeccionesPage() {
           </div>
         </div>
 
-        {itemsActuales.length === 0 ? (
+        {loading ? (
           <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
-            No hay elementos registrados para este tipo.
+            Cargando inventario desde base de datos...
+          </div>
+        ) : itemsActuales.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-muted)' }}>
+            No hay elementos registrados para este tipo. Ve al módulo de Extintores para agregar.
           </div>
         ) : (
           <div className="table-container" style={{ overflowX: 'auto', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
@@ -120,7 +142,7 @@ export default function InspeccionesPage() {
                   <tr key={item.id} style={{ borderBottom: '1px solid #e2e8f0', background: rowIndex % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
                     
                     <td style={{ padding: '0.5rem 1rem', fontWeight: 600, position: 'sticky', left: 0, background: rowIndex % 2 === 0 ? '#ffffff' : '#f8fafc', zIndex: 1, borderRight: '1px solid #e2e8f0' }}>
-                      {item.id}
+                      {item.id_extintor}
                     </td>
                     <td style={{ padding: '0.5rem 1rem', position: 'sticky', left: '100px', background: rowIndex % 2 === 0 ? '#ffffff' : '#f8fafc', zIndex: 1, borderRight: '2px solid #cbd5e1' }}>
                       <div style={{ fontWeight: 500 }}>{item.ubicacion}</div>
