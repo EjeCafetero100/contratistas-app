@@ -1,4 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // The URL and Key are expected to be injected through environment variables.
 // If using Node.js without a bundler, we need 'dotenv' to read .env files.
