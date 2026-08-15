@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
   LineChart,
@@ -20,6 +20,9 @@ export default function CalculadoraPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [copied, setCopied] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const containerRef = useRef(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -118,30 +121,45 @@ export default function CalculadoraPage() {
     setBaseDate(FIXED_BASE_DATE);
   };
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen?.();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen?.();
+      setIsFullscreen(false);
+    }
+  };
+
   return (
     <div
+      ref={containerRef}
       style={{
-        minHeight: "100%",
+        minHeight: "100vh",
         backgroundColor: "#f4f6f9",
-        padding: "0.8rem 1rem 4rem 1rem",
+        padding: "0.5rem 0.75rem",
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
         color: "#00205b",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        boxSizing: "border-box"
+        justifyContent: "center",
+        boxSizing: "border-box",
+        overflowY: "auto"
       }}
     >
-      {/* Contenedor Principal Estilo Lámina Presentación */}
+      {/* Contenedor Principal tipo Lámina Slide - Autoajustable al 100% de la pantalla */}
       <div
         style={{
           width: "100%",
-          maxWidth: "1150px",
+          maxWidth: "1160px",
           backgroundColor: "#ffffff",
-          borderRadius: "14px",
-          boxShadow: "0 8px 25px rgba(0, 32, 91, 0.08)",
+          borderRadius: "12px",
+          boxShadow: "0 8px 30px rgba(0, 32, 91, 0.08)",
           border: "1px solid #e2e8f0",
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
           boxSizing: "border-box"
         }}
       >
@@ -157,10 +175,10 @@ export default function CalculadoraPage() {
             backgroundColor: "#ffffff"
           }}
         >
-          {/* Logo y Títulos */}
+          {/* Logo y Título Principal */}
           <div
             style={{
-              padding: "0.6rem 1.2rem",
+              padding: "0.4rem 1rem",
               display: "flex",
               alignItems: "center",
               gap: "0.8rem",
@@ -171,8 +189,8 @@ export default function CalculadoraPage() {
             <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
               <div
                 style={{
-                  width: "26px",
-                  height: "26px",
+                  width: "24px",
+                  height: "24px",
                   borderRadius: "50%",
                   backgroundColor: "#fcd116",
                   display: "flex",
@@ -182,8 +200,8 @@ export default function CalculadoraPage() {
               >
                 <div
                   style={{
-                    width: "12px",
-                    height: "12px",
+                    width: "11px",
+                    height: "11px",
                     border: "2px solid #00205b",
                     borderRadius: "50%"
                   }}
@@ -191,7 +209,7 @@ export default function CalculadoraPage() {
               </div>
               <span
                 style={{
-                  fontSize: "1.25rem",
+                  fontSize: "1.2rem",
                   fontWeight: "900",
                   color: "#00205b",
                   letterSpacing: "-0.03em"
@@ -201,13 +219,13 @@ export default function CalculadoraPage() {
               </span>
             </div>
 
-            <div style={{ borderLeft: "2px solid #cbd5e1", height: "30px" }} />
+            <div style={{ borderLeft: "2px solid #cbd5e1", height: "26px" }} />
 
             <div>
               <h1
                 style={{
                   margin: 0,
-                  fontSize: "0.95rem",
+                  fontSize: "0.88rem",
                   fontWeight: "900",
                   color: "#00205b",
                   letterSpacing: "0.5px",
@@ -221,13 +239,13 @@ export default function CalculadoraPage() {
                   display: "flex",
                   alignItems: "center",
                   gap: "0.5rem",
-                  marginTop: "0.15rem",
+                  marginTop: "0.1rem",
                   flexWrap: "wrap"
                 }}
               >
                 <span
                   style={{
-                    fontSize: "0.72rem",
+                    fontSize: "0.68rem",
                     fontWeight: "800",
                     color: "#00205b",
                     textTransform: "uppercase"
@@ -239,10 +257,10 @@ export default function CalculadoraPage() {
                   style={{
                     backgroundColor: "#fcd116",
                     color: "#00205b",
-                    fontSize: "0.68rem",
+                    fontSize: "0.65rem",
                     fontWeight: "900",
                     padding: "0.1rem 0.5rem",
-                    borderRadius: "12px",
+                    borderRadius: "10px",
                     textTransform: "uppercase"
                   }}
                 >
@@ -257,25 +275,25 @@ export default function CalculadoraPage() {
             style={{
               backgroundColor: "#00205b",
               color: "#ffffff",
-              padding: "0.6rem 1.5rem",
+              padding: "0.4rem 1.4rem",
               display: "flex",
               flexDirection: "column",
               justifyContent: "center",
               alignItems: "center",
               textAlign: "center",
-              clipPath: "polygon(12% 0%, 100% 0%, 100% 100%, 0% 100%)",
-              minWidth: "200px"
+              clipPath: "polygon(10% 0%, 100% 0%, 100% 100%, 0% 100%)",
+              minWidth: "180px"
             }}
           >
-            <span style={{ fontSize: "0.6rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <span style={{ fontSize: "0.55rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>
               MEJORAMOS JUNTOS
             </span>
-            <span style={{ fontSize: "0.6rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <span style={{ fontSize: "0.55rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.5px" }}>
               PARA SER
             </span>
             <span
               style={{
-                fontSize: "0.8rem",
+                fontSize: "0.75rem",
                 fontWeight: "900",
                 color: "#fcd116",
                 letterSpacing: "0.5px",
@@ -288,16 +306,16 @@ export default function CalculadoraPage() {
         </div>
 
         {/* Cinta tricolor */}
-        <div style={{ display: "flex", height: "4px", width: "100%" }}>
+        <div style={{ display: "flex", height: "3px", width: "100%" }}>
           <div style={{ flex: 6, backgroundColor: "#00205b" }} />
           <div style={{ flex: 3, backgroundColor: "#fcd116" }} />
           <div style={{ flex: 1, backgroundColor: "#dc2626" }} />
         </div>
 
         {/* ============================================================
-            CUERPO DE LA LÁMINA (Padding optimizado)
+            CUERPO DE LA LÁMINA (Compacto y 100% visible)
            ============================================================ */}
-        <div style={{ padding: "1rem 1.2rem" }}>
+        <div style={{ padding: "0.6rem 0.9rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           
           {/* ============================================================
               2. SECCIÓN SUPERIOR: 3 CARDS
@@ -305,9 +323,8 @@ export default function CalculadoraPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1.2fr 1fr",
-              gap: "0.8rem",
-              marginBottom: "1rem",
+              gridTemplateColumns: "1fr 1.25fr 1fr",
+              gap: "0.6rem",
               alignItems: "stretch"
             }}
           >
@@ -315,18 +332,18 @@ export default function CalculadoraPage() {
             <div
               style={{
                 backgroundColor: "#00205b",
-                borderRadius: "10px",
-                padding: "0.8rem 1rem",
+                borderRadius: "8px",
+                padding: "0.5rem 0.8rem",
                 color: "#ffffff",
                 display: "flex",
                 alignItems: "center",
-                gap: "0.8rem"
+                gap: "0.6rem"
               }}
             >
               <div
                 style={{
-                  width: "40px",
-                  height: "40px",
+                  width: "34px",
+                  height: "34px",
                   borderRadius: "50%",
                   backgroundColor: "#ffffff",
                   display: "flex",
@@ -335,12 +352,12 @@ export default function CalculadoraPage() {
                   flexShrink: 0
                 }}
               >
-                <span style={{ fontSize: "1.25rem" }}>🗓️</span>
+                <span style={{ fontSize: "1.1rem" }}>🗓️</span>
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div
                   style={{
-                    fontSize: "0.62rem",
+                    fontSize: "0.58rem",
                     fontWeight: "800",
                     color: "rgba(255, 255, 255, 0.8)",
                     letterSpacing: "0.5px",
@@ -352,11 +369,11 @@ export default function CalculadoraPage() {
                 </div>
                 <div
                   style={{
-                    fontSize: "1.35rem",
+                    fontSize: "1.2rem",
                     fontWeight: "900",
                     color: "#fcd116",
                     lineHeight: "1.1",
-                    margin: "0.1rem 0",
+                    margin: "0.05rem 0",
                     whiteSpace: "nowrap"
                   }}
                 >
@@ -364,7 +381,7 @@ export default function CalculadoraPage() {
                 </div>
                 <div
                   style={{
-                    fontSize: "0.65rem",
+                    fontSize: "0.6rem",
                     color: "#93c5fd",
                     fontWeight: "600",
                     whiteSpace: "nowrap"
@@ -379,11 +396,10 @@ export default function CalculadoraPage() {
             <div
               style={{
                 backgroundColor: "#ffffff",
-                borderRadius: "10px",
-                padding: "0.6rem 0.8rem",
+                borderRadius: "8px",
+                padding: "0.4rem 0.6rem",
                 textAlign: "center",
                 border: "1px solid #e2e8f0",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -392,7 +408,7 @@ export default function CalculadoraPage() {
             >
               <span
                 style={{
-                  fontSize: "0.78rem",
+                  fontSize: "0.72rem",
                   fontWeight: "900",
                   color: "#00205b",
                   letterSpacing: "0.8px",
@@ -404,11 +420,11 @@ export default function CalculadoraPage() {
 
               <div
                 style={{
-                  fontSize: "2.7rem",
+                  fontSize: "2.1rem",
                   fontWeight: "900",
                   color: "#00205b",
                   lineHeight: "1",
-                  margin: "0.1rem 0",
+                  margin: "0.05rem 0",
                   letterSpacing: "-0.03em",
                   fontVariantNumeric: "tabular-nums"
                 }}
@@ -418,15 +434,15 @@ export default function CalculadoraPage() {
 
               <div
                 style={{
-                  width: "70%",
-                  height: "2px",
+                  width: "65%",
+                  height: "1.5px",
                   backgroundColor: "#00205b",
-                  marginBottom: "0.2rem"
+                  marginBottom: "0.15rem"
                 }}
               />
               <span
                 style={{
-                  fontSize: "0.62rem",
+                  fontSize: "0.58rem",
                   fontWeight: "800",
                   color: "#00205b",
                   letterSpacing: "0.5px",
@@ -441,19 +457,18 @@ export default function CalculadoraPage() {
             <div
               style={{
                 backgroundColor: "#ffffff",
-                borderRadius: "10px",
-                padding: "0.8rem 1rem",
+                borderRadius: "8px",
+                padding: "0.5rem 0.8rem",
                 border: "1px solid #e2e8f0",
-                boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
                 display: "flex",
                 alignItems: "center",
-                gap: "0.8rem"
+                gap: "0.6rem"
               }}
             >
               <div
                 style={{
-                  width: "40px",
-                  height: "40px",
+                  width: "34px",
+                  height: "34px",
                   borderRadius: "50%",
                   border: "2px solid #fcd116",
                   backgroundColor: "#fffdf0",
@@ -463,12 +478,12 @@ export default function CalculadoraPage() {
                   flexShrink: 0
                 }}
               >
-                <span style={{ fontSize: "1.25rem" }}>⏱️</span>
+                <span style={{ fontSize: "1.1rem" }}>⏱️</span>
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div
                   style={{
-                    fontSize: "0.62rem",
+                    fontSize: "0.58rem",
                     fontWeight: "800",
                     color: "#64748b",
                     letterSpacing: "0.5px",
@@ -480,11 +495,11 @@ export default function CalculadoraPage() {
                 </div>
                 <div
                   style={{
-                    fontSize: "1.05rem",
+                    fontSize: "0.95rem",
                     fontWeight: "900",
                     color: "#00205b",
                     lineHeight: "1.1",
-                    margin: "0.1rem 0",
+                    margin: "0.05rem 0",
                     whiteSpace: "nowrap"
                   }}
                 >
@@ -492,13 +507,13 @@ export default function CalculadoraPage() {
                 </div>
                 <div
                   style={{
-                    fontSize: "0.65rem",
+                    fontSize: "0.6rem",
                     color: "#64748b",
                     fontWeight: "600",
                     whiteSpace: "nowrap"
                   }}
                 >
-                  {isClient ? `${stats.hours}h ${stats.minutes}m ${stats.seconds}s (En vivo)` : "Calculando..."}
+                  {isClient ? `${stats.hours}h ${stats.minutes}m ${stats.seconds}s` : "Calculando..."}
                 </div>
               </div>
             </div>
@@ -511,30 +526,29 @@ export default function CalculadoraPage() {
             style={{
               display: "grid",
               gridTemplateColumns: "1.1fr 1fr",
-              gap: "0.8rem",
-              marginBottom: "1rem"
+              gap: "0.6rem"
             }}
           >
             {/* Columna Izquierda: Gráfico de Tendencia */}
             <div
               style={{
                 backgroundColor: "#ffffff",
-                borderRadius: "10px",
+                borderRadius: "8px",
                 border: "1px solid #e2e8f0",
-                padding: "0.6rem 0.8rem 0.4rem 0.8rem",
+                padding: "0.4rem 0.6rem",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between"
               }}
             >
-              <div style={{ textAlign: "center", marginBottom: "0.4rem" }}>
+              <div style={{ textAlign: "center", marginBottom: "0.2rem" }}>
                 <span
                   style={{
                     backgroundColor: "#00205b",
                     color: "#ffffff",
-                    padding: "0.2rem 1rem",
-                    borderRadius: "12px",
-                    fontSize: "0.7rem",
+                    padding: "0.15rem 0.8rem",
+                    borderRadius: "10px",
+                    fontSize: "0.65rem",
                     fontWeight: "800",
                     letterSpacing: "0.5px",
                     textTransform: "uppercase",
@@ -545,23 +559,23 @@ export default function CalculadoraPage() {
                 </span>
               </div>
 
-              <div style={{ width: "100%", height: "115px" }}>
+              <div style={{ width: "100%", height: "90px" }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={stats.chartData}
-                    margin={{ top: 5, right: 10, left: -28, bottom: 0 }}
+                    margin={{ top: 4, right: 8, left: -32, bottom: 0 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis
                       dataKey="name"
                       stroke="#64748b"
-                      fontSize={9}
+                      fontSize={8}
                       tickLine={false}
                       axisLine={{ stroke: "#cbd5e1" }}
                     />
                     <YAxis
                       stroke="#64748b"
-                      fontSize={9}
+                      fontSize={8}
                       tickLine={false}
                       axisLine={false}
                       domain={[0, 2600]}
@@ -570,10 +584,10 @@ export default function CalculadoraPage() {
                       formatter={(value) => [`${value.toLocaleString("es-CO")} días`, "Días"]}
                       contentStyle={{
                         backgroundColor: "#00205b",
-                        borderRadius: "6px",
+                        borderRadius: "4px",
                         border: "none",
                         color: "#fff",
-                        fontSize: "0.7rem",
+                        fontSize: "0.65rem",
                         fontWeight: "700"
                       }}
                     />
@@ -581,9 +595,9 @@ export default function CalculadoraPage() {
                       type="monotone"
                       dataKey="dias"
                       stroke="#00205b"
-                      strokeWidth={2.5}
-                      dot={{ fill: "#00205b", stroke: "#fcd116", strokeWidth: 1.5, r: 3.5 }}
-                      activeDot={{ r: 5, fill: "#fcd116", stroke: "#00205b", strokeWidth: 2 }}
+                      strokeWidth={2}
+                      dot={{ fill: "#00205b", stroke: "#fcd116", strokeWidth: 1.5, r: 2.5 }}
+                      activeDot={{ r: 4, fill: "#fcd116", stroke: "#00205b", strokeWidth: 1.5 }}
                     />
                   </LineChart>
                 </ResponsiveContainer>
@@ -593,11 +607,11 @@ export default function CalculadoraPage() {
                 style={{
                   display: "flex",
                   justifyContent: "space-between",
-                  fontSize: "0.62rem",
+                  fontSize: "0.58rem",
                   color: "#64748b",
                   fontWeight: "700",
                   textTransform: "uppercase",
-                  paddingTop: "0.2rem",
+                  paddingTop: "0.1rem",
                   borderTop: "1px solid #f1f5f9"
                 }}
               >
@@ -610,22 +624,22 @@ export default function CalculadoraPage() {
             <div
               style={{
                 backgroundColor: "#ffffff",
-                borderRadius: "10px",
+                borderRadius: "8px",
                 border: "1px solid #e2e8f0",
-                padding: "0.6rem 0.8rem",
+                padding: "0.4rem 0.6rem",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "space-between"
               }}
             >
-              <div style={{ textAlign: "center", marginBottom: "0.4rem" }}>
+              <div style={{ textAlign: "center", marginBottom: "0.2rem" }}>
                 <span
                   style={{
                     backgroundColor: "#00205b",
                     color: "#ffffff",
-                    padding: "0.2rem 1.2rem",
-                    borderRadius: "12px",
-                    fontSize: "0.7rem",
+                    padding: "0.15rem 0.8rem",
+                    borderRadius: "10px",
+                    fontSize: "0.65rem",
                     fontWeight: "800",
                     letterSpacing: "0.5px",
                     textTransform: "uppercase",
@@ -636,13 +650,13 @@ export default function CalculadoraPage() {
                 </span>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
                 {/* Item 1 */}
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <div
                     style={{
-                      width: "28px",
-                      height: "28px",
+                      width: "22px",
+                      height: "22px",
                       borderRadius: "50%",
                       backgroundColor: "#dc2626",
                       color: "#ffffff",
@@ -652,23 +666,23 @@ export default function CalculadoraPage() {
                       flexShrink: 0
                     }}
                   >
-                    <span style={{ fontSize: "0.8rem" }}>📉</span>
+                    <span style={{ fontSize: "0.65rem" }}>📉</span>
                   </div>
-                  <div style={{ fontSize: "0.7rem", color: "#1e293b", lineHeight: "1.2" }}>
+                  <div style={{ fontSize: "0.64rem", color: "#1e293b", lineHeight: "1.15" }}>
                     <strong>Próximo aniversario:</strong> Faltan{" "}
                     <span style={{ color: "#dc2626", fontWeight: "800" }}>
                       {stats.daysToNextAnniversary} días
                     </span>{" "}
-                    para cumplir <strong>{stats.years + 1} años</strong> (08-01-{stats.nextAnniversaryYear}).
+                    para <strong>{stats.years + 1} años</strong> (08-01-{stats.nextAnniversaryYear}).
                   </div>
                 </div>
 
                 {/* Item 2 */}
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <div
                     style={{
-                      width: "28px",
-                      height: "28px",
+                      width: "22px",
+                      height: "22px",
                       borderRadius: "50%",
                       backgroundColor: "#fcd116",
                       color: "#00205b",
@@ -678,9 +692,9 @@ export default function CalculadoraPage() {
                       flexShrink: 0
                     }}
                   >
-                    <span style={{ fontSize: "0.8rem" }}>⚡</span>
+                    <span style={{ fontSize: "0.65rem" }}>⚡</span>
                   </div>
-                  <div style={{ fontSize: "0.7rem", color: "#1e293b", lineHeight: "1.2" }}>
+                  <div style={{ fontSize: "0.64rem", color: "#1e293b", lineHeight: "1.15" }}>
                     <strong>Total acumulado:</strong>{" "}
                     <strong>{stats.totalHours.toLocaleString("es-CO")} hrs</strong> y{" "}
                     <strong>{stats.totalWeeks.toLocaleString("es-CO")} semanas</strong> continuas.
@@ -688,11 +702,11 @@ export default function CalculadoraPage() {
                 </div>
 
                 {/* Item 3 */}
-                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                   <div
                     style={{
-                      width: "28px",
-                      height: "28px",
+                      width: "22px",
+                      height: "22px",
                       borderRadius: "50%",
                       backgroundColor: "#00205b",
                       color: "#ffffff",
@@ -702,10 +716,10 @@ export default function CalculadoraPage() {
                       flexShrink: 0
                     }}
                   >
-                    <span style={{ fontSize: "0.8rem" }}>🔍</span>
+                    <span style={{ fontSize: "0.65rem" }}>🔍</span>
                   </div>
-                  <div style={{ fontSize: "0.7rem", color: "#1e293b", lineHeight: "1.2" }}>
-                    <strong>Cálculo automático:</strong> Descuento diario sincronizado con la fecha actual del sistema.
+                  <div style={{ fontSize: "0.64rem", color: "#1e293b", lineHeight: "1.15" }}>
+                    <strong>Cálculo automático:</strong> Descuento diario sincronizado con el sistema.
                   </div>
                 </div>
               </div>
@@ -718,19 +732,19 @@ export default function CalculadoraPage() {
           <div
             style={{
               backgroundColor: "#ffffff",
-              borderRadius: "10px",
+              borderRadius: "8px",
               border: "1px solid #e2e8f0",
-              padding: "0.6rem 0.8rem"
+              padding: "0.4rem 0.6rem"
             }}
           >
-            <div style={{ textAlign: "center", marginBottom: "0.6rem" }}>
+            <div style={{ textAlign: "center", marginBottom: "0.35rem" }}>
               <span
                 style={{
                   backgroundColor: "#00205b",
                   color: "#ffffff",
-                  padding: "0.2rem 1.2rem",
-                  borderRadius: "12px",
-                  fontSize: "0.7rem",
+                  padding: "0.15rem 0.8rem",
+                  borderRadius: "10px",
+                  fontSize: "0.65rem",
                   fontWeight: "800",
                   letterSpacing: "0.5px",
                   textTransform: "uppercase",
@@ -745,16 +759,16 @@ export default function CalculadoraPage() {
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(5, 1fr)",
-                gap: "0.6rem",
-                alignItems: "flex-start"
+                gap: "0.4rem",
+                alignItems: "center"
               }}
             >
               {/* Acción 1 */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
                 <div
                   style={{
-                    width: "28px",
-                    height: "28px",
+                    width: "22px",
+                    height: "22px",
                     borderRadius: "50%",
                     backgroundColor: "#00205b",
                     color: "#ffffff",
@@ -764,19 +778,19 @@ export default function CalculadoraPage() {
                     flexShrink: 0
                   }}
                 >
-                  <span style={{ fontSize: "0.75rem" }}>📅</span>
+                  <span style={{ fontSize: "0.65rem" }}>📅</span>
                 </div>
-                <div style={{ fontSize: "0.65rem", color: "#1e293b", fontWeight: "600", lineHeight: "1.15" }}>
+                <div style={{ fontSize: "0.6rem", color: "#1e293b", fontWeight: "600", lineHeight: "1.1" }}>
                   Seguimiento diario de días.
                 </div>
               </div>
 
               {/* Acción 2 */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
                 <div
                   style={{
-                    width: "28px",
-                    height: "28px",
+                    width: "22px",
+                    height: "22px",
                     borderRadius: "50%",
                     backgroundColor: "#fcd116",
                     color: "#00205b",
@@ -786,19 +800,19 @@ export default function CalculadoraPage() {
                     flexShrink: 0
                   }}
                 >
-                  <span style={{ fontSize: "0.75rem" }}>👤</span>
+                  <span style={{ fontSize: "0.65rem" }}>👤</span>
                 </div>
-                <div style={{ fontSize: "0.65rem", color: "#1e293b", fontWeight: "600", lineHeight: "1.15" }}>
-                  Validación de novedades en ruta.
+                <div style={{ fontSize: "0.6rem", color: "#1e293b", fontWeight: "600", lineHeight: "1.1" }}>
+                  Validación de novedades.
                 </div>
               </div>
 
               {/* Acción 3 */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
                 <div
                   style={{
-                    width: "28px",
-                    height: "28px",
+                    width: "22px",
+                    height: "22px",
                     borderRadius: "50%",
                     backgroundColor: "#dc2626",
                     color: "#ffffff",
@@ -808,19 +822,19 @@ export default function CalculadoraPage() {
                     flexShrink: 0
                   }}
                 >
-                  <span style={{ fontSize: "0.75rem" }}>📍</span>
+                  <span style={{ fontSize: "0.65rem" }}>📍</span>
                 </div>
-                <div style={{ fontSize: "0.65rem", color: "#1e293b", fontWeight: "600", lineHeight: "1.15" }}>
-                  Acompañamiento a puntos clave.
+                <div style={{ fontSize: "0.6rem", color: "#1e293b", fontWeight: "600", lineHeight: "1.1" }}>
+                  Acompañamiento en sitio.
                 </div>
               </div>
 
               {/* Acción 4 */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
                 <div
                   style={{
-                    width: "28px",
-                    height: "28px",
+                    width: "22px",
+                    height: "22px",
                     borderRadius: "50%",
                     backgroundColor: "#00205b",
                     color: "#ffffff",
@@ -830,19 +844,19 @@ export default function CalculadoraPage() {
                     flexShrink: 0
                   }}
                 >
-                  <span style={{ fontSize: "0.75rem" }}>📈</span>
+                  <span style={{ fontSize: "0.65rem" }}>📈</span>
                 </div>
-                <div style={{ fontSize: "0.65rem", color: "#1e293b", fontWeight: "600", lineHeight: "1.15" }}>
-                  Monitoreo semanal del indicador.
+                <div style={{ fontSize: "0.6rem", color: "#1e293b", fontWeight: "600", lineHeight: "1.1" }}>
+                  Monitoreo semanal de rutina.
                 </div>
               </div>
 
               {/* Acción 5 */}
-              <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
                 <div
                   style={{
-                    width: "28px",
-                    height: "28px",
+                    width: "22px",
+                    height: "22px",
                     borderRadius: "50%",
                     backgroundColor: "#fcd116",
                     color: "#00205b",
@@ -852,17 +866,17 @@ export default function CalculadoraPage() {
                     flexShrink: 0
                   }}
                 >
-                  <span style={{ fontSize: "0.75rem" }}>📢</span>
+                  <span style={{ fontSize: "0.65rem" }}>📢</span>
                 </div>
-                <div style={{ fontSize: "0.65rem", color: "#1e293b", fontWeight: "600", lineHeight: "1.15" }}>
-                  Socialización en rutina operativa.
+                <div style={{ fontSize: "0.6rem", color: "#1e293b", fontWeight: "600", lineHeight: "1.1" }}>
+                  Socialización de resultados.
                 </div>
               </div>
             </div>
           </div>
 
           {/* ============================================================
-              5. BOTONES INFERIORES Y CONFIGURACIÓN
+              5. BARRA DE ACCIONES Y CONTROLES
              ============================================================ */}
           <div
             style={{
@@ -870,22 +884,21 @@ export default function CalculadoraPage() {
               justifyContent: "space-between",
               alignItems: "center",
               flexWrap: "wrap",
-              gap: "0.6rem",
-              marginTop: "0.8rem",
-              paddingTop: "0.6rem",
+              gap: "0.4rem",
+              paddingTop: "0.4rem",
               borderTop: "1px dashed #cbd5e1"
             }}
           >
-            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
               <Link
                 href="/"
                 style={{
                   background: "#00205b",
                   color: "#ffffff",
-                  padding: "0.35rem 0.8rem",
-                  borderRadius: "6px",
+                  padding: "0.3rem 0.6rem",
+                  borderRadius: "5px",
                   fontWeight: "700",
-                  fontSize: "0.75rem",
+                  fontSize: "0.7rem",
                   textDecoration: "none"
                 }}
               >
@@ -898,19 +911,35 @@ export default function CalculadoraPage() {
                   background: copied ? "#10b981" : "#ffffff",
                   color: copied ? "#ffffff" : "#00205b",
                   border: "1px solid #cbd5e1",
-                  padding: "0.35rem 0.8rem",
-                  borderRadius: "6px",
+                  padding: "0.3rem 0.6rem",
+                  borderRadius: "5px",
                   fontWeight: "700",
-                  fontSize: "0.75rem",
+                  fontSize: "0.7rem",
                   cursor: "pointer"
                 }}
               >
-                {copied ? "✓ Copiado" : "📋 Copiar Reporte"}
+                {copied ? "✓ Copiado" : "📋 Copiar"}
+              </button>
+
+              <button
+                onClick={toggleFullscreen}
+                style={{
+                  background: "#f8fafc",
+                  color: "#00205b",
+                  border: "1px solid #cbd5e1",
+                  padding: "0.3rem 0.6rem",
+                  borderRadius: "5px",
+                  fontWeight: "700",
+                  fontSize: "0.7rem",
+                  cursor: "pointer"
+                }}
+              >
+                🖥️ {isFullscreen ? "Salir Pantalla Completa" : "Pantalla Completa"}
               </button>
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <span style={{ fontSize: "0.72rem", color: "#64748b", fontWeight: "600" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+              <span style={{ fontSize: "0.68rem", color: "#64748b", fontWeight: "600" }}>
                 Fecha Base:
               </span>
               <input
@@ -918,10 +947,10 @@ export default function CalculadoraPage() {
                 value={baseDate}
                 onChange={(e) => setBaseDate(e.target.value)}
                 style={{
-                  padding: "0.25rem 0.5rem",
-                  borderRadius: "6px",
+                  padding: "0.2rem 0.4rem",
+                  borderRadius: "5px",
                   border: "1px solid #cbd5e1",
-                  fontSize: "0.75rem",
+                  fontSize: "0.7rem",
                   fontWeight: "700",
                   color: "#00205b"
                 }}
@@ -933,14 +962,14 @@ export default function CalculadoraPage() {
                     background: "#fcd116",
                     color: "#00205b",
                     border: "none",
-                    padding: "0.25rem 0.5rem",
-                    borderRadius: "6px",
+                    padding: "0.2rem 0.4rem",
+                    borderRadius: "5px",
                     fontWeight: "800",
-                    fontSize: "0.72rem",
+                    fontSize: "0.68rem",
                     cursor: "pointer"
                   }}
                 >
-                  Restaurar 08-01-2020
+                  Restaurar
                 </button>
               )}
             </div>
@@ -949,7 +978,7 @@ export default function CalculadoraPage() {
         </div>
 
         {/* Barra tricolor inferior */}
-        <div style={{ display: "flex", height: "4px", width: "100%" }}>
+        <div style={{ display: "flex", height: "3px", width: "100%" }}>
           <div style={{ flex: 6, backgroundColor: "#00205b" }} />
           <div style={{ flex: 3, backgroundColor: "#fcd116" }} />
           <div style={{ flex: 1, backgroundColor: "#dc2626" }} />
