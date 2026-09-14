@@ -416,39 +416,47 @@ export default function TelemetriaPage() {
     mesesConDatos.forEach((mes, idx) => {
       const real = conteoMeses[mes];
       let meta = null;
+      let topeMaximo = null;
       let varMoM = null;
       let brecha = null;
+      let brechaEntera = 0;
       let status = 'BASE';
       let statusLabel = 'Punto de partida';
       let statusColor = '#00205b';
+      let metaEnteraLabel = '1 evento (Base)';
       let recomendacion = 'Línea base para medir la meta de reducción.';
 
       if (idx === 0) {
         meta = real;
+        topeMaximo = real;
+        metaEnteraLabel = `${real} evento (Base)`;
         status = 'BASE';
         statusLabel = '🏁 Mes Base';
         statusColor = '#00205b';
-        recomendacion = 'Punto de partida inicial de telemetría en Barrancabermeja.';
+        recomendacion = 'Punto de partida inicial de telemetría en Barrancabermeja (1 evento registrado).';
       } else {
         meta = Number((prevReal * reductionFactor).toFixed(2));
+        topeMaximo = Math.floor(meta);
+        metaEnteraLabel = topeMaximo === 0 ? '0 eventos' : `≤ ${topeMaximo} ${topeMaximo === 1 ? 'evento' : 'eventos'}`;
         varMoM = Number((((real - prevReal) / prevReal) * 100).toFixed(1));
         brecha = Number((real - meta).toFixed(2));
+        brechaEntera = real - topeMaximo;
 
-        if (real <= meta) {
+        if (real <= topeMaximo) {
           status = 'CUMPLE';
-          statusLabel = `🟢 Cumple Meta (-${Math.abs(varMoM)}%)`;
+          statusLabel = `🟢 Cumple Meta (≤ ${topeMaximo} ev.)`;
           statusColor = '#10b981';
-          recomendacion = `Excelente desempeño: reducción de ${Math.abs(varMoM)}% superando la meta del -${targetReductionPct}%. Mantener buenas prácticas.`;
+          recomendacion = `Excelente desempeño: ${real} evento registrado dentro del tope permitido de ${metaEnteraLabel} (-${Math.abs(varMoM)}% MoM). Mantener buenas prácticas.`;
         } else if (varMoM <= 0) {
           status = 'PARCIAL';
-          statusLabel = `⚠️ Reducción Insuficiente (-${Math.abs(varMoM)}%)`;
+          statusLabel = `⚠️ Excede Meta Entera (+${brechaEntera} ev.)`;
           statusColor = '#f59e0b';
-          recomendacion = `Hubo reducción de ${Math.abs(varMoM)}%, pero no alcanzó la meta del -${targetReductionPct}% (Tope: ${meta}).`;
+          recomendacion = `Hubo reducción porcentual de ${Math.abs(varMoM)}%, pero en números enteros la meta exigía ${metaEnteraLabel} (exceso de +${brechaEntera} ${brechaEntera === 1 ? 'evento' : 'eventos'}).`;
         } else {
           status = 'NO_CUMPLE';
-          statusLabel = `🔴 Desviación (+${varMoM}%)`;
+          statusLabel = `🔴 Desviación (+${brechaEntera} ev.)`;
           statusColor = '#dc2626';
-          recomendacion = `Aumento de +${varMoM}% respecto al periodo anterior. Excede la meta en +${brecha} eventos. Requiere plan de choque SST.`;
+          recomendacion = `Aumento de +${varMoM}% respecto al mes anterior. Excede el tope de ${metaEnteraLabel} en +${brechaEntera} ${brechaEntera === 1 ? 'evento' : 'eventos'}. Requiere plan de choque SST.`;
         }
       }
 
@@ -457,13 +465,15 @@ export default function TelemetriaPage() {
         esProyeccion: false,
         real,
         meta,
+        topeMaximo,
+        metaEnteraLabel,
         prevReal: idx > 0 ? prevReal : null,
         varMoM,
         brecha,
+        brechaEntera,
         status,
         statusLabel,
         statusColor,
-        topeMaximo: meta !== null ? Math.floor(meta) : null,
         recomendacion
       });
 
@@ -471,51 +481,64 @@ export default function TelemetriaPage() {
         mes,
         real,
         meta,
+        metaEntera: topeMaximo,
         esProyeccion: false,
         statusColor,
-        metaLabel: idx === 0 ? `Base: ${real}` : `Meta: ${meta}`,
-        tooltipLabel: `${mes}: Real ${real} ev. | Meta: ${meta}`
+        metaLabel: idx === 0 ? `Base: ${real}` : (topeMaximo === 0 ? 'Meta: 0' : `Meta: ≤ ${topeMaximo}`),
+        tooltipLabel: `${mes}: Real ${real} ev. | Meta en enteros: ${topeMaximo === 0 ? '0' : '≤ ' + topeMaximo} ev.`
       });
 
       prevReal = real;
     });
 
-    // Proyecciones futuras de Ramp-Down (4 meses hacia adelante)
+    // Proyecciones futuras de Ramp-Down en enteros (4 meses hacia adelante)
     const ultMesConDatos = mesesConDatos[mesesConDatos.length - 1];
     const ultIdx = orderMeses.indexOf(ultMesConDatos);
     const mesesFuturos = orderMeses.slice(ultIdx + 1, ultIdx + 5);
 
     let baseProyeccion = prevReal;
-    mesesFuturos.forEach((mesFuturo) => {
+    mesesFuturos.forEach((mesFuturo, fIdx) => {
       const metaFutura = Number((baseProyeccion * reductionFactor).toFixed(2));
       const tope = Math.floor(metaFutura);
+      const metaEnteraLabel = tope === 0 ? '0 eventos' : `≤ ${tope} ${tope === 1 ? 'evento' : 'eventos'}`;
+
+      let recFutura = '';
+      if (tope === 0) {
+        recFutura = `Meta hacia Cero Accidentes: el CD debe registrar 0 eventos en ${mesFuturo}.`;
+      } else {
+        recFutura = `Para cumplir el -${targetReductionPct}% MoM, el CD no puede registrar más de ${tope} ${tope === 1 ? 'evento' : 'eventos'} en el mes.`;
+      }
 
       tableData.push({
         mes: `${mesFuturo} (Proy.)`,
         esProyeccion: true,
         real: null,
         meta: metaFutura,
+        topeMaximo: tope,
+        metaEnteraLabel,
         prevReal: baseProyeccion,
         varMoM: -targetReductionPct,
         brecha: 0,
+        brechaEntera: 0,
         status: 'PROYECCION',
         statusLabel: `🔮 Meta: máx ${tope} ev. (-${targetReductionPct}%)`,
         statusColor: '#6366f1',
-        topeMaximo: tope,
-        recomendacion: `Para cumplir el -${targetReductionPct}%, el CD debe registrar máximo ${tope} ${tope === 1 ? 'evento' : 'eventos'} en el mes.`
+        recomendacion: recFutura
       });
 
       chartData.push({
         mes: `${mesFuturo}*`,
         real: null,
         meta: metaFutura,
+        metaEntera: tope,
         esProyeccion: true,
         statusColor: '#6366f1',
-        metaLabel: `Meta: ${metaFutura}`,
-        tooltipLabel: `${mesFuturo} (Proy.): Meta ≤ ${metaFutura} (Máx ${tope} eventos)`
+        metaLabel: tope === 0 ? 'Meta: 0' : `Meta: ≤ ${tope}`,
+        tooltipLabel: `${mesFuturo} (Proy.): Meta en enteros ${metaEnteraLabel}`
       });
 
-      baseProyeccion = metaFutura;
+      // La siguiente proyección parte del tope entero alcanzado
+      baseProyeccion = tope > 0 ? tope : metaFutura;
     });
 
     // Resumen estadístico
@@ -541,8 +564,10 @@ export default function TelemetriaPage() {
         ultimoMes: ultimoEvaluado ? ultimoEvaluado.mes : ultMesConDatos,
         ultimoReal: ultimoEvaluado ? ultimoEvaluado.real : prevReal,
         variacionUltimoMoM: ultimoEvaluado ? ultimoEvaluado.varMoM : 0,
-        cumpleUltimo: ultimoEvaluado ? ultimoEvaluado.real <= ultimoEvaluado.meta : false,
+        cumpleUltimo: ultimoEvaluado ? ultimoEvaluado.real <= ultimoEvaluado.topeMaximo : false,
         brechaUltimo: ultimoEvaluado ? ultimoEvaluado.brecha : 0,
+        brechaEnteraUltimo: ultimoEvaluado ? ultimoEvaluado.brechaEntera : 0,
+        topePermitidoUltimo: ultimoEvaluado ? ultimoEvaluado.topeMaximo : 0,
         mejorMes,
         mejorVariacion,
         proximoMes: primeraProyeccion ? primeraProyeccion.mes.replace(' (Proy.)', '') : 'SEPTIEMBRE',
@@ -2261,7 +2286,7 @@ export default function TelemetriaPage() {
                   {rampAnalysis.resumen.ultimoReal} ev. ({rampAnalysis.resumen.variacionUltimoMoM > 0 ? '+' : ''}{rampAnalysis.resumen.variacionUltimoMoM}%)
                 </div>
                 <div style={{ fontSize: '0.75rem', color: rampAnalysis.resumen.cumpleUltimo ? '#15803d' : '#b91c1c' }}>
-                  {rampAnalysis.resumen.cumpleUltimo ? '✓ Cumplió objetivo de reducción' : `Alerta: +${rampAnalysis.resumen.brechaUltimo} ev. sobre meta`}
+                  {rampAnalysis.resumen.cumpleUltimo ? '✓ Cumplió objetivo de reducción' : `Alerta: +${rampAnalysis.resumen.brechaEnteraUltimo} ev. sobre tope`}
                 </div>
               </div>
 
@@ -2274,11 +2299,11 @@ export default function TelemetriaPage() {
               </div>
 
               <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '12px', borderLeft: '4px solid #6366f1' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>Meta {rampAnalysis.resumen.proximoMes} (Proy.)</div>
+                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>Meta {rampAnalysis.resumen.proximoMes} (Enteros)</div>
                 <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#6366f1', margin: '0.2rem 0' }}>
-                  ≤ {rampAnalysis.resumen.proximaMeta} ev.
+                  {rampAnalysis.resumen.topePermitido === 0 ? '0 ev.' : `≤ ${rampAnalysis.resumen.topePermitido} ev.`}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#4f46e5' }}>Tope máximo: {rampAnalysis.resumen.topePermitido} {rampAnalysis.resumen.topePermitido === 1 ? 'evento' : 'eventos'}</div>
+                <div style={{ fontSize: '0.75rem', color: '#4f46e5' }}>Tope en enteros (Cálculo: {rampAnalysis.resumen.proximaMeta})</div>
               </div>
             </div>
 
@@ -2946,7 +2971,7 @@ export default function TelemetriaPage() {
                 {rampAnalysis.resumen.ultimoReal} ev. ({rampAnalysis.resumen.variacionUltimoMoM > 0 ? '+' : ''}{rampAnalysis.resumen.variacionUltimoMoM}%)
               </div>
               <div style={{ fontSize: '0.8rem', color: rampAnalysis.resumen.cumpleUltimo ? '#15803d' : '#b91c1c', fontWeight: '700' }}>
-                {rampAnalysis.resumen.cumpleUltimo ? '✓ Cumplió la meta de reducción' : `Exceso de +${rampAnalysis.resumen.brechaUltimo} eventos sobre meta`}
+                {rampAnalysis.resumen.cumpleUltimo ? '✓ Cumplió la meta de reducción' : `Exceso de +${rampAnalysis.resumen.brechaEnteraUltimo} eventos sobre tope (${rampAnalysis.resumen.topePermitidoUltimo} ev.)`}
               </div>
             </div>
 
@@ -2981,14 +3006,14 @@ export default function TelemetriaPage() {
               borderLeft: '5px solid #6366f1'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase' }}>
-                <span>Meta {rampAnalysis.resumen.proximoMes} (Proy.)</span>
+                <span>Meta en Enteros {rampAnalysis.resumen.proximoMes}</span>
                 <span style={{ fontSize: '1.25rem' }}>🔮</span>
               </div>
               <div style={{ fontSize: '2.4rem', fontWeight: '900', color: '#6366f1', margin: '0.35rem 0 0.2rem' }}>
-                ≤ {rampAnalysis.resumen.proximaMeta} ev.
+                {rampAnalysis.resumen.topePermitido === 0 ? '0 eventos' : `≤ ${rampAnalysis.resumen.topePermitido} eventos`}
               </div>
               <div style={{ fontSize: '0.8rem', color: '#4f46e5', fontWeight: '700' }}>
-                Tope máximo permitido: {rampAnalysis.resumen.topePermitido} {rampAnalysis.resumen.topePermitido === 1 ? 'evento' : 'eventos'}
+                Tope máximo permitido en enteros (Cálculo exacto: ≤ {rampAnalysis.resumen.proximaMeta})
               </div>
             </div>
           </div>
@@ -3142,9 +3167,9 @@ export default function TelemetriaPage() {
                   <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
                     <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800' }}>Periodo</th>
                     <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800', textAlign: 'center' }}>Eventos Reales</th>
-                    <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800', textAlign: 'center' }}>Meta (-{targetReductionPct}%)</th>
+                    <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800', textAlign: 'center' }}>Meta en Enteros (-{targetReductionPct}%)</th>
                     <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800', textAlign: 'center' }}>Variación vs Anterior</th>
-                    <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800', textAlign: 'center' }}>Brecha vs Meta</th>
+                    <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800', textAlign: 'center' }}>Brecha en Enteros</th>
                     <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800' }}>Estado de Cumplimiento</th>
                     <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800' }}>Diagnóstico & Plan de Choque SST</th>
                   </tr>
@@ -3187,11 +3212,31 @@ export default function TelemetriaPage() {
                         )}
                       </td>
 
-                      {/* Meta */}
-                      <td style={{ padding: '1rem', textAlign: 'center', fontWeight: '800', color: '#b45309' }}>
-                        {row.meta !== null ? `≤ ${row.meta}` : 'Base'}
-                        {row.topeMaximo !== null && row.esProyeccion && (
-                          <div style={{ fontSize: '0.72rem', color: '#64748b' }}>(Máx {row.topeMaximo})</div>
+                      {/* Meta en Números Enteros */}
+                      <td style={{ padding: '1rem', textAlign: 'center', fontWeight: '800' }}>
+                        {row.status === 'BASE' ? (
+                          <div>
+                            <span style={{ fontSize: '1.15rem', fontWeight: '900', color: '#00205b' }}>1</span>
+                            <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '700' }}>evento (Base)</div>
+                          </div>
+                        ) : (
+                          <div>
+                            <span style={{
+                              fontSize: '1.2rem',
+                              fontWeight: '900',
+                              color: row.topeMaximo === 0 ? '#0284c7' : '#b45309',
+                              backgroundColor: row.topeMaximo === 0 ? '#f0f9ff' : '#fffbeb',
+                              padding: '0.2rem 0.65rem',
+                              borderRadius: '8px',
+                              display: 'inline-block'
+                            }}>
+                              {row.topeMaximo === 0 ? '0' : `≤ ${row.topeMaximo}`}
+                            </span>
+                            <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.2rem', fontWeight: '600' }}>
+                              {row.topeMaximo === 0 ? '0 eventos' : `≤ ${row.topeMaximo} ${row.topeMaximo === 1 ? 'evento' : 'eventos'}`}
+                              <span style={{ color: '#94a3b8', marginLeft: '4px' }}>({row.meta})</span>
+                            </div>
+                          </div>
                         )}
                       </td>
 
@@ -3208,17 +3253,21 @@ export default function TelemetriaPage() {
                         )}
                       </td>
 
-                      {/* Brecha vs Meta */}
+                      {/* Brecha vs Meta en Enteros */}
                       <td style={{ padding: '1rem', textAlign: 'center', fontWeight: '700' }}>
-                        {row.real !== null && row.brecha !== null ? (
+                        {row.real !== null ? (
                           <span style={{
-                            color: row.brecha <= 0 ? '#15803d' : '#b91c1c',
-                            backgroundColor: row.brecha <= 0 ? '#dcfce7' : '#fee2e2',
-                            padding: '0.2rem 0.5rem',
+                            color: row.brechaEntera <= 0 ? '#15803d' : '#b91c1c',
+                            backgroundColor: row.brechaEntera <= 0 ? '#dcfce7' : '#fee2e2',
+                            padding: '0.25rem 0.65rem',
                             borderRadius: '6px',
-                            fontSize: '0.78rem'
+                            fontSize: '0.8rem',
+                            fontWeight: '800',
+                            display: 'inline-block'
                           }}>
-                            {row.brecha <= 0 ? `${row.brecha} ev. (A favor)` : `+${row.brecha} ev. (Exceso)`}
+                            {row.brechaEntera <= 0 
+                              ? (row.brechaEntera === 0 ? '0 ev. (Cumple)' : `${row.brechaEntera} ev. (A favor)`)
+                              : `+${row.brechaEntera} ${row.brechaEntera === 1 ? 'evento' : 'eventos'} (Exceso)`}
                           </span>
                         ) : (
                           <span style={{ color: '#94a3b8' }}>—</span>
