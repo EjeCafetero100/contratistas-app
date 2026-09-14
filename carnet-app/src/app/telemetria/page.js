@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, LabelList
+  PieChart, Pie, Cell, LabelList, ComposedChart, Line
 } from 'recharts';
 
 // Paleta corporativa de Seguridad Vial y SST
@@ -40,7 +40,8 @@ export default function TelemetriaPage() {
   const [dataGestion, setDataGestion] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('resumen'); // 'resumen', 'eventos', 'gestion', 'cruce'
+  const [activeTab, setActiveTab] = useState('resumen'); // 'resumen', 'ramp', 'eventos', 'gestion', 'cruce'
+  const [targetReductionPct, setTargetReductionPct] = useState(20); // Meta de reducción mensual MoM (20% solicitada)
   const [lastUpdate, setLastUpdate] = useState(null);
   const [dataSource, setDataSource] = useState('Servidor (telemetria.xlsx)');
 
@@ -372,6 +373,184 @@ export default function TelemetriaPage() {
       { name: 'Reincidentes', value: reincidentes, color: '#dc2626' }
     ];
   }, [filteredGestion]);
+
+  // 6.b Cálculo Dinámico de Ramp Up / Ramp Down de Reducción MoM
+  const rampAnalysis = useMemo(() => {
+    const orderMeses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+    const reductionFactor = 1 - (targetReductionPct / 100);
+
+    // Conteo real por mes según los eventos filtrados
+    const conteoMeses = {};
+    filteredEventos.forEach(e => {
+      const mes = e.mes || 'OTRO';
+      conteoMeses[mes] = (conteoMeses[mes] || 0) + e.total;
+    });
+
+    // Meses con datos reales ordenados cronológicamente
+    const mesesConDatos = orderMeses.filter(m => conteoMeses[m] !== undefined && conteoMeses[m] > 0);
+
+    if (mesesConDatos.length === 0) {
+      return {
+        chartData: [],
+        tableData: [],
+        resumen: {
+          metaPct: targetReductionPct,
+          ultimoMes: 'N/A',
+          ultimoReal: 0,
+          variacionUltimoMoM: 0,
+          cumpleUltimo: false,
+          brechaUltimo: 0,
+          mejorMes: 'N/A',
+          mejorVariacion: 0,
+          proximoMes: 'SEPTIEMBRE',
+          proximaMeta: 0,
+          topePermitido: 0
+        }
+      };
+    }
+
+    const tableData = [];
+    const chartData = [];
+    let prevReal = null;
+
+    mesesConDatos.forEach((mes, idx) => {
+      const real = conteoMeses[mes];
+      let meta = null;
+      let varMoM = null;
+      let brecha = null;
+      let status = 'BASE';
+      let statusLabel = 'Punto de partida';
+      let statusColor = '#00205b';
+      let recomendacion = 'Línea base para medir la meta de reducción.';
+
+      if (idx === 0) {
+        meta = real;
+        status = 'BASE';
+        statusLabel = '🏁 Mes Base';
+        statusColor = '#00205b';
+        recomendacion = 'Punto de partida inicial de telemetría en Barrancabermeja.';
+      } else {
+        meta = Number((prevReal * reductionFactor).toFixed(2));
+        varMoM = Number((((real - prevReal) / prevReal) * 100).toFixed(1));
+        brecha = Number((real - meta).toFixed(2));
+
+        if (real <= meta) {
+          status = 'CUMPLE';
+          statusLabel = `🟢 Cumple Meta (-${Math.abs(varMoM)}%)`;
+          statusColor = '#10b981';
+          recomendacion = `Excelente desempeño: reducción de ${Math.abs(varMoM)}% superando la meta del -${targetReductionPct}%. Mantener buenas prácticas.`;
+        } else if (varMoM <= 0) {
+          status = 'PARCIAL';
+          statusLabel = `⚠️ Reducción Insuficiente (-${Math.abs(varMoM)}%)`;
+          statusColor = '#f59e0b';
+          recomendacion = `Hubo reducción de ${Math.abs(varMoM)}%, pero no alcanzó la meta del -${targetReductionPct}% (Tope: ${meta}).`;
+        } else {
+          status = 'NO_CUMPLE';
+          statusLabel = `🔴 Desviación (+${varMoM}%)`;
+          statusColor = '#dc2626';
+          recomendacion = `Aumento de +${varMoM}% respecto al periodo anterior. Excede la meta en +${brecha} eventos. Requiere plan de choque SST.`;
+        }
+      }
+
+      tableData.push({
+        mes,
+        esProyeccion: false,
+        real,
+        meta,
+        prevReal: idx > 0 ? prevReal : null,
+        varMoM,
+        brecha,
+        status,
+        statusLabel,
+        statusColor,
+        topeMaximo: meta !== null ? Math.floor(meta) : null,
+        recomendacion
+      });
+
+      chartData.push({
+        mes,
+        real,
+        meta,
+        esProyeccion: false,
+        statusColor,
+        metaLabel: idx === 0 ? `Base: ${real}` : `Meta: ${meta}`,
+        tooltipLabel: `${mes}: Real ${real} ev. | Meta: ${meta}`
+      });
+
+      prevReal = real;
+    });
+
+    // Proyecciones futuras de Ramp-Down (4 meses hacia adelante)
+    const ultMesConDatos = mesesConDatos[mesesConDatos.length - 1];
+    const ultIdx = orderMeses.indexOf(ultMesConDatos);
+    const mesesFuturos = orderMeses.slice(ultIdx + 1, ultIdx + 5);
+
+    let baseProyeccion = prevReal;
+    mesesFuturos.forEach((mesFuturo) => {
+      const metaFutura = Number((baseProyeccion * reductionFactor).toFixed(2));
+      const tope = Math.floor(metaFutura);
+
+      tableData.push({
+        mes: `${mesFuturo} (Proy.)`,
+        esProyeccion: true,
+        real: null,
+        meta: metaFutura,
+        prevReal: baseProyeccion,
+        varMoM: -targetReductionPct,
+        brecha: 0,
+        status: 'PROYECCION',
+        statusLabel: `🔮 Meta: máx ${tope} ev. (-${targetReductionPct}%)`,
+        statusColor: '#6366f1',
+        topeMaximo: tope,
+        recomendacion: `Para cumplir el -${targetReductionPct}%, el CD debe registrar máximo ${tope} ${tope === 1 ? 'evento' : 'eventos'} en el mes.`
+      });
+
+      chartData.push({
+        mes: `${mesFuturo}*`,
+        real: null,
+        meta: metaFutura,
+        esProyeccion: true,
+        statusColor: '#6366f1',
+        metaLabel: `Meta: ${metaFutura}`,
+        tooltipLabel: `${mesFuturo} (Proy.): Meta ≤ ${metaFutura} (Máx ${tope} eventos)`
+      });
+
+      baseProyeccion = metaFutura;
+    });
+
+    // Resumen estadístico
+    const evaluados = tableData.filter(d => !d.esProyeccion && d.varMoM !== null);
+    const ultimoEvaluado = evaluados.length > 0 ? evaluados[evaluados.length - 1] : null;
+
+    let mejorMes = 'N/A';
+    let mejorVariacion = 0;
+    evaluados.forEach(d => {
+      if (d.varMoM !== null && d.varMoM < mejorVariacion) {
+        mejorVariacion = d.varMoM;
+        mejorMes = d.mes;
+      }
+    });
+
+    const primeraProyeccion = tableData.find(d => d.esProyeccion);
+
+    return {
+      chartData,
+      tableData,
+      resumen: {
+        metaPct: targetReductionPct,
+        ultimoMes: ultimoEvaluado ? ultimoEvaluado.mes : ultMesConDatos,
+        ultimoReal: ultimoEvaluado ? ultimoEvaluado.real : prevReal,
+        variacionUltimoMoM: ultimoEvaluado ? ultimoEvaluado.varMoM : 0,
+        cumpleUltimo: ultimoEvaluado ? ultimoEvaluado.real <= ultimoEvaluado.meta : false,
+        brechaUltimo: ultimoEvaluado ? ultimoEvaluado.brecha : 0,
+        mejorMes,
+        mejorVariacion,
+        proximoMes: primeraProyeccion ? primeraProyeccion.mes.replace(' (Proy.)', '') : 'SEPTIEMBRE',
+        proximaMeta: primeraProyeccion ? primeraProyeccion.meta : 0,
+        topePermitido: primeraProyeccion ? primeraProyeccion.topeMaximo : 0
+      }
+    };
+  }, [filteredEventos, targetReductionPct]);
 
   // Indicador de filtros activos
   const hasActiveFilters = selectedMes !== 'Todos' || selectedSemana !== 'Todas' || selectedTipo !== 'Todos' || selectedMotivo !== 'Todos' || selectedPlaca !== 'Todas' || selectedConductor !== 'Todos' || selectedReincidente !== 'Todos' || searchTerm.trim() !== '';
@@ -1906,6 +2085,27 @@ export default function TelemetriaPage() {
         </button>
 
         <button
+          onClick={() => setActiveTab('ramp')}
+          style={{
+            padding: '0.85rem 1.5rem',
+            borderRadius: '12px 12px 0 0',
+            border: 'none',
+            borderBottom: activeTab === 'ramp' ? '3px solid #00205b' : '3px solid transparent',
+            backgroundColor: activeTab === 'ramp' ? '#ffffff' : 'transparent',
+            color: activeTab === 'ramp' ? '#00205b' : '#64748b',
+            fontWeight: '800',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <span>📉</span> Ramp Up / Meta -{targetReductionPct}% MoM
+        </button>
+
+        <button
           onClick={() => setActiveTab('eventos')}
           style={{
             padding: '0.85rem 1.5rem',
@@ -1974,6 +2174,206 @@ export default function TelemetriaPage() {
       {/* PESTAÑA 1: RESUMEN GRÁFICO COORDINADO CON ETIQUETAS DE DATOS */}
       {activeTab === 'resumen' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          {/* BANNER DESTACADO: RAMP UP / META DE REDUCCIÓN -20% MoM */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '20px',
+            border: '2px solid #00205b',
+            padding: '1.75rem 2rem',
+            boxShadow: '0 8px 24px rgba(0, 32, 91, 0.08)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.5rem'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                  <span style={{
+                    backgroundColor: '#00205b',
+                    color: '#fcd116',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.78rem',
+                    fontWeight: '900',
+                    letterSpacing: '0.5px'
+                  }}>
+                    📉 MODELO RAMP UP / DOWN
+                  </span>
+                  <span style={{
+                    backgroundColor: rampAnalysis.resumen.cumpleUltimo ? '#dcfce7' : '#fee2e2',
+                    color: rampAnalysis.resumen.cumpleUltimo ? '#15803d' : '#b91c1c',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.78rem',
+                    fontWeight: '800'
+                  }}>
+                    {rampAnalysis.resumen.cumpleUltimo ? '🟢 Cumpliendo Meta MoM' : '🔴 Desviación en Último Mes'}
+                  </span>
+                </div>
+                <h3 style={{ margin: 0, fontSize: '1.35rem', color: '#00205b', fontWeight: '900' }}>
+                  Meta Continua de Reducción: -{targetReductionPct}% Mes a Mes (MoM)
+                </h3>
+                <p style={{ margin: '0.3rem 0 0', color: '#64748b', fontSize: '0.88rem' }}>
+                  Seguimiento de trayectoria de eventos frente a la meta corporativa de Seguridad Vial y proyección hacia cero infracciones
+                </p>
+              </div>
+
+              {/* Selector interactivo rápido de meta % */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#f8fafc', padding: '0.5rem 0.8rem', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#475569' }}>Meta:</span>
+                {[10, 15, 20, 25, 30].map(pct => (
+                  <button
+                    key={pct}
+                    onClick={() => setTargetReductionPct(pct)}
+                    style={{
+                      backgroundColor: targetReductionPct === pct ? '#00205b' : '#ffffff',
+                      color: targetReductionPct === pct ? '#fcd116' : '#475569',
+                      border: targetReductionPct === pct ? '1px solid #00205b' : '1px solid #cbd5e1',
+                      padding: '0.35rem 0.65rem',
+                      borderRadius: '8px',
+                      fontSize: '0.78rem',
+                      fontWeight: targetReductionPct === pct ? '900' : '700',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {pct === 20 ? `★ -${pct}%` : `-${pct}%`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mini KPIs de Ramp Up */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '1rem'
+            }}>
+              <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '12px', borderLeft: '4px solid #00205b' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>Meta Fijada</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#00205b', margin: '0.2rem 0' }}>-{targetReductionPct}% MoM</div>
+                <div style={{ fontSize: '0.75rem', color: '#475569' }}>Disminución requerida de mes a mes</div>
+              </div>
+
+              <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '12px', borderLeft: `4px solid ${rampAnalysis.resumen.cumpleUltimo ? '#10b981' : '#dc2626'}` }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>Último Mes ({rampAnalysis.resumen.ultimoMes})</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: rampAnalysis.resumen.cumpleUltimo ? '#10b981' : '#dc2626', margin: '0.2rem 0' }}>
+                  {rampAnalysis.resumen.ultimoReal} ev. ({rampAnalysis.resumen.variacionUltimoMoM > 0 ? '+' : ''}{rampAnalysis.resumen.variacionUltimoMoM}%)
+                </div>
+                <div style={{ fontSize: '0.75rem', color: rampAnalysis.resumen.cumpleUltimo ? '#15803d' : '#b91c1c' }}>
+                  {rampAnalysis.resumen.cumpleUltimo ? '✓ Cumplió objetivo de reducción' : `Alerta: +${rampAnalysis.resumen.brechaUltimo} ev. sobre meta`}
+                </div>
+              </div>
+
+              <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '12px', borderLeft: '4px solid #10b981' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>Mejor Mes ({rampAnalysis.resumen.mejorMes})</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#10b981', margin: '0.2rem 0' }}>
+                  {rampAnalysis.resumen.mejorVariacion}%
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#15803d' }}>Superó con creces la meta del -{targetReductionPct}%</div>
+              </div>
+
+              <div style={{ backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '12px', borderLeft: '4px solid #6366f1' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' }}>Meta {rampAnalysis.resumen.proximoMes} (Proy.)</div>
+                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#6366f1', margin: '0.2rem 0' }}>
+                  ≤ {rampAnalysis.resumen.proximaMeta} ev.
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#4f46e5' }}>Tope máximo: {rampAnalysis.resumen.topePermitido} {rampAnalysis.resumen.topePermitido === 1 ? 'evento' : 'eventos'}</div>
+              </div>
+            </div>
+
+            {/* Gráfico ComposedChart: Reales vs Meta MoM */}
+            <div style={{ width: '100%', height: '340px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={rampAnalysis.chartData} margin={{ top: 25, right: 25, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="mes" tick={{ fill: '#475569', fontSize: 11, fontWeight: '700' }} />
+                  <YAxis allowDecimals={true} tick={{ fill: '#64748b', fontSize: 11 }} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload || !payload.length) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div style={{ backgroundColor: '#00205b', color: '#ffffff', padding: '0.8rem 1rem', borderRadius: '10px', fontSize: '0.85rem', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+                          <div style={{ fontWeight: '900', color: '#fcd116', marginBottom: '0.4rem' }}>{d.mes}</div>
+                          {d.real !== null && (
+                            <div>• Eventos Reales: <strong>{d.real}</strong></div>
+                          )}
+                          <div>• Meta Teórica (-{targetReductionPct}%): <strong>{d.meta} ev.</strong></div>
+                          {d.esProyeccion ? (
+                            <div style={{ color: '#a5b4fc', marginTop: '0.3rem', fontSize: '0.78rem' }}>🔮 Proyección Ramp Down hacia Cero Accidentes</div>
+                          ) : (
+                            <div style={{ marginTop: '0.3rem', color: d.statusColor, fontWeight: '800' }}>
+                              {d.status === 'BASE' ? '🏁 Punto Base' : (d.real <= d.meta ? '🟢 Cumple Meta' : '🔴 Excede Meta')}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                  <Bar dataKey="real" name="Eventos Reales" radius={[8, 8, 0, 0]}>
+                    <LabelList
+                      dataKey="real"
+                      position="top"
+                      fontWeight="900"
+                      fontSize={13}
+                      formatter={(val) => (val !== null && val !== undefined ? `${val} ev.` : '')}
+                    />
+                    {rampAnalysis.chartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-ramp-${index}`}
+                        fill={entry.real !== null ? entry.statusColor : 'transparent'}
+                      />
+                    ))}
+                  </Bar>
+                  <Line
+                    type="monotone"
+                    dataKey="meta"
+                    name={`Meta Reducción (-${targetReductionPct}% MoM)`}
+                    stroke="#f59e0b"
+                    strokeWidth={3}
+                    strokeDasharray="5 5"
+                    dot={{ r: 5, fill: '#f59e0b', stroke: '#ffffff', strokeWidth: 2 }}
+                    activeDot={{ r: 7 }}
+                  >
+                    <LabelList
+                      dataKey="metaLabel"
+                      position="bottom"
+                      fill="#b45309"
+                      fontWeight="800"
+                      fontSize={11}
+                    />
+                  </Line>
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                💡 <em>Nota: Los meses marcados con asterisco (*) corresponden a proyecciones automáticas de Ramp Down para alcanzar la meta continua.</em>
+              </div>
+              <button
+                onClick={() => setActiveTab('ramp')}
+                style={{
+                  backgroundColor: '#00205b',
+                  color: '#fcd116',
+                  border: 'none',
+                  padding: '0.55rem 1.15rem',
+                  borderRadius: '10px',
+                  fontWeight: '800',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 2px 8px rgba(0, 32, 91, 0.2)'
+                }}
+              >
+                <span>📉</span> Ver Tabla Detallada y Planes de Choque ➔
+              </button>
+            </div>
+          </div>
           
           {/* Fila 1 de Gráficos */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1.75rem' }}>
@@ -2364,6 +2764,569 @@ export default function TelemetriaPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* PESTAÑA: RAMP UP / META DE REDUCCIÓN (-20% MoM) */}
+      {activeTab === 'ramp' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          
+          {/* Header del Módulo Ramp Up */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '20px',
+            border: '1px solid #e2e8f0',
+            padding: '2rem 2.5rem',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '1.5rem'
+          }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                <span style={{
+                  backgroundColor: '#00205b',
+                  color: '#fcd116',
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.78rem',
+                  fontWeight: '900',
+                  letterSpacing: '0.5px'
+                }}>
+                  📉 RAMP UP / RAMP DOWN SST
+                </span>
+                <span style={{
+                  backgroundColor: rampAnalysis.resumen.cumpleUltimo ? '#dcfce7' : '#fee2e2',
+                  color: rampAnalysis.resumen.cumpleUltimo ? '#15803d' : '#b91c1c',
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.78rem',
+                  fontWeight: '800'
+                }}>
+                  {rampAnalysis.resumen.cumpleUltimo ? '🟢 Tendencia en Meta' : '🔴 Alerta de Desviación'}
+                </span>
+                <span style={{
+                  backgroundColor: '#e0f2fe',
+                  color: '#0369a1',
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.78rem',
+                  fontWeight: '800'
+                }}>
+                  Meta Corporativa: -{targetReductionPct}% MoM
+                </span>
+              </div>
+              <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: '#00205b', margin: '0 0 0.4rem 0' }}>
+                Modelo de Ramp Up: Meta de Reducción Continua (-{targetReductionPct}% MoM)
+              </h2>
+              <p style={{ color: '#64748b', fontSize: '0.95rem', margin: 0, maxWidth: '850px', lineHeight: '1.5' }}>
+                Estrategia de reducción continua del <strong>{targetReductionPct}% mes a mes</strong> sobre los eventos de telemetría de CD Barrancabermeja. Permite contrastar los incidentes reales contra la meta exigida y simular la curva de descenso hacia Cero Accidentes.
+              </p>
+            </div>
+
+            {/* Panel de Control Interactivo de la Meta % */}
+            <div style={{
+              backgroundColor: '#f8fafc',
+              border: '1px solid #cbd5e1',
+              borderRadius: '16px',
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.85rem',
+              minWidth: '280px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#334155', textTransform: 'uppercase' }}>
+                  🎯 Ajustar Meta de Reducción:
+                </span>
+                <span style={{
+                  backgroundColor: '#00205b',
+                  color: '#fcd116',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  fontWeight: '900'
+                }}>
+                  -{targetReductionPct}% MoM
+                </span>
+              </div>
+
+              {/* Botones predefinidos */}
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {[10, 15, 20, 25, 30].map(pct => (
+                  <button
+                    key={pct}
+                    onClick={() => setTargetReductionPct(pct)}
+                    style={{
+                      backgroundColor: targetReductionPct === pct ? '#00205b' : '#ffffff',
+                      color: targetReductionPct === pct ? '#fcd116' : '#475569',
+                      border: targetReductionPct === pct ? '1px solid #00205b' : '1px solid #cbd5e1',
+                      padding: '0.4rem 0.65rem',
+                      borderRadius: '8px',
+                      fontSize: '0.78rem',
+                      fontWeight: targetReductionPct === pct ? '900' : '700',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {pct === 20 ? `★ ${pct}%` : `${pct}%`}
+                  </button>
+                ))}
+              </div>
+
+              {/* Slider interactivo */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <input
+                  type="range"
+                  min="5"
+                  max="50"
+                  step="5"
+                  value={targetReductionPct}
+                  onChange={(e) => setTargetReductionPct(Number(e.target.value))}
+                  style={{ width: '100%', cursor: 'pointer' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.74rem', color: '#64748b' }}>
+                <span>Mín: 5%</span>
+                <button
+                  onClick={() => setTargetReductionPct(20)}
+                  style={{ background: 'none', border: 'none', color: '#0369a1', cursor: 'pointer', textDecoration: 'underline', fontWeight: '700' }}
+                >
+                  Restablecer 20%
+                </button>
+                <span>Máx: 50%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tarjetas KPI de Ramp Up */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '1.25rem'
+          }}>
+            {/* KPI 1: Meta Corporativa */}
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.4rem 1.5rem',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+              borderLeft: '5px solid #00205b'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase' }}>
+                <span>Meta Mensual MoM</span>
+                <span style={{ fontSize: '1.25rem' }}>🎯</span>
+              </div>
+              <div style={{ fontSize: '2.4rem', fontWeight: '900', color: '#00205b', margin: '0.35rem 0 0.2rem' }}>
+                -{targetReductionPct}.0%
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#475569' }}>
+                Tasa de reducción esperada cada mes
+              </div>
+            </div>
+
+            {/* KPI 2: Último Desempeño Evaluado */}
+            <div style={{
+              backgroundColor: rampAnalysis.resumen.cumpleUltimo ? '#f0fdf4' : '#fff5f5',
+              border: rampAnalysis.resumen.cumpleUltimo ? '1px solid #86efac' : '1px solid #fecaca',
+              borderRadius: '16px',
+              padding: '1.4rem 1.5rem',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+              borderLeft: `5px solid ${rampAnalysis.resumen.cumpleUltimo ? '#10b981' : '#dc2626'}`
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase' }}>
+                <span>Último Mes ({rampAnalysis.resumen.ultimoMes})</span>
+                <span style={{ fontSize: '1.25rem' }}>{rampAnalysis.resumen.cumpleUltimo ? '🟢' : '🚨'}</span>
+              </div>
+              <div style={{ fontSize: '2.4rem', fontWeight: '900', color: rampAnalysis.resumen.cumpleUltimo ? '#15803d' : '#dc2626', margin: '0.35rem 0 0.2rem' }}>
+                {rampAnalysis.resumen.ultimoReal} ev. ({rampAnalysis.resumen.variacionUltimoMoM > 0 ? '+' : ''}{rampAnalysis.resumen.variacionUltimoMoM}%)
+              </div>
+              <div style={{ fontSize: '0.8rem', color: rampAnalysis.resumen.cumpleUltimo ? '#15803d' : '#b91c1c', fontWeight: '700' }}>
+                {rampAnalysis.resumen.cumpleUltimo ? '✓ Cumplió la meta de reducción' : `Exceso de +${rampAnalysis.resumen.brechaUltimo} eventos sobre meta`}
+              </div>
+            </div>
+
+            {/* KPI 3: Mejor Mes Histórico */}
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.4rem 1.5rem',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+              borderLeft: '5px solid #10b981'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase' }}>
+                <span>Mejor Desempeño ({rampAnalysis.resumen.mejorMes})</span>
+                <span style={{ fontSize: '1.25rem' }}>🏆</span>
+              </div>
+              <div style={{ fontSize: '2.4rem', fontWeight: '900', color: '#10b981', margin: '0.35rem 0 0.2rem' }}>
+                {rampAnalysis.resumen.mejorVariacion}%
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: '700' }}>
+                Superó la meta fijada (Redujo de 2 a 1 evento)
+              </div>
+            </div>
+
+            {/* KPI 4: Objetivo Próximo Mes */}
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.4rem 1.5rem',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+              borderLeft: '5px solid #6366f1'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase' }}>
+                <span>Meta {rampAnalysis.resumen.proximoMes} (Proy.)</span>
+                <span style={{ fontSize: '1.25rem' }}>🔮</span>
+              </div>
+              <div style={{ fontSize: '2.4rem', fontWeight: '900', color: '#6366f1', margin: '0.35rem 0 0.2rem' }}>
+                ≤ {rampAnalysis.resumen.proximaMeta} ev.
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#4f46e5', fontWeight: '700' }}>
+                Tope máximo permitido: {rampAnalysis.resumen.topePermitido} {rampAnalysis.resumen.topePermitido === 1 ? 'evento' : 'eventos'}
+              </div>
+            </div>
+          </div>
+
+          {/* Gráfico ComposedChart Detallado */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '18px',
+            border: '1px solid #e2e8f0',
+            padding: '2rem',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.03)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#00205b', fontWeight: '900' }}>
+                  📈 Curva de Descenso Ramp Up: Eventos Reales vs Meta MoM (-{targetReductionPct}%)
+                </h3>
+                <p style={{ margin: '0.3rem 0 0', color: '#64748b', fontSize: '0.88rem' }}>
+                  Barras verdes = Cumplió la meta de reducción | Barras rojas = Excedió la meta | Línea dorada = Meta continua de reducción (-{targetReductionPct}% MoM)
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.82rem' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: '#15803d', fontWeight: '800' }}>
+                  <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#10b981', display: 'inline-block' }}></span> Cumple
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: '#b91c1c', fontWeight: '800' }}>
+                  <span style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: '#dc2626', display: 'inline-block' }}></span> Desviación
+                </span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: '#b45309', fontWeight: '800' }}>
+                  <span style={{ width: '16px', height: '2px', borderTop: '2px dashed #f59e0b', display: 'inline-block' }}></span> Meta MoM
+                </span>
+              </div>
+            </div>
+
+            <div style={{ width: '100%', height: '400px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={rampAnalysis.chartData} margin={{ top: 30, right: 30, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="mes" tick={{ fill: '#475569', fontSize: 11, fontWeight: '800' }} />
+                  <YAxis allowDecimals={true} tick={{ fill: '#64748b', fontSize: 11 }} />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload || !payload.length) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div style={{ backgroundColor: '#00205b', color: '#ffffff', padding: '0.9rem 1.15rem', borderRadius: '12px', fontSize: '0.85rem', boxShadow: '0 8px 20px rgba(0,0,0,0.25)', minWidth: '220px' }}>
+                          <div style={{ fontWeight: '900', color: '#fcd116', fontSize: '0.95rem', marginBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '0.3rem' }}>
+                            {d.mes}
+                          </div>
+                          {d.real !== null ? (
+                            <div style={{ marginBottom: '0.25rem' }}>• Eventos Reales: <strong>{d.real} infracciones</strong></div>
+                          ) : (
+                            <div style={{ color: '#a5b4fc', marginBottom: '0.25rem' }}>• Eventos Reales: <em>Pendiente (Futuro)</em></div>
+                          )}
+                          <div style={{ marginBottom: '0.25rem' }}>• Meta Continua (-{targetReductionPct}%): <strong>{d.meta} ev.</strong></div>
+                          {d.esProyeccion ? (
+                            <div style={{ color: '#a5b4fc', marginTop: '0.4rem', fontSize: '0.78rem' }}>
+                              🔮 Proyección de descenso continuo hacia cero
+                            </div>
+                          ) : (
+                            <div style={{ marginTop: '0.4rem', color: d.statusColor, fontWeight: '800' }}>
+                              {d.status === 'BASE' ? '🏁 Punto Base' : (d.real <= d.meta ? `🟢 Cumple Meta` : `🔴 Desviación (+${(d.real - d.meta).toFixed(2)} ev.)`)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '12px' }} />
+                  <Bar dataKey="real" name="Eventos Reales Registrados" radius={[8, 8, 0, 0]}>
+                    <LabelList
+                      dataKey="real"
+                      position="top"
+                      fontWeight="900"
+                      fontSize={13}
+                      formatter={(val) => (val !== null && val !== undefined ? `${val} ev.` : '')}
+                    />
+                    {rampAnalysis.chartData.map((entry, index) => (
+                      <Cell
+                        key={`cell-ramp-main-${index}`}
+                        fill={entry.real !== null ? entry.statusColor : 'transparent'}
+                      />
+                    ))}
+                  </Bar>
+                  <Line
+                    type="monotone"
+                    dataKey="meta"
+                    name={`Curva Meta de Reducción (-${targetReductionPct}% MoM)`}
+                    stroke="#f59e0b"
+                    strokeWidth={3}
+                    strokeDasharray="5 5"
+                    dot={{ r: 6, fill: '#f59e0b', stroke: '#ffffff', strokeWidth: 2 }}
+                    activeDot={{ r: 8 }}
+                  >
+                    <LabelList
+                      dataKey="metaLabel"
+                      position="bottom"
+                      fill="#b45309"
+                      fontWeight="800"
+                      fontSize={11}
+                    />
+                  </Line>
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Tabla Comparativa Paso a Paso de Cumplimiento y Proyección */}
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '18px',
+            border: '1px solid #e2e8f0',
+            padding: '2rem',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.03)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#00205b', fontWeight: '900' }}>
+                  📋 Matriz de Seguimiento MoM y Proyección Hacia Cero Accidentes
+                </h3>
+                <p style={{ margin: '0.25rem 0 0', color: '#64748b', fontSize: '0.88rem' }}>
+                  Cálculo histórico de variación mes a mes vs meta del -{targetReductionPct}% y metas de control futuro
+                </p>
+              </div>
+
+              <button
+                onClick={() => exportToCSV('ramp_up', rampAnalysis.tableData)}
+                style={{
+                  backgroundColor: '#10b981',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '0.6rem 1.15rem',
+                  borderRadius: '10px',
+                  fontSize: '0.85rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)'
+                }}
+              >
+                <span>📊</span> Exportar Análisis Ramp Up (.xlsx)
+              </button>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
+                    <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800' }}>Periodo</th>
+                    <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800', textAlign: 'center' }}>Eventos Reales</th>
+                    <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800', textAlign: 'center' }}>Meta (-{targetReductionPct}%)</th>
+                    <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800', textAlign: 'center' }}>Variación vs Anterior</th>
+                    <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800', textAlign: 'center' }}>Brecha vs Meta</th>
+                    <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800' }}>Estado de Cumplimiento</th>
+                    <th style={{ padding: '0.9rem 1rem', color: '#00205b', fontWeight: '800' }}>Diagnóstico & Plan de Choque SST</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rampAnalysis.tableData.map((row, idx) => (
+                    <tr 
+                      key={idx} 
+                      style={{ 
+                        borderBottom: '1px solid #f1f5f9',
+                        backgroundColor: row.esProyeccion ? '#f8fafc' : (row.status === 'CUMPLE' ? '#f0fdf4' : (row.status === 'NO_CUMPLE' ? '#fff5f5' : '#ffffff'))
+                      }}
+                    >
+                      {/* Periodo */}
+                      <td style={{ padding: '1rem', fontWeight: '800', color: '#00205b' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span>{row.mes}</span>
+                          {row.esProyeccion ? (
+                            <span style={{ backgroundColor: '#e0e7ff', color: '#4338ca', fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '4px', fontWeight: '800' }}>PROYECCIÓN</span>
+                          ) : (
+                            <span style={{ backgroundColor: '#e2e8f0', color: '#334155', fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '4px', fontWeight: '800' }}>HISTÓRICO</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Eventos Reales */}
+                      <td style={{ padding: '1rem', textAlign: 'center', fontWeight: '900', fontSize: '1rem' }}>
+                        {row.real !== null ? (
+                          <span style={{
+                            backgroundColor: row.status === 'CUMPLE' ? '#dcfce7' : (row.status === 'NO_CUMPLE' ? '#fee2e2' : '#f1f5f9'),
+                            color: row.status === 'CUMPLE' ? '#15803d' : (row.status === 'NO_CUMPLE' ? '#b91c1c' : '#00205b'),
+                            padding: '0.3rem 0.75rem',
+                            borderRadius: '8px',
+                            display: 'inline-block'
+                          }}>
+                            {row.real}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* Meta */}
+                      <td style={{ padding: '1rem', textAlign: 'center', fontWeight: '800', color: '#b45309' }}>
+                        {row.meta !== null ? `≤ ${row.meta}` : 'Base'}
+                        {row.topeMaximo !== null && row.esProyeccion && (
+                          <div style={{ fontSize: '0.72rem', color: '#64748b' }}>(Máx {row.topeMaximo})</div>
+                        )}
+                      </td>
+
+                      {/* Variación vs Anterior */}
+                      <td style={{ padding: '1rem', textAlign: 'center', fontWeight: '800' }}>
+                        {row.varMoM !== null ? (
+                          <span style={{
+                            color: row.varMoM <= -targetReductionPct ? '#15803d' : (row.varMoM <= 0 ? '#b45309' : '#b91c1c')
+                          }}>
+                            {row.varMoM > 0 ? `▲ +${row.varMoM}%` : `▼ ${row.varMoM}%`}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>Línea Base</span>
+                        )}
+                      </td>
+
+                      {/* Brecha vs Meta */}
+                      <td style={{ padding: '1rem', textAlign: 'center', fontWeight: '700' }}>
+                        {row.real !== null && row.brecha !== null ? (
+                          <span style={{
+                            color: row.brecha <= 0 ? '#15803d' : '#b91c1c',
+                            backgroundColor: row.brecha <= 0 ? '#dcfce7' : '#fee2e2',
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '6px',
+                            fontSize: '0.78rem'
+                          }}>
+                            {row.brecha <= 0 ? `${row.brecha} ev. (A favor)` : `+${row.brecha} ev. (Exceso)`}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      {/* Estado */}
+                      <td style={{ padding: '1rem' }}>
+                        <span style={{
+                          backgroundColor: row.status === 'CUMPLE' ? '#10b981' : (row.status === 'NO_CUMPLE' ? '#dc2626' : (row.status === 'PARCIAL' ? '#f59e0b' : (row.status === 'PROYECCION' ? '#6366f1' : '#00205b'))),
+                          color: '#ffffff',
+                          padding: '0.3rem 0.75rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          fontWeight: '800',
+                          display: 'inline-block'
+                        }}>
+                          {row.statusLabel}
+                        </span>
+                      </td>
+
+                      {/* Recomendación */}
+                      <td style={{ padding: '1rem', color: '#475569', fontSize: '0.82rem', maxWidth: '300px', lineHeight: '1.4' }}>
+                        {row.recomendacion}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* 3 Pilares Estratégicos SST para Alcanzar el -20% MoM */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '1.5rem'
+          }}>
+            {/* Pilar 1 */}
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.6rem',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+              borderTop: '5px solid #dc2626'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '1.4rem' }}>🔄</span>
+                <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#00205b', fontWeight: '800' }}>
+                  1. Velocidad en Curvas Semiabiertas
+                </h4>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: '1.5', margin: '0 0 1rem 0' }}>
+                Representa el mayor riesgo de <strong>SIF Potencial (Vuelco)</strong> en las rutas del CD Barrancabermeja. Se registraron 2 infracciones críticas en el periodo.
+              </p>
+              <div style={{ backgroundColor: '#fef2f2', padding: '0.75rem 1rem', borderRadius: '10px', fontSize: '0.8rem', color: '#991b1b', fontWeight: '700' }}>
+                📌 Acción SST: Geocercas con alerta acústica en cabina al aproximarse a curvas del Magdalena Medio y Santander.
+              </div>
+            </div>
+
+            {/* Pilar 2 */}
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.6rem',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+              borderTop: '5px solid #8b5cf6'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '1.4rem' }}>🦺</span>
+                <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#00205b', fontWeight: '800' }}>
+                  2. Tolerancia Cero al Cinturón de Seguridad
+                </h4>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: '1.5', margin: '0 0 1rem 0' }}>
+                Detección por <strong>Dashcam con IA</strong> (&gt; 5 seg fuera del CD). Evitar este único evento en Agosto habría mantenido la curva de reducción dentro del objetivo.
+              </p>
+              <div style={{ backgroundColor: '#f5f3ff', padding: '0.75rem 1rem', borderRadius: '10px', fontSize: '0.8rem', color: '#5b21b6', fontWeight: '700' }}>
+                📌 Acción SST: Auditoría aleatoria a la salida de portería del CD y notificación inmediata al despachador.
+              </div>
+            </div>
+
+            {/* Pilar 3 */}
+            <div style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.6rem',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+              borderTop: '5px solid #10b981'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '1.4rem' }}>⚖️</span>
+                <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#00205b', fontWeight: '800' }}>
+                  3. Gestión Disciplinaria y Reincidentes
+                </h4>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', lineHeight: '1.5', margin: '0 0 1rem 0' }}>
+                Intervención mediante <strong>plataforma Credit</strong>: 1 conductor reincidente con sanción de bloqueo permanente. El 100% de conductores infractores deben firmar compromiso.
+              </p>
+              <div style={{ backgroundColor: '#f0fdf4', padding: '0.75rem 1rem', borderRadius: '10px', fontSize: '0.8rem', color: '#166534', fontWeight: '700' }}>
+                📌 Acción SST: Reentrenamiento obligatorio en manejo defensivo antes de habilitar nuevamente al conductor en la flota.
+              </div>
+            </div>
+          </div>
+
         </div>
       )}
 
