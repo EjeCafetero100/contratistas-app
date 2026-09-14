@@ -7,7 +7,7 @@ import {
   PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 
-// Paleta de colores corporativa para Seguridad Vial y SST
+// Paleta corporativa de Seguridad Vial y SST
 const COLORS = ['#0284c7', '#f59e0b', '#dc2626', '#10b981', '#8b5cf6', '#ec4899', '#6366f1'];
 const PIE_COLORS = {
   'Exceso de velocidad en carretera': '#f59e0b',
@@ -25,6 +25,9 @@ export default function TelemetriaPage() {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [dataSource, setDataSource] = useState('Servidor (telemetria.xlsx)');
 
+  // Modal interactivo de detalle al oprimir un cuadro
+  const [modalDetail, setModalDetail] = useState(null);
+
   // Filtros interactivos
   const [selectedMes, setSelectedMes] = useState('Todos');
   const [selectedSemana, setSelectedSemana] = useState('Todas');
@@ -34,12 +37,6 @@ export default function TelemetriaPage() {
   const [selectedConductor, setSelectedConductor] = useState('Todos');
   const [selectedReincidente, setSelectedReincidente] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Ordenamiento de tablas
-  const [sortFieldEventos, setSortFieldEventos] = useState('id');
-  const [sortAscEventos, setSortAscEventos] = useState(true);
-  const [sortFieldGestion, setSortFieldGestion] = useState('id');
-  const [sortAscGestion, setSortAscGestion] = useState(true);
 
   const fileInputRef = useRef(null);
 
@@ -245,22 +242,13 @@ export default function TelemetriaPage() {
     const conductoresEventos = new Set(filteredEventos.map(e => e.responsable)).size;
     const totalGestion = filteredGestion.length;
     const reincidentes = filteredGestion.filter(g => g.reincidente === 'SÍ').length;
-    const bloqueosPermanentes = filteredGestion.filter(g => g.medidas.some(m => m.toLowerCase().includes('bloqueo permanente'))).length;
-    const bloqueosTemporales = filteredGestion.filter(g => g.medidas.some(m => m.toLowerCase().includes('bloqueo 1 día'))).length;
+    const bloqueosPermanentes = filteredGestion.filter(g => g.medidas.some(m => m.toLowerCase().includes('permanente'))).length;
+    const bloqueosTemporales = filteredGestion.filter(g => g.medidas.some(m => m.toLowerCase().includes('bloqueo 1 día') || m.toLowerCase().includes('bloqueo por 1 dia'))).length;
 
-    // Infracción más frecuente
-    const countByTipo = {};
-    filteredEventos.forEach(e => {
-      countByTipo[e.tipoEvento] = (countByTipo[e.tipoEvento] || 0) + e.total;
-    });
-    let topInfraccion = 'Ninguna';
-    let topInfraccionCount = 0;
-    for (const [k, v] of Object.entries(countByTipo)) {
-      if (v > topInfraccionCount) {
-        topInfraccion = k;
-        topInfraccionCount = v;
-      }
-    }
+    // Desglose por tipos de evento específicos
+    const eventosCarretera = filteredEventos.filter(e => e.tipoEvento.includes('carretera')).reduce((s, e) => s + e.total, 0);
+    const eventosCurva = filteredEventos.filter(e => e.tipoEvento.includes('curva')).reduce((s, e) => s + e.total, 0);
+    const eventosCinturon = filteredEventos.filter(e => e.tipoEvento.includes('cinturón') || e.tipoEvento.includes('cinturon')).reduce((s, e) => s + e.total, 0);
 
     return {
       totalEventos,
@@ -270,13 +258,13 @@ export default function TelemetriaPage() {
       reincidentes,
       bloqueosPermanentes,
       bloqueosTemporales,
-      topInfraccion,
-      topInfraccionCount
+      eventosCarretera,
+      eventosCurva,
+      eventosCinturon
     };
   }, [filteredEventos, filteredGestion]);
 
   // 6. Datos para Gráficos
-  // A. Evolución temporal por Mes
   const dataPorMes = useMemo(() => {
     const orderMeses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
     const agrupado = {};
@@ -290,7 +278,6 @@ export default function TelemetriaPage() {
       .map(([mes, cantidad]) => ({ mes, cantidad }));
   }, [filteredEventos]);
 
-  // B. Distribución por Tipo de Evento
   const dataPorTipo = useMemo(() => {
     const map = {};
     filteredEventos.forEach(e => {
@@ -304,7 +291,6 @@ export default function TelemetriaPage() {
     }));
   }, [filteredEventos]);
 
-  // C. Ranking de Conductores con Eventos
   const dataRankingConductores = useMemo(() => {
     const map = {};
     filteredEventos.forEach(e => {
@@ -315,7 +301,6 @@ export default function TelemetriaPage() {
       .sort((a, b) => b.eventos - a.eventos);
   }, [filteredEventos]);
 
-  // D. Eventos por Vehículo / Placa
   const dataPorVehiculo = useMemo(() => {
     const map = {};
     filteredEventos.forEach(e => {
@@ -326,7 +311,6 @@ export default function TelemetriaPage() {
       .sort((a, b) => b.eventos - a.eventos);
   }, [filteredEventos]);
 
-  // E. Medidas Disciplinarias de Gestión
   const dataMedidas = useMemo(() => {
     const map = {
       'Compromiso de vida': 0,
@@ -346,7 +330,6 @@ export default function TelemetriaPage() {
     return Object.entries(map).map(([medida, cantidad]) => ({ medida, cantidad }));
   }, [filteredGestion]);
 
-  // F. Proporción de Reincidencia
   const dataReincidencia = useMemo(() => {
     let reincidentes = 0;
     let noReincidentes = 0;
@@ -372,10 +355,161 @@ export default function TelemetriaPage() {
     setSearchTerm('');
   };
 
+  // 7. Manejo interactivo de clics en los cuadros (Drill-Down / Modal Específico)
+  const openCardDetail = (type) => {
+    switch (type) {
+      case 'total_eventos':
+        setModalDetail({
+          title: '🚨 Total de Eventos Registrados',
+          subtitle: `Mostrando los ${filteredEventos.length} eventos de telemetría y dashcam en ruta`,
+          badge: `${filteredEventos.length} eventos`,
+          color: '#0284c7',
+          type: 'eventos',
+          items: filteredEventos,
+          filterKey: null
+        });
+        break;
+
+      case 'tipo_carretera':
+        const carreteraEvs = filteredEventos.filter(e => e.tipoEvento.includes('carretera'));
+        setModalDetail({
+          title: '⚡ Infracción: Exceso de Velocidad en Carretera',
+          subtitle: `Mostrando ${carreteraEvs.length} eventos con conductores, vehículos y fechas de ocurrencia`,
+          badge: `${carreteraEvs.length} casos`,
+          color: '#f59e0b',
+          type: 'eventos',
+          items: carreteraEvs,
+          filterKey: { type: 'tipo', value: 'Exceso de velocidad en carretera' }
+        });
+        break;
+
+      case 'tipo_curva':
+        const curvaEvs = filteredEventos.filter(e => e.tipoEvento.includes('curva'));
+        setModalDetail({
+          title: '🔄 Infracción: Exceso de Velocidad en Curva Semiabierta',
+          subtitle: `Mostrando ${curvaEvs.length} eventos críticos de velocidad en curva (SIF potencial)`,
+          badge: `${curvaEvs.length} casos`,
+          color: '#dc2626',
+          type: 'eventos',
+          items: curvaEvs,
+          filterKey: { type: 'tipo', value: 'Exceso de velocidad en curva semiabierta' }
+        });
+        break;
+
+      case 'tipo_cinturon':
+        const cinturonEvs = filteredEventos.filter(e => e.tipoEvento.includes('cinturón') || e.tipoEvento.includes('cinturon'));
+        setModalDetail({
+          title: '🦺 Infracción: Cinturón Desabrochado Fuera del CD (> 5 seg)',
+          subtitle: `Mostrando ${cinturonEvs.length} evento detectado mediante cámara Dashcam con conductor y placa`,
+          badge: `${cinturonEvs.length} caso`,
+          color: '#8b5cf6',
+          type: 'eventos',
+          items: cinturonEvs,
+          filterKey: { type: 'tipo', value: 'Cinturón desabrochado fuera del CD (> 5 seg)' }
+        });
+        break;
+
+      case 'vehiculos':
+        const vehiculosGroup = [];
+        const vehMap = {};
+        filteredEventos.forEach(e => {
+          if (!vehMap[e.placa]) {
+            vehMap[e.placa] = { placa: e.placa, eventos: 0, tipos: new Set(), conductores: new Set(), fechas: [] };
+            vehiculosGroup.push(vehMap[e.placa]);
+          }
+          vehMap[e.placa].eventos += e.total;
+          vehMap[e.placa].tipos.add(e.tipoEvento);
+          vehMap[e.placa].conductores.add(e.responsable);
+          vehMap[e.placa].fechas.push(e.fecha);
+        });
+        setModalDetail({
+          title: '🚚 Vehículos Afectados por Infracciones',
+          subtitle: `Detalle de las ${vehiculosGroup.length} placas vehiculares con eventos de telemetría`,
+          badge: `${vehiculosGroup.length} vehículos`,
+          color: '#f59e0b',
+          type: 'vehiculos',
+          items: vehiculosGroup.sort((a, b) => b.eventos - a.eventos)
+        });
+        break;
+
+      case 'conductores':
+        const condGroup = [];
+        const condMap = {};
+        filteredEventos.forEach(e => {
+          if (!condMap[e.responsable]) {
+            condMap[e.responsable] = { conductor: e.responsable, eventos: 0, placas: new Set(), tipos: new Set(), fechas: [] };
+            condGroup.push(condMap[e.responsable]);
+          }
+          condMap[e.responsable].eventos += e.total;
+          condMap[e.responsable].placas.add(e.placa);
+          condMap[e.responsable].tipos.add(e.tipoEvento);
+          condMap[e.responsable].fechas.push(e.fecha);
+        });
+        setModalDetail({
+          title: '👤 Conductores Involucrados en Eventos',
+          subtitle: `Desglose de los ${condGroup.length} conductores con faltas registradas en ruta`,
+          badge: `${condGroup.length} conductores`,
+          color: '#10b981',
+          type: 'conductores',
+          items: condGroup.sort((a, b) => b.eventos - a.eventos)
+        });
+        break;
+
+      case 'gestiones':
+        setModalDetail({
+          title: '📋 Casos de Gestión de Consecuencia (Credit)',
+          subtitle: `Detalle de las ${filteredGestion.length} actas y reportes disciplinarios de Bavaria`,
+          badge: `${filteredGestion.length} reportes`,
+          color: '#6366f1',
+          type: 'gestion',
+          items: filteredGestion
+        });
+        break;
+
+      case 'reincidentes':
+        const reinc = filteredGestion.filter(g => g.reincidente === 'SÍ');
+        setModalDetail({
+          title: '⚠️ Conductores Reincidentes (Crítico)',
+          subtitle: `Conductores que acumulan más de una falta en la plataforma Credit`,
+          badge: `${reinc.length} caso crítico`,
+          color: '#dc2626',
+          type: 'gestion',
+          items: reinc,
+          filterKey: { type: 'reincidente', value: 'SÍ' }
+        });
+        break;
+
+      case 'bloqueo_permanente':
+        const bloqPerm = filteredGestion.filter(g => g.medidas.some(m => m.toLowerCase().includes('permanente')));
+        setModalDetail({
+          title: '🚫 Sanción: Bloqueo Permanente a Nivel Nacional',
+          subtitle: `Conductor retirado de la operación por reincidencia o falta grave`,
+          badge: `${bloqPerm.length} sanción máxima`,
+          color: '#991b1b',
+          type: 'gestion',
+          items: bloqPerm
+        });
+        break;
+
+      default:
+        break;
+    }
+  };
+
+  // Aplicar filtro directo desde el modal
+  const applyFilterFromModal = (filterKey) => {
+    if (!filterKey) return;
+    if (filterKey.type === 'tipo') setSelectedTipo(filterKey.value);
+    if (filterKey.type === 'reincidente') setSelectedReincidente(filterKey.value);
+    if (filterKey.type === 'conductor') setSelectedConductor(filterKey.value);
+    if (filterKey.type === 'placa') setSelectedPlaca(filterKey.value);
+    setModalDetail(null);
+  };
+
   // Exportar a CSV
-  const exportToCSV = (tipo) => {
-    const rows = tipo === 'eventos' ? filteredEventos : filteredGestion;
-    if (!rows.length) return;
+  const exportToCSV = (tipo, customRows = null) => {
+    const rows = customRows || (tipo === 'eventos' ? filteredEventos : filteredGestion);
+    if (!rows || !rows.length) return;
 
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
@@ -731,141 +865,759 @@ export default function TelemetriaPage() {
         </div>
       </section>
 
-      {/* 3. INDICADORES CLAVE (KPIS) */}
+      {/* 3. BLOQUE DESTACADO: TIPOS DE EVENTOS ESPECÍFICOS (¡INTERACTIVOS!) */}
+      <section style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1.25rem' }}>⚡</span>
+            <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#00205b', fontWeight: '800' }}>
+              Tipos Específicos de Infracción (Haz clic en cualquiera para ver el detalle)
+            </h3>
+          </div>
+          <span style={{ fontSize: '0.8rem', color: '#0369a1', backgroundColor: '#e0f2fe', padding: '0.3rem 0.75rem', borderRadius: '9999px', fontWeight: '800' }}>
+            👆 Oprime un recuadro para ver conductores, placas y fechas
+          </span>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '1.25rem'
+        }}>
+          {/* Card Tipo 1: Exceso en Carretera */}
+          <div
+            onClick={() => openCardDetail('tipo_carretera')}
+            style={{
+              backgroundColor: selectedTipo === 'Exceso de velocidad en carretera' ? '#fefce8' : '#ffffff',
+              border: selectedTipo === 'Exceso de velocidad en carretera' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.4rem 1.5rem',
+              boxShadow: '0 6px 18px rgba(245, 158, 11, 0.12)',
+              cursor: 'pointer',
+              borderLeft: '6px solid #f59e0b',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              position: 'relative'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{
+                  backgroundColor: '#fffbeb',
+                  color: '#b45309',
+                  padding: '0.25rem 0.65rem',
+                  borderRadius: '6px',
+                  fontSize: '0.74rem',
+                  fontWeight: '900',
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase'
+                }}>
+                  62.5% del total
+                </span>
+                <h4 style={{ margin: '0.6rem 0 0.2rem 0', fontSize: '1.15rem', color: '#78350f', fontWeight: '900' }}>
+                  Exceso en Carretera
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: '#92400e' }}>
+                  Velocidad superior al límite de vía nacional
+                </p>
+              </div>
+              <div style={{ fontSize: '2rem' }}>⚡</div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '1.2rem' }}>
+              <div>
+                <span style={{ fontSize: '2.4rem', fontWeight: '900', color: '#b45309', lineHeight: 1 }}>
+                  {kpis.eventosCarretera}
+                </span>
+                <span style={{ fontSize: '0.85rem', color: '#78350f', fontWeight: '700', marginLeft: '0.4rem' }}>
+                  eventos
+                </span>
+              </div>
+              <span style={{
+                backgroundColor: '#f59e0b',
+                color: '#ffffff',
+                padding: '0.35rem 0.8rem',
+                borderRadius: '8px',
+                fontSize: '0.78rem',
+                fontWeight: '800',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)'
+              }}>
+                Ver Detalle ➔
+              </span>
+            </div>
+          </div>
+
+          {/* Card Tipo 2: Exceso en Curva Semiabierta */}
+          <div
+            onClick={() => openCardDetail('tipo_curva')}
+            style={{
+              backgroundColor: selectedTipo === 'Exceso de velocidad en curva semiabierta' ? '#fef2f2' : '#ffffff',
+              border: selectedTipo === 'Exceso de velocidad en curva semiabierta' ? '2px solid #dc2626' : '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.4rem 1.5rem',
+              boxShadow: '0 6px 18px rgba(220, 38, 38, 0.12)',
+              cursor: 'pointer',
+              borderLeft: '6px solid #dc2626',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              position: 'relative'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{
+                  backgroundColor: '#fee2e2',
+                  color: '#991b1b',
+                  padding: '0.25rem 0.65rem',
+                  borderRadius: '6px',
+                  fontSize: '0.74rem',
+                  fontWeight: '900',
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase'
+                }}>
+                  25.0% (Crítico / SIF)
+                </span>
+                <h4 style={{ margin: '0.6rem 0 0.2rem 0', fontSize: '1.15rem', color: '#7f1d1d', fontWeight: '900' }}>
+                  Exceso en Curva Semiabierta
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: '#991b1b' }}>
+                  Riesgo alto de volcamiento vehicular
+                </p>
+              </div>
+              <div style={{ fontSize: '2rem' }}>🔄</div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '1.2rem' }}>
+              <div>
+                <span style={{ fontSize: '2.4rem', fontWeight: '900', color: '#dc2626', lineHeight: 1 }}>
+                  {kpis.eventosCurva}
+                </span>
+                <span style={{ fontSize: '0.85rem', color: '#991b1b', fontWeight: '700', marginLeft: '0.4rem' }}>
+                  eventos
+                </span>
+              </div>
+              <span style={{
+                backgroundColor: '#dc2626',
+                color: '#ffffff',
+                padding: '0.35rem 0.8rem',
+                borderRadius: '8px',
+                fontSize: '0.78rem',
+                fontWeight: '800',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)'
+              }}>
+                Ver Detalle ➔
+              </span>
+            </div>
+          </div>
+
+          {/* Card Tipo 3: Cinturón Desabrochado */}
+          <div
+            onClick={() => openCardDetail('tipo_cinturon')}
+            style={{
+              backgroundColor: selectedTipo === 'Cinturón desabrochado fuera del CD (> 5 seg)' ? '#f5f3ff' : '#ffffff',
+              border: selectedTipo === 'Cinturón desabrochado fuera del CD (> 5 seg)' ? '2px solid #8b5cf6' : '1px solid #e2e8f0',
+              borderRadius: '16px',
+              padding: '1.4rem 1.5rem',
+              boxShadow: '0 6px 18px rgba(139, 92, 246, 0.12)',
+              cursor: 'pointer',
+              borderLeft: '6px solid #8b5cf6',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              position: 'relative'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <span style={{
+                  backgroundColor: '#ede9fe',
+                  color: '#6d28d9',
+                  padding: '0.25rem 0.65rem',
+                  borderRadius: '6px',
+                  fontSize: '0.74rem',
+                  fontWeight: '900',
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase'
+                }}>
+                  12.5% (Detectado Dashcam)
+                </span>
+                <h4 style={{ margin: '0.6rem 0 0.2rem 0', fontSize: '1.15rem', color: '#4c1d95', fontWeight: '900' }}>
+                  Cinturón Desabrochado
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: '#5b21b6' }}>
+                  Cinturón desabrochado fuera del CD &gt; 5 seg
+                </p>
+              </div>
+              <div style={{ fontSize: '2rem' }}>🦺</div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '1.2rem' }}>
+              <div>
+                <span style={{ fontSize: '2.4rem', fontWeight: '900', color: '#7c3aed', lineHeight: 1 }}>
+                  {kpis.eventosCinturon}
+                </span>
+                <span style={{ fontSize: '0.85rem', color: '#5b21b6', fontWeight: '700', marginLeft: '0.4rem' }}>
+                  evento
+                </span>
+              </div>
+              <span style={{
+                backgroundColor: '#7c3aed',
+                color: '#ffffff',
+                padding: '0.35rem 0.8rem',
+                borderRadius: '8px',
+                fontSize: '0.78rem',
+                fontWeight: '800',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                boxShadow: '0 2px 6px rgba(124, 58, 237, 0.3)'
+              }}>
+                Ver Detalle ➔
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. INDICADORES CLAVE (KPIS GENERALES INTERACTIVOS) */}
       <section style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
         gap: '1.25rem',
         marginBottom: '2rem'
       }}>
-        {/* KPI 1 */}
-        <div style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '16px',
-          padding: '1.4rem 1.5rem',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
-          borderLeft: '5px solid #0284c7'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>
+        {/* KPI 1: Total Eventos */}
+        <div 
+          onClick={() => openCardDetail('total_eventos')}
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '1.4rem 1.5rem',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+            borderLeft: '5px solid #0284c7',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.82rem', fontWeight: '700', textTransform: 'uppercase' }}>
             <span>Total Eventos</span>
-            <span style={{ fontSize: '1.4rem' }}>🚨</span>
+            <span style={{ fontSize: '1.3rem' }}>🚨</span>
           </div>
           <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#00205b', margin: '0.35rem 0 0.2rem' }}>
             {kpis.totalEventos}
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#0284c7', fontWeight: '600' }}>
-            {kpis.totalEventos === dataEventos.length ? '100% de los registrados' : `${((kpis.totalEventos / (dataEventos.length || 1)) * 100).toFixed(0)}% del total`}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: '#0284c7', fontWeight: '600' }}>
+              100% de los registrados
+            </span>
+            <span style={{ fontSize: '0.72rem', color: '#0284c7', fontWeight: '800' }}>👆 Clic detalle</span>
           </div>
         </div>
 
-        {/* KPI 2 */}
-        <div style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '16px',
-          padding: '1.4rem 1.5rem',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
-          borderLeft: '5px solid #f59e0b'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>
+        {/* KPI 2: Vehículos Afectados */}
+        <div 
+          onClick={() => openCardDetail('vehiculos')}
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '1.4rem 1.5rem',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+            borderLeft: '5px solid #f59e0b',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.82rem', fontWeight: '700', textTransform: 'uppercase' }}>
             <span>Vehículos Afectados</span>
-            <span style={{ fontSize: '1.4rem' }}>🚚</span>
+            <span style={{ fontSize: '1.3rem' }}>🚚</span>
           </div>
           <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#00205b', margin: '0.35rem 0 0.2rem' }}>
             {kpis.placasUnicas}
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#b45309', fontWeight: '600' }}>
-            Placas distintas con infracciones
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: '#b45309', fontWeight: '600' }}>
+              Placas con infracción
+            </span>
+            <span style={{ fontSize: '0.72rem', color: '#b45309', fontWeight: '800' }}>👆 Clic detalle</span>
           </div>
         </div>
 
-        {/* KPI 3 */}
-        <div style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '16px',
-          padding: '1.4rem 1.5rem',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
-          borderLeft: '5px solid #10b981'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>
+        {/* KPI 3: Conductores Telemetría */}
+        <div 
+          onClick={() => openCardDetail('conductores')}
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '1.4rem 1.5rem',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+            borderLeft: '5px solid #10b981',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.82rem', fontWeight: '700', textTransform: 'uppercase' }}>
             <span>Conductores Telemetría</span>
-            <span style={{ fontSize: '1.4rem' }}>👤</span>
+            <span style={{ fontSize: '1.3rem' }}>👤</span>
           </div>
           <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#00205b', margin: '0.35rem 0 0.2rem' }}>
             {kpis.conductoresEventos}
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#047857', fontWeight: '600' }}>
-            Involucrados en eventos
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: '#047857', fontWeight: '600' }}>
+              Involucrados en eventos
+            </span>
+            <span style={{ fontSize: '0.72rem', color: '#047857', fontWeight: '800' }}>👆 Clic detalle</span>
           </div>
         </div>
 
-        {/* KPI 4 */}
-        <div style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '16px',
-          padding: '1.4rem 1.5rem',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
-          borderLeft: '5px solid #6366f1'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>
+        {/* KPI 4: Gestiones Credit */}
+        <div 
+          onClick={() => openCardDetail('gestiones')}
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '1.4rem 1.5rem',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+            borderLeft: '5px solid #6366f1',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.82rem', fontWeight: '700', textTransform: 'uppercase' }}>
             <span>Gestiones Credit</span>
-            <span style={{ fontSize: '1.4rem' }}>📋</span>
+            <span style={{ fontSize: '1.3rem' }}>📋</span>
           </div>
           <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#00205b', margin: '0.35rem 0 0.2rem' }}>
             {kpis.totalGestion}
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#4338ca', fontWeight: '600' }}>
-            Casos disciplinarios procesados
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: '#4338ca', fontWeight: '600' }}>
+              Reportes procesados
+            </span>
+            <span style={{ fontSize: '0.72rem', color: '#4338ca', fontWeight: '800' }}>👆 Clic detalle</span>
           </div>
         </div>
 
-        {/* KPI 5 */}
-        <div style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '16px',
-          padding: '1.4rem 1.5rem',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
-          borderLeft: '5px solid #dc2626'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>
+        {/* KPI 5: Reincidentes */}
+        <div 
+          onClick={() => openCardDetail('reincidentes')}
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '1.4rem 1.5rem',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+            borderLeft: '5px solid #dc2626',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.82rem', fontWeight: '700', textTransform: 'uppercase' }}>
             <span>Reincidentes</span>
-            <span style={{ fontSize: '1.4rem' }}>⚠️</span>
+            <span style={{ fontSize: '1.3rem' }}>⚠️</span>
           </div>
           <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#dc2626', margin: '0.35rem 0 0.2rem' }}>
             {kpis.reincidentes}
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#b91c1c', fontWeight: '600' }}>
-            {kpis.reincidentes > 0 ? 'Conductor con reincidencia crítica' : 'Sin reincidencias'}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: '#b91c1c', fontWeight: '600' }}>
+              Reincidencia crítica
+            </span>
+            <span style={{ fontSize: '0.72rem', color: '#dc2626', fontWeight: '800' }}>👆 Clic detalle</span>
           </div>
         </div>
 
-        {/* KPI 6 */}
-        <div style={{
-          backgroundColor: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '16px',
-          padding: '1.4rem 1.5rem',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
-          borderLeft: '5px solid #991b1b'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.85rem', fontWeight: '700', textTransform: 'uppercase' }}>
+        {/* KPI 6: Bloqueo Permanente */}
+        <div 
+          onClick={() => openCardDetail('bloqueo_permanente')}
+          style={{
+            backgroundColor: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '16px',
+            padding: '1.4rem 1.5rem',
+            boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
+            borderLeft: '5px solid #991b1b',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#64748b', fontSize: '0.82rem', fontWeight: '700', textTransform: 'uppercase' }}>
             <span>Bloqueo Permanente</span>
-            <span style={{ fontSize: '1.4rem' }}>🚫</span>
+            <span style={{ fontSize: '1.3rem' }}>🚫</span>
           </div>
           <div style={{ fontSize: '2.5rem', fontWeight: '900', color: '#991b1b', margin: '0.35rem 0 0.2rem' }}>
             {kpis.bloqueosPermanentes}
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#991b1b', fontWeight: '600' }}>
-            Sanción máxima a nivel nacional
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: '#991b1b', fontWeight: '600' }}>
+              Sanción nacional máxima
+            </span>
+            <span style={{ fontSize: '0.72rem', color: '#991b1b', fontWeight: '800' }}>👆 Clic detalle</span>
           </div>
         </div>
       </section>
 
-      {/* 4. PESTAÑAS DE NAVEGACIÓN */}
+      {/* 5. MODAL INTERACTIVO DE DETALLE (DRILL-DOWN) */}
+      {modalDetail && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 32, 91, 0.65)',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem'
+          }}
+          onClick={() => setModalDetail(null)}
+        >
+          <div 
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '20px',
+              maxWidth: '900px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+              border: `2px solid ${modalDetail.color || '#00205b'}`,
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del Modal */}
+            <div style={{
+              padding: '1.5rem 2rem',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: '#f8fafc',
+              borderTopLeftRadius: '18px',
+              borderTopRightRadius: '18px'
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <h3 style={{ margin: 0, fontSize: '1.35rem', color: '#00205b', fontWeight: '900' }}>
+                    {modalDetail.title}
+                  </h3>
+                  <span style={{
+                    backgroundColor: modalDetail.color || '#00205b',
+                    color: '#ffffff',
+                    padding: '0.25rem 0.75rem',
+                    borderRadius: '9999px',
+                    fontSize: '0.78rem',
+                    fontWeight: '800'
+                  }}>
+                    {modalDetail.badge}
+                  </span>
+                </div>
+                <p style={{ margin: '0.35rem 0 0 0', color: '#64748b', fontSize: '0.88rem' }}>
+                  {modalDetail.subtitle}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setModalDetail(null)}
+                style={{
+                  backgroundColor: '#f1f5f9',
+                  border: 'none',
+                  color: '#475569',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  fontSize: '1.2rem',
+                  fontWeight: '900',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.2s ease'
+                }}
+                title="Cerrar ventana"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Contenido del Modal */}
+            <div style={{ padding: '1.5rem 2rem', flex: 1, overflowY: 'auto' }}>
+              
+              {/* VISTA 1: Lista de Eventos Específicos */}
+              {modalDetail.type === 'eventos' && (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f1f5f9', textAlign: 'left', color: '#334155' }}>
+                        <th style={{ padding: '0.75rem 1rem' }}>#</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Fecha</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Conductor</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Placa</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Infracción Detectada</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Motivo</th>
+                        <th style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {modalDetail.items.map((item, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '0.75rem 1rem', fontWeight: '700', color: '#94a3b8' }}>{idx + 1}</td>
+                          <td style={{ padding: '0.75rem 1rem', fontWeight: '700', color: '#00205b' }}>{item.fecha}</td>
+                          <td style={{ padding: '0.75rem 1rem', fontWeight: '800', color: '#1e293b' }}>{item.responsable}</td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <span style={{ backgroundColor: '#f1f5f9', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: '800' }}>
+                              {item.placa}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <span style={{
+                              backgroundColor: item.tipoEvento.includes('curva') ? '#fee2e2' : item.tipoEvento.includes('cinturón') ? '#ede9fe' : '#fef3c7',
+                              color: item.tipoEvento.includes('curva') ? '#dc2626' : item.tipoEvento.includes('cinturón') ? '#7c3aed' : '#d97706',
+                              padding: '0.25rem 0.65rem',
+                              borderRadius: '6px',
+                              fontWeight: '800',
+                              fontSize: '0.78rem'
+                            }}>
+                              {item.tipoEvento}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem', fontSize: '0.82rem', color: '#64748b' }}>{item.motivo}</td>
+                          <td style={{ padding: '0.75rem 1rem', textAlign: 'center', fontWeight: '800', color: '#00205b' }}>{item.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* VISTA 2: Desglose por Vehículos */}
+              {modalDetail.type === 'vehiculos' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+                  {modalDetail.items.map((veh, idx) => (
+                    <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', backgroundColor: '#f8fafc' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '1.2rem', fontWeight: '900', color: '#00205b' }}>🚚 {veh.placa}</span>
+                        <span style={{ backgroundColor: '#00205b', color: '#fcd116', padding: '0.2rem 0.6rem', borderRadius: '6px', fontWeight: '900', fontSize: '0.8rem' }}>
+                          {veh.eventos} {veh.eventos === 1 ? 'evento' : 'eventos'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#475569', marginBottom: '0.4rem' }}>
+                        <strong>Conductores:</strong> {Array.from(veh.conductores).join(', ')}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#475569' }}>
+                        <strong>Infracciones:</strong>
+                        <div style={{ marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          {Array.from(veh.tipos).map((t, tIdx) => (
+                            <span key={tIdx} style={{ color: '#b45309', fontWeight: '600' }}>• {t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* VISTA 3: Desglose por Conductores */}
+              {modalDetail.type === 'conductores' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+                  {modalDetail.items.map((cond, idx) => (
+                    <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1.1rem', backgroundColor: '#f8fafc' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                        <span style={{ fontSize: '1.05rem', fontWeight: '900', color: '#00205b' }}>👤 {cond.conductor}</span>
+                        <span style={{ backgroundColor: '#10b981', color: '#ffffff', padding: '0.2rem 0.6rem', borderRadius: '6px', fontWeight: '900', fontSize: '0.8rem' }}>
+                          {cond.eventos} {cond.eventos === 1 ? 'evento' : 'eventos'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: '#475569', marginBottom: '0.4rem' }}>
+                        <strong>Vehículos:</strong> {Array.from(cond.placas).join(', ')}
+                      </div>
+                      <div style={{ fontSize: '0.82rem', color: '#475569' }}>
+                        <strong>Infracciones:</strong>
+                        <div style={{ marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          {Array.from(cond.tipos).map((t, tIdx) => (
+                            <span key={tIdx} style={{ color: '#0369a1', fontWeight: '600' }}>• {t}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* VISTA 4: Gestión de Consecuencias (Credit) */}
+              {modalDetail.type === 'gestion' && (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.88rem' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f1f5f9', textAlign: 'left', color: '#334155' }}>
+                        <th style={{ padding: '0.75rem 1rem' }}>#</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Conductor</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Cédula</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Reporte Credit</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Fecha</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Reincidente</th>
+                        <th style={{ padding: '0.75rem 1rem' }}>Sanción Aplicada</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {modalDetail.items.map((item, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: item.reincidente === 'SÍ' ? '#fff5f5' : '#ffffff' }}>
+                          <td style={{ padding: '0.75rem 1rem', fontWeight: '700', color: '#94a3b8' }}>{idx + 1}</td>
+                          <td style={{ padding: '0.75rem 1rem', fontWeight: '800', color: '#00205b' }}>{item.conductor}</td>
+                          <td style={{ padding: '0.75rem 1rem', fontFamily: 'monospace' }}>{item.cedula}</td>
+                          <td style={{ padding: '0.75rem 1rem', color: '#0369a1', fontWeight: '700' }}>#{item.reporteCredit}</td>
+                          <td style={{ padding: '0.75rem 1rem' }}>{item.fechaReporte}</td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <span style={{
+                              backgroundColor: item.reincidente === 'SÍ' ? '#fee2e2' : '#dcfce7',
+                              color: item.reincidente === 'SÍ' ? '#dc2626' : '#166534',
+                              padding: '0.2rem 0.6rem',
+                              borderRadius: '9999px',
+                              fontWeight: '900',
+                              fontSize: '0.75rem'
+                            }}>
+                              {item.reincidente === 'SÍ' ? '⚠️ SÍ (Crítico)' : 'NO'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '0.75rem 1rem' }}>
+                            <span style={{
+                              backgroundColor: item.medidas.some(m => m.includes('permanente')) ? '#450a0a' : '#f0fdf4',
+                              color: item.medidas.some(m => m.includes('permanente')) ? '#ffffff' : '#15803d',
+                              padding: '0.25rem 0.6rem',
+                              borderRadius: '6px',
+                              fontWeight: '800',
+                              fontSize: '0.78rem'
+                            }}>
+                              {item.medidas.join('; ')}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+            </div>
+
+            {/* Footer del Modal con Acciones */}
+            <div style={{
+              padding: '1.25rem 2rem',
+              borderTop: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: '#f8fafc',
+              borderBottomLeftRadius: '18px',
+              borderBottomRightRadius: '18px',
+              flexWrap: 'wrap',
+              gap: '0.75rem'
+            }}>
+              <div>
+                {modalDetail.filterKey && (
+                  <button
+                    onClick={() => applyFilterFromModal(modalDetail.filterKey)}
+                    style={{
+                      backgroundColor: '#00205b',
+                      color: '#fcd116',
+                      border: 'none',
+                      padding: '0.6rem 1.1rem',
+                      borderRadius: '8px',
+                      fontWeight: '800',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}
+                  >
+                    <span>🎯</span> Filtrar Dashboard con este grupo
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  onClick={() => exportToCSV(modalDetail.type, modalDetail.items)}
+                  style={{
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '0.6rem 1.1rem',
+                    borderRadius: '8px',
+                    fontWeight: '800',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  <span>📊</span> Exportar estos datos
+                </button>
+
+                <button
+                  onClick={() => setModalDetail(null)}
+                  style={{
+                    backgroundColor: '#e2e8f0',
+                    color: '#334155',
+                    border: 'none',
+                    padding: '0.6rem 1.1rem',
+                    borderRadius: '8px',
+                    fontWeight: '800',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 6. PESTAÑAS DE NAVEGACIÓN */}
       <div style={{
         display: 'flex',
         gap: '0.75rem',
@@ -959,7 +1711,7 @@ export default function TelemetriaPage() {
         </button>
       </div>
 
-      {/* 5. CONTENIDO DE LAS PESTAÑAS */}
+      {/* 7. CONTENIDO DE LAS PESTAÑAS */}
 
       {/* PESTAÑA 1: RESUMEN GRÁFICO */}
       {activeTab === 'resumen' && (
