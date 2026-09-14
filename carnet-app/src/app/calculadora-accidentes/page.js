@@ -158,32 +158,7 @@ export default function CalculadoraAccidentes() {
 
   return (
     <div className="container" style={{ maxWidth: '1050px', position: 'relative' }}>
-      
-      {/* Badge TERREMOTO en una esquina superior */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '0.8rem',
-          right: '1rem',
-          backgroundColor: '#dc2626',
-          color: '#ffffff',
-          padding: '0.45rem 1rem',
-          borderRadius: '12px',
-          fontSize: '0.85rem',
-          fontWeight: '900',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.45rem',
-          boxShadow: '0 4px 16px rgba(220, 38, 38, 0.45)',
-          border: '2px solid rgba(255, 255, 255, 0.5)',
-          letterSpacing: '0.8px',
-          textTransform: 'uppercase',
-          zIndex: 20
-        }}
-      >
-        <span style={{ fontSize: '1.1rem' }}>🌋</span>
-        <span>TERREMOTO</span>
-      </div>
+
 
       <header style={{ textAlign: 'center', marginBottom: '2.5rem', marginTop: '1rem' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#00205b', color: '#fcd116', padding: '0.35rem 1.1rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
@@ -258,9 +233,38 @@ export default function CalculadoraAccidentes() {
             boxShadow: '0 20px 40px rgba(45, 212, 191, 0.15)',
             border: '2px solid rgba(45, 212, 191, 0.3)',
             borderRadius: '24px',
-            background: 'linear-gradient(145deg, rgba(255,255,255,0.8) 0%, rgba(230, 255, 250, 0.6) 100%)'
+            background: 'linear-gradient(145deg, rgba(255,255,255,0.8) 0%, rgba(230, 255, 250, 0.6) 100%)',
+            position: 'relative'
           }}
         >
+          {/* Badge TERREMOTO dentro de este recuadro */}
+          {isPereira && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '1.2rem',
+                right: '1.2rem',
+                backgroundColor: '#dc2626',
+                color: '#ffffff',
+                padding: '0.45rem 1rem',
+                borderRadius: '14px',
+                fontSize: '0.85rem',
+                fontWeight: '900',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                boxShadow: '0 4px 16px rgba(220, 38, 38, 0.45)',
+                border: '2px solid rgba(255, 255, 255, 0.6)',
+                letterSpacing: '0.8px',
+                textTransform: 'uppercase',
+                zIndex: 10
+              }}
+            >
+              <span style={{ fontSize: '1.15rem' }}>🌋</span>
+              <span>TERREMOTO</span>
+            </div>
+          )}
+
           <h2 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.1rem', marginBottom: '0.75rem' }}>
             Llevamos
           </h2>
