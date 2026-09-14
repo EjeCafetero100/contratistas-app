@@ -5,7 +5,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 const CityContext = createContext();
 
 export function CityProvider({ children }) {
-  const [selectedCity, setSelectedCity] = useState(null);
+  const [selectedCity, setSelectedCity] = useState("Pereira");
 
   useEffect(() => {
     // Read from localStorage or URL query param if present
@@ -13,6 +13,9 @@ export function CityProvider({ children }) {
       const savedCity = localStorage.getItem("selectedCity");
       if (savedCity) {
         setSelectedCity(savedCity);
+      } else {
+        setSelectedCity("Pereira");
+        localStorage.setItem("selectedCity", "Pereira");
       }
     }
   }, []);

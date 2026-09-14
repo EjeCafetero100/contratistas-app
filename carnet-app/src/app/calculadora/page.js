@@ -60,7 +60,12 @@ export default function CalculadoraPage() {
     try {
       const saved = localStorage.getItem("piramide_pereira_2026");
       if (saved) {
-        setPyramid(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (parsed.comentarios && (parsed.comentarios.includes("22 JULIO") || !parsed.comentarios.includes("10 AGOSTO 2026"))) {
+          parsed.comentarios = defaultPyramidData.comentarios;
+          localStorage.setItem("piramide_pereira_2026", JSON.stringify(parsed));
+        }
+        setPyramid(parsed);
       }
     } catch (e) {
       console.error(e);
