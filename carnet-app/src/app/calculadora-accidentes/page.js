@@ -18,7 +18,7 @@ export default function CalculadoraAccidentes() {
   const FIXED_ARMENIA_SIF_DATE = "2026-08-10"; // 10-08-2026
 
   const FIXED_BARRANCA_DATE = "2018-01-18"; // 18-01-2018
-  const FIXED_BARRANCA_SIF_DATE = "2026-08-22"; // 22-08-2026
+  const FIXED_BARRANCA_SIF_DATE = "2026-07-22"; // 22-07-2026 (22 de Julio de 2026)
 
   // Formateadores de fecha amigables
   const formatDateDMY = (isoDate) => {
@@ -70,11 +70,13 @@ export default function CalculadoraAccidentes() {
 
   const [daysWithoutAccidents, setDaysWithoutAccidents] = useState(0);
 
-  // Fecha SIF (Pereira y Armenia al 10-08-2026, Barrancabermeja al 22-08-2026)
+  // Fecha SIF (Pereira y Armenia al 10-08-2026, Barrancabermeja al 22-07-2026)
   const [lastSifDate, setLastSifDate] = useState(() => {
     if (typeof window !== "undefined") {
+      // Limpiar versiones anteriores erróneas si existen
+      localStorage.removeItem("manual_sif_date_barranca_v2");
       if (isBarranca) {
-        const manualBarrancaSif = localStorage.getItem("manual_sif_date_barranca_v2");
+        const manualBarrancaSif = localStorage.getItem("manual_sif_date_barranca_v3");
         if (manualBarrancaSif) return manualBarrancaSif;
         return FIXED_BARRANCA_SIF_DATE;
       }
@@ -104,7 +106,7 @@ export default function CalculadoraAccidentes() {
       const manualBarranca = localStorage.getItem("manual_accident_date_barranca_v2");
       setLastAccidentDate(manualBarranca || FIXED_BARRANCA_DATE);
 
-      const manualBarrancaSif = localStorage.getItem("manual_sif_date_barranca_v2");
+      const manualBarrancaSif = localStorage.getItem("manual_sif_date_barranca_v3");
       setLastSifDate(manualBarrancaSif || FIXED_BARRANCA_SIF_DATE);
     } else if (isArmenia) {
       const manualArmenia = localStorage.getItem("manual_accident_date_armenia_v2");
@@ -163,9 +165,9 @@ export default function CalculadoraAccidentes() {
     setLastSifDate(newDate);
     if (isBarranca) {
       if (newDate === FIXED_BARRANCA_SIF_DATE) {
-        localStorage.removeItem("manual_sif_date_barranca_v2");
+        localStorage.removeItem("manual_sif_date_barranca_v3");
       } else {
-        localStorage.setItem("manual_sif_date_barranca_v2", newDate);
+        localStorage.setItem("manual_sif_date_barranca_v3", newDate);
       }
       localStorage.setItem("last_sif_date_barrancabermeja", newDate);
     } else if (isArmenia) {
@@ -251,7 +253,7 @@ export default function CalculadoraAccidentes() {
         <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>⏱️ Calculadora de Accidentes</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>
           {isBarranca
-            ? "CD Barrancabermeja • Accidente: 18-01-2018 (Incidente con montacargas) | SIF Potencial: 22-08-2026 (Golpe en la cabeza con objeto en taller aliado) (solo actualizable manualmente)."
+            ? "CD Barrancabermeja • Accidente: 18-01-2018 (Incidente con montacargas) | SIF Potencial: 22-07-2026 (Golpe en la cabeza con objeto en taller aliado) (solo actualizable manualmente)."
             : isArmenia
             ? "CD Armenia • Accidente: 17-03-2018 (Explosión de botella) | SIF Potencial: 10-08-2026 (solo actualizable manualmente)."
             : isPereira 
@@ -268,12 +270,13 @@ export default function CalculadoraAccidentes() {
           className="glass-panel" 
           style={{ 
             width: '100%', 
-            padding: '3.5rem 2rem', 
+            padding: '2.25rem 2rem 2.75rem', 
             textAlign: 'center',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
+            minHeight: '430px',
             boxShadow: '0 20px 40px rgba(162, 219, 115, 0.15)',
             border: '2px solid rgba(162, 219, 115, 0.3)',
             borderRadius: '24px',
@@ -281,99 +284,102 @@ export default function CalculadoraAccidentes() {
             position: 'relative'
           }}
         >
-          {/* Badge INCIDENTE CON MONTACARGAS dentro de este recuadro para Barrancabermeja */}
-          {isBarranca && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '1.2rem',
-                right: '1.2rem',
-                backgroundColor: '#dc2626',
-                color: '#ffffff',
-                padding: '0.45rem 1rem',
-                borderRadius: '14px',
-                fontSize: '0.85rem',
-                fontWeight: '900',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                boxShadow: '0 4px 16px rgba(220, 38, 38, 0.45)',
-                border: '2px solid rgba(255, 255, 255, 0.6)',
-                letterSpacing: '0.8px',
-                textTransform: 'uppercase',
-                zIndex: 10
-              }}
-            >
-              <span style={{ fontSize: '1.15rem' }}>🚜</span>
-              <span>INCIDENTE CON MONTACARGAS</span>
-            </div>
-          )}
+          {/* Fila Superior de Insignia de Evento (En flujo normal, nunca tapa la información) */}
+          <div style={{ width: '100%', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.9rem' }}>
+            {isBarranca && (
+              <div
+                style={{
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  padding: '0.45rem 1.1rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.82rem',
+                  fontWeight: '900',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)',
+                  border: '2px solid rgba(255, 255, 255, 0.7)',
+                  letterSpacing: '0.6px',
+                  textTransform: 'uppercase',
+                  maxWidth: '100%',
+                  lineHeight: '1.25'
+                }}
+              >
+                <span style={{ fontSize: '1.15rem' }}>🚜</span>
+                <span>INCIDENTE CON MONTACARGAS</span>
+              </div>
+            )}
 
-          {/* Badge EXPLOSIÓN DE BOTELLA dentro de este recuadro para Armenia */}
-          {isArmenia && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '1.2rem',
-                right: '1.2rem',
-                backgroundColor: '#dc2626',
-                color: '#ffffff',
-                padding: '0.45rem 1rem',
-                borderRadius: '14px',
-                fontSize: '0.85rem',
-                fontWeight: '900',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                boxShadow: '0 4px 16px rgba(220, 38, 38, 0.45)',
-                border: '2px solid rgba(255, 255, 255, 0.6)',
-                letterSpacing: '0.8px',
-                textTransform: 'uppercase',
-                zIndex: 10
-              }}
-            >
-              <span style={{ fontSize: '1.15rem' }}>💥</span>
-              <span>EXPLOSIÓN DE BOTELLA</span>
-            </div>
-          )}
+            {isArmenia && (
+              <div
+                style={{
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  padding: '0.45rem 1.1rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.82rem',
+                  fontWeight: '900',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)',
+                  border: '2px solid rgba(255, 255, 255, 0.7)',
+                  letterSpacing: '0.6px',
+                  textTransform: 'uppercase',
+                  maxWidth: '100%',
+                  lineHeight: '1.25'
+                }}
+              >
+                <span style={{ fontSize: '1.15rem' }}>💥</span>
+                <span>EXPLOSIÓN DE BOTELLA</span>
+              </div>
+            )}
+          </div>
 
-          <h2 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.1rem', marginBottom: '0.75rem' }}>
-            Llevamos
-          </h2>
-          
-          <div style={{ 
-            fontSize: daysWithoutAccidents >= 1000 ? '7rem' : '8.5rem', 
-            fontWeight: '800', 
-            color: '#15803d', 
-            lineHeight: '1',
-            textShadow: '0px 4px 20px rgba(34, 197, 94, 0.3)',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            fontVariantNumeric: 'tabular-nums'
-          }}>
-            {daysWithoutAccidents.toLocaleString("es-CO")}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            <h2 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+              Llevamos
+            </h2>
+            
+            <div style={{ 
+              fontSize: daysWithoutAccidents >= 1000 ? '6.8rem' : '8rem', 
+              fontWeight: '800', 
+              color: '#15803d', 
+              lineHeight: '1',
+              textShadow: '0px 4px 20px rgba(34, 197, 94, 0.3)',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              fontVariantNumeric: 'tabular-nums'
+            }}>
+              {daysWithoutAccidents.toLocaleString("es-CO")}
+            </div>
+            
+            <h2 style={{ color: 'var(--text-main)', fontSize: '1.8rem', marginTop: '0.85rem', fontWeight: '700' }}>
+              DÍAS SIN ACCIDENTES
+            </h2>
           </div>
           
-          <h2 style={{ color: 'var(--text-main)', fontSize: '1.8rem', marginTop: '1rem', fontWeight: '700' }}>
-            DÍAS SIN ACCIDENTES
-          </h2>
-          
-          {isPereira && (
-            <span style={{ marginTop: '0.6rem', fontSize: '0.9rem', color: '#166534', fontWeight: '800', backgroundColor: '#dcfce7', padding: '0.3rem 0.9rem', borderRadius: '12px', border: '1px solid #86efac' }}>
-              ✓ Desde el 08-01-2020 (08 de Enero de 2020)
-            </span>
-          )}
+          <div style={{ marginTop: '0.85rem' }}>
+            {isPereira && (
+              <span style={{ fontSize: '0.9rem', color: '#166534', fontWeight: '800', backgroundColor: '#dcfce7', padding: '0.35rem 1rem', borderRadius: '12px', border: '1px solid #86efac' }}>
+                ✓ Desde el 08-01-2020 (08 de Enero de 2020)
+              </span>
+            )}
 
-          {isArmenia && (
-            <span style={{ marginTop: '0.6rem', fontSize: '0.9rem', color: '#166534', fontWeight: '800', backgroundColor: '#dcfce7', padding: '0.3rem 0.9rem', borderRadius: '12px', border: '1px solid #86efac' }}>
-              ✓ Desde el 17-03-2018 (17 de Marzo de 2018)
-            </span>
-          )}
+            {isArmenia && (
+              <span style={{ fontSize: '0.9rem', color: '#166534', fontWeight: '800', backgroundColor: '#dcfce7', padding: '0.35rem 1rem', borderRadius: '12px', border: '1px solid #86efac' }}>
+                ✓ Desde el 17-03-2018 (17 de Marzo de 2018)
+              </span>
+            )}
 
-          {isBarranca && (
-            <span style={{ marginTop: '0.6rem', fontSize: '0.9rem', color: '#166534', fontWeight: '800', backgroundColor: '#dcfce7', padding: '0.3rem 0.9rem', borderRadius: '12px', border: '1px solid #86efac' }}>
-              ✓ Desde el 18-01-2018 (18 de Enero de 2018)
-            </span>
-          )}
+            {isBarranca && (
+              <span style={{ fontSize: '0.9rem', color: '#166534', fontWeight: '800', backgroundColor: '#dcfce7', padding: '0.35rem 1rem', borderRadius: '12px', border: '1px solid #86efac' }}>
+                ✓ Desde el 18-01-2018 (18 de Enero de 2018)
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Contenedor Principal del Gran Número SIF */}
@@ -381,12 +387,13 @@ export default function CalculadoraAccidentes() {
           className="glass-panel" 
           style={{ 
             width: '100%', 
-            padding: '3.5rem 2rem', 
+            padding: '2.25rem 2rem 2.75rem', 
             textAlign: 'center',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
+            minHeight: '430px',
             boxShadow: '0 20px 40px rgba(45, 212, 191, 0.15)',
             border: '2px solid rgba(45, 212, 191, 0.3)',
             borderRadius: '24px',
@@ -394,96 +401,97 @@ export default function CalculadoraAccidentes() {
             position: 'relative'
           }}
         >
-          {/* Badge GOLPE EN LA CABEZA CON OBJETO EN TALLER ALIADO para Barrancabermeja */}
-          {isBarranca && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '1.2rem',
-                right: '1.2rem',
-                backgroundColor: '#dc2626',
-                color: '#ffffff',
-                padding: '0.4rem 0.85rem',
-                borderRadius: '14px',
-                fontSize: '0.78rem',
-                fontWeight: '900',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                boxShadow: '0 4px 16px rgba(220, 38, 38, 0.45)',
-                border: '2px solid rgba(255, 255, 255, 0.6)',
-                letterSpacing: '0.5px',
-                textTransform: 'uppercase',
-                zIndex: 10,
-                maxWidth: '85%',
-                textAlign: 'left',
-                lineHeight: '1.2'
-              }}
-            >
-              <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>⚠️</span>
-              <span>GOLPE EN LA CABEZA CON OBJETO EN TALLER ALIADO</span>
-            </div>
-          )}
+          {/* Fila Superior de Insignia de Evento (En flujo normal, nunca tapa la información) */}
+          <div style={{ width: '100%', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.9rem' }}>
+            {isBarranca && (
+              <div
+                style={{
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  padding: '0.45rem 1rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.76rem',
+                  fontWeight: '900',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.45rem',
+                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)',
+                  border: '2px solid rgba(255, 255, 255, 0.7)',
+                  letterSpacing: '0.5px',
+                  textTransform: 'uppercase',
+                  maxWidth: '96%',
+                  textAlign: 'center',
+                  lineHeight: '1.25'
+                }}
+              >
+                <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>⚠️</span>
+                <span>GOLPE EN LA CABEZA CON OBJETO EN TALLER ALIADO</span>
+              </div>
+            )}
 
-          {/* Badge TERREMOTO dentro de este recuadro para Armenia y Pereira */}
-          {(isPereira || isArmenia) && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '1.2rem',
-                right: '1.2rem',
-                backgroundColor: '#dc2626',
-                color: '#ffffff',
-                padding: '0.45rem 1rem',
-                borderRadius: '14px',
-                fontSize: '0.85rem',
-                fontWeight: '900',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                boxShadow: '0 4px 16px rgba(220, 38, 38, 0.45)',
-                border: '2px solid rgba(255, 255, 255, 0.6)',
-                letterSpacing: '0.8px',
-                textTransform: 'uppercase',
-                zIndex: 10
-              }}
-            >
-              <span style={{ fontSize: '1.15rem' }}>🌋</span>
-              <span>TERREMOTO</span>
-            </div>
-          )}
-
-          <h2 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.1rem', marginBottom: '0.75rem' }}>
-            Llevamos
-          </h2>
-          
-          <div style={{ 
-            fontSize: daysWithoutSif >= 1000 ? '7rem' : '8.5rem', 
-            fontWeight: '800', 
-            color: '#0f766e', 
-            lineHeight: '1',
-            textShadow: '0px 4px 20px rgba(45, 212, 191, 0.4)',
-            fontFamily: 'system-ui, -apple-system, sans-serif',
-            fontVariantNumeric: 'tabular-nums'
-          }}>
-            {daysWithoutSif.toLocaleString("es-CO")}
+            {(isPereira || isArmenia) && (
+              <div
+                style={{
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  padding: '0.45rem 1.1rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.82rem',
+                  fontWeight: '900',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)',
+                  border: '2px solid rgba(255, 255, 255, 0.7)',
+                  letterSpacing: '0.6px',
+                  textTransform: 'uppercase',
+                  maxWidth: '100%',
+                  lineHeight: '1.25'
+                }}
+              >
+                <span style={{ fontSize: '1.15rem' }}>🌋</span>
+                <span>TERREMOTO</span>
+              </div>
+            )}
           </div>
-          
-          <h2 style={{ color: 'var(--text-main)', fontSize: '1.8rem', marginTop: '1rem', fontWeight: '700' }}>
-            DÍAS SIN SIF POTENCIAL
-          </h2>
 
-          {(isPereira || isArmenia) && (
-            <span style={{ marginTop: '0.6rem', fontSize: '0.9rem', color: '#0f766e', fontWeight: '800', backgroundColor: '#ccfbf1', padding: '0.3rem 0.9rem', borderRadius: '12px', border: '1px solid #5eead4' }}>
-              ✓ Desde el 10-08-2026 (10 de Agosto de 2026)
-            </span>
-          )}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            <h2 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+              Llevamos
+            </h2>
+            
+            <div style={{ 
+              fontSize: daysWithoutSif >= 1000 ? '6.8rem' : '8rem', 
+              fontWeight: '800', 
+              color: '#0f766e', 
+              lineHeight: '1',
+              textShadow: '0px 4px 20px rgba(45, 212, 191, 0.4)',
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              fontVariantNumeric: 'tabular-nums'
+            }}>
+              {daysWithoutSif.toLocaleString("es-CO")}
+            </div>
+            
+            <h2 style={{ color: 'var(--text-main)', fontSize: '1.8rem', marginTop: '0.85rem', fontWeight: '700' }}>
+              DÍAS SIN SIF POTENCIAL
+            </h2>
+          </div>
 
-          {isBarranca && (
-            <span style={{ marginTop: '0.6rem', fontSize: '0.9rem', color: '#0f766e', fontWeight: '800', backgroundColor: '#ccfbf1', padding: '0.3rem 0.9rem', borderRadius: '12px', border: '1px solid #5eead4' }}>
-              ✓ Desde el 22-08-2026 (22 de Agosto de 2026)
-            </span>
-          )}
+          <div style={{ marginTop: '0.85rem' }}>
+            {(isPereira || isArmenia) && (
+              <span style={{ fontSize: '0.9rem', color: '#0f766e', fontWeight: '800', backgroundColor: '#ccfbf1', padding: '0.35rem 1rem', borderRadius: '12px', border: '1px solid #5eead4' }}>
+                ✓ Desde el 10-08-2026 (10 de Agosto de 2026)
+              </span>
+            )}
+
+            {isBarranca && (
+              <span style={{ fontSize: '0.9rem', color: '#0f766e', fontWeight: '800', backgroundColor: '#ccfbf1', padding: '0.35rem 1rem', borderRadius: '12px', border: '1px solid #5eead4' }}>
+                ✓ Desde el 22-07-2026 (22 de Julio de 2026)
+              </span>
+            )}
+          </div>
         </div>
         
       </div>
@@ -503,7 +511,7 @@ export default function CalculadoraAccidentes() {
                   <strong>CD Barrancabermeja:</strong> Fechas base fijadas de forma permanente.
                   <div style={{ fontSize: '0.8rem', color: '#15803d', marginTop: '0.2rem' }}>
                     • Último Accidente: <strong>18-01-2018</strong> (18 de Enero de 2018) — <strong>🚜 Incidente con montacargas</strong><br />
-                    • Último SIF Potencial: <strong>22-08-2026</strong> (22 de Agosto de 2026) — <strong>⚠️ Golpe en la cabeza con objeto en taller aliado</strong><br />
+                    • Último SIF Potencial: <strong>22-07-2026</strong> (22 de Julio de 2026) — <strong>⚠️ Golpe en la cabeza con objeto en taller aliado</strong><br />
                     <em>Estas fechas no se mueven solas ni se borran; únicamente si tú las editas manualmente aquí abajo.</em>
                   </div>
                 </div>
@@ -523,7 +531,7 @@ export default function CalculadoraAccidentes() {
                     onClick={() => handleSifDateChange(FIXED_BARRANCA_SIF_DATE)}
                     style={{ background: '#00205b', color: '#fcd116', border: 'none', padding: '0.45rem 0.85rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
                   >
-                    ↺ Restablecer SIF (22-08-2026)
+                    ↺ Restablecer SIF (22-07-2026)
                   </button>
                 )}
               </div>
@@ -716,7 +724,7 @@ export default function CalculadoraAccidentes() {
             />
             <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: '0.25rem 0 0 0', maxWidth: '480px', lineHeight: '1.4' }}>
               {isBarranca
-                ? "🔒 Fecha fijada permanentemente en 22-08-2026 para CD Barrancabermeja (Golpe en la cabeza con objeto en taller aliado). No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
+                ? "🔒 Fecha fijada permanentemente en 22-07-2026 para CD Barrancabermeja (Golpe en la cabeza con objeto en taller aliado). No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
                 : isArmenia
                 ? "🔒 Fecha fijada permanentemente en 10-08-2026 para CD Armenia. No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
                 : isPereira 
