@@ -77,11 +77,7 @@ export default function CalculadoraAccidentes() {
       const saved = localStorage.getItem(`last_sif_date_${cityKey}`);
       if (saved) return saved;
     }
-    if (isArmenia) return FIXED_ARMENIA_SIF_DATE;
-    if (isPereira) return FIXED_PEREIRA_SIF_DATE;
-    const defaultDate = new Date();
-    defaultDate.setDate(defaultDate.getDate() - 45);
-    return defaultDate.toISOString().split('T')[0];
+    return FIXED_ARMENIA_SIF_DATE; // Default siempre 10-08-2026
   });
 
   const [daysWithoutSif, setDaysWithoutSif] = useState(0);
@@ -103,22 +99,10 @@ export default function CalculadoraAccidentes() {
     } else {
       const cityKey = (selectedCity || "general").toLowerCase();
       const savedAccident = localStorage.getItem(`last_accident_date_${cityKey}`);
-      if (savedAccident) {
-        setLastAccidentDate(savedAccident);
-      } else {
-        const defaultDate = new Date();
-        defaultDate.setDate(defaultDate.getDate() - 21);
-        setLastAccidentDate(defaultDate.toISOString().split('T')[0]);
-      }
+      setLastAccidentDate(savedAccident || FIXED_ARMENIA_DATE);
 
       const savedSif = localStorage.getItem(`last_sif_date_${cityKey}`);
-      if (savedSif) {
-        setLastSifDate(savedSif);
-      } else {
-        const defaultDate = new Date();
-        defaultDate.setDate(defaultDate.getDate() - 45);
-        setLastSifDate(defaultDate.toISOString().split('T')[0]);
-      }
+      setLastSifDate(savedSif || FIXED_ARMENIA_SIF_DATE);
     }
   }, [selectedCity, isArmenia, isPereira]);
 
@@ -338,8 +322,8 @@ export default function CalculadoraAccidentes() {
             position: 'relative'
           }}
         >
-          {/* Badge TERREMOTO dentro de este recuadro para Pereira */}
-          {isPereira && (
+          {/* Badge TERREMOTO dentro de este recuadro para Armenia y Pereira */}
+          {(isPereira || isArmenia) && (
             <div
               style={{
                 position: 'absolute',
