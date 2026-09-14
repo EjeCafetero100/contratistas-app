@@ -257,7 +257,7 @@ export default function CalculadoraAccidentes() {
             : isArmenia
             ? "CD Armenia • Accidente: 17-03-2018 (Explosión de botella) | SIF Potencial: 10-08-2026 (Terremoto) (solo actualizable manualmente)."
             : isPereira 
-            ? "CD Pereira • Accidente: 08-01-2020 (Evento registrado) | SIF Potencial: 10-08-2026 (Terremoto) (solo actualizable manualmente)."
+            ? "CD Pereira • Accidente: 08-01-2020 (Caída de camión) | SIF Potencial: 10-08-2026 (Terremoto) (solo actualizable manualmente)."
             : "Seguimiento de nuestro compromiso con la Seguridad y Salud en el Trabajo"
           }
         </p>
@@ -359,8 +359,8 @@ export default function CalculadoraAccidentes() {
                   lineHeight: '1.25'
                 }}
               >
-                <span style={{ fontSize: '1.15rem' }}>🛑</span>
-                <span>EVENTO REGISTRADO</span>
+                <span style={{ fontSize: '1.15rem' }}>🚚</span>
+                <span>CAÍDA DE CAMIÓN</span>
               </div>
             )}
           </div>
@@ -608,7 +608,7 @@ export default function CalculadoraAccidentes() {
                 <div>
                   <strong>CD Pereira:</strong> Fechas base fijadas de forma permanente.
                   <div style={{ fontSize: '0.8rem', color: '#15803d', marginTop: '0.2rem' }}>
-                    • Último Accidente: <strong>08-01-2020</strong> (08 de Enero de 2020) — <strong>🛑 Evento registrado</strong><br />
+                    • Último Accidente: <strong>08-01-2020</strong> (08 de Enero de 2020) — <strong>🚚 Caída de camión</strong><br />
                     • Último SIF Potencial: <strong>10-08-2026</strong> (10 de Agosto de 2026) — <strong>🌋 Terremoto</strong><br />
                     <em>Estas fechas no se borran ni se modifican solas; únicamente si tú las editas manualmente aquí abajo.</em>
                   </div>
@@ -692,7 +692,7 @@ export default function CalculadoraAccidentes() {
                 : isArmenia 
                 ? "🔒 Fecha fijada permanentemente en 17-03-2018 para CD Armenia (Explosión de botella). No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
                 : isPereira 
-                ? "🔒 Fecha fijada permanentemente en 08-01-2020 para CD Pereira (Evento registrado). No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
+                ? "🔒 Fecha fijada permanentemente en 08-01-2020 para CD Pereira (Caída de camión). No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
                 : "Al cambiar la fecha, el contador se actualizará automáticamente."
               }
             </p>
