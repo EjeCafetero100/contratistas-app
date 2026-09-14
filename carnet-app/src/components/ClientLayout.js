@@ -59,7 +59,7 @@ export default function ClientLayout({ children }) {
 
         <nav className="sidebar-nav">
           <Link href="/calculadora" className={`sidebar-link ${pathname === '/calculadora' ? 'active' : ''}`}>
-            🔺 Pirámide de Seguridad
+            🗓️ Gestión de incidentes
           </Link>
           <Link href="/dashboard" className={`sidebar-link ${pathname === '/dashboard' ? 'active' : ''}`}>
             📋 Panel de Control

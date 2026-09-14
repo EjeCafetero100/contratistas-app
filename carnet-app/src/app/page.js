@@ -79,7 +79,7 @@ export default function HomePage() {
             </div>
             <h2 className="cd-card-title">PEREIRA</h2>
             <p className="cd-card-desc">
-              Centro de Distribución Pereira • Eje Cafetero. Pirámide de seguridad, consulta de inspecciones, inventario de botiquines, extintores y KPIs.
+              Centro de Distribución Pereira • Eje Cafetero. Gestión de incidentes, consulta de inspecciones, inventario de botiquines, extintores y KPIs.
             </p>
           </div>
           

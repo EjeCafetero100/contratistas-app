@@ -72,7 +72,7 @@ export default function DashboardPage() {
               boxShadow: '0 4px 12px rgba(0, 32, 91, 0.2)'
             }}
           >
-            <span>🔺</span> PIRÁMIDE DE SEGURIDAD
+            <span>🗓️</span> GESTIÓN DE INCIDENTES
           </Link>
         )}
       </header>
