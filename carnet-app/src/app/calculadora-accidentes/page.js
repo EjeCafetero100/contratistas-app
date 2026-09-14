@@ -255,9 +255,9 @@ export default function CalculadoraAccidentes() {
           {isBarranca
             ? "CD Barrancabermeja • Accidente: 18-01-2018 (Incidente con montacargas) | SIF Potencial: 22-07-2026 (Golpe en la cabeza con objeto en taller aliado) (solo actualizable manualmente)."
             : isArmenia
-            ? "CD Armenia • Accidente: 17-03-2018 (Explosión de botella) | SIF Potencial: 10-08-2026 (solo actualizable manualmente)."
+            ? "CD Armenia • Accidente: 17-03-2018 (Explosión de botella) | SIF Potencial: 10-08-2026 (Terremoto) (solo actualizable manualmente)."
             : isPereira 
-            ? "CD Pereira • Accidente: 08-01-2020 | SIF Potencial: 10-08-2026 (solo actualizable manualmente)."
+            ? "CD Pereira • Accidente: 08-01-2020 (Evento registrado) | SIF Potencial: 10-08-2026 (Terremoto) (solo actualizable manualmente)."
             : "Seguimiento de nuestro compromiso con la Seguridad y Salud en el Trabajo"
           }
         </p>
@@ -335,6 +335,32 @@ export default function CalculadoraAccidentes() {
               >
                 <span style={{ fontSize: '1.15rem' }}>💥</span>
                 <span>EXPLOSIÓN DE BOTELLA</span>
+              </div>
+            )}
+
+            {isPereira && (
+              <div
+                style={{
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  padding: '0.45rem 1.1rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.82rem',
+                  fontWeight: '900',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)',
+                  border: '2px solid rgba(255, 255, 255, 0.7)',
+                  letterSpacing: '0.6px',
+                  textTransform: 'uppercase',
+                  maxWidth: '100%',
+                  lineHeight: '1.25'
+                }}
+              >
+                <span style={{ fontSize: '1.15rem' }}>🛑</span>
+                <span>EVENTO REGISTRADO</span>
               </div>
             )}
           </div>
@@ -547,7 +573,7 @@ export default function CalculadoraAccidentes() {
                   <strong>CD Armenia:</strong> Fechas base fijadas de forma permanente.
                   <div style={{ fontSize: '0.8rem', color: '#15803d', marginTop: '0.2rem' }}>
                     • Último Accidente: <strong>17-03-2018</strong> (17 de Marzo de 2018) — <strong>💥 Explosión de botella</strong><br />
-                    • Último SIF Potencial: <strong>10-08-2026</strong> (10 de Agosto de 2026)<br />
+                    • Último SIF Potencial: <strong>10-08-2026</strong> (10 de Agosto de 2026) — <strong>🌋 Terremoto</strong><br />
                     <em>Estas fechas no se mueven solas ni se borran; únicamente si tú las editas manualmente aquí abajo.</em>
                   </div>
                 </div>
@@ -582,8 +608,8 @@ export default function CalculadoraAccidentes() {
                 <div>
                   <strong>CD Pereira:</strong> Fechas base fijadas de forma permanente.
                   <div style={{ fontSize: '0.8rem', color: '#15803d', marginTop: '0.2rem' }}>
-                    • Último Accidente: <strong>08-01-2020</strong><br />
-                    • Último SIF Potencial: <strong>10-08-2026</strong><br />
+                    • Último Accidente: <strong>08-01-2020</strong> (08 de Enero de 2020) — <strong>🛑 Evento registrado</strong><br />
+                    • Último SIF Potencial: <strong>10-08-2026</strong> (10 de Agosto de 2026) — <strong>🌋 Terremoto</strong><br />
                     <em>Estas fechas no se borran ni se modifican solas; únicamente si tú las editas manualmente aquí abajo.</em>
                   </div>
                 </div>
@@ -627,7 +653,7 @@ export default function CalculadoraAccidentes() {
               alignItems: 'center',
               gap: '0.5rem',
               color: '#166534',
-              boxShadow: '0 2px 6px rgba(22, 163, 74, 0.12)'
+              boxShadow: '0 2px 6px rgba(220, 38, 38, 0.12)'
             }}>
               <span style={{ fontSize: '0.9rem', fontWeight: '600' }}>Fecha configurada:</span>
               <strong style={{ fontSize: '1.3rem', color: '#052e16', letterSpacing: '1px' }}>
@@ -666,7 +692,7 @@ export default function CalculadoraAccidentes() {
                 : isArmenia 
                 ? "🔒 Fecha fijada permanentemente en 17-03-2018 para CD Armenia (Explosión de botella). No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
                 : isPereira 
-                ? "🔒 Fecha fijada permanentemente en 08-01-2020 para CD Pereira. No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
+                ? "🔒 Fecha fijada permanentemente en 08-01-2020 para CD Pereira (Evento registrado). No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
                 : "Al cambiar la fecha, el contador se actualizará automáticamente."
               }
             </p>
@@ -726,9 +752,9 @@ export default function CalculadoraAccidentes() {
               {isBarranca
                 ? "🔒 Fecha fijada permanentemente en 22-07-2026 para CD Barrancabermeja (Golpe en la cabeza con objeto en taller aliado). No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
                 : isArmenia
-                ? "🔒 Fecha fijada permanentemente en 10-08-2026 para CD Armenia. No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
+                ? "🔒 Fecha fijada permanentemente en 10-08-2026 para CD Armenia (Terremoto). No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
                 : isPereira 
-                ? "🔒 Fecha fijada permanentemente en 10-08-2026 para CD Pereira. No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
+                ? "🔒 Fecha fijada permanentemente en 10-08-2026 para CD Pereira (Terremoto). No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
                 : "Al cambiar la fecha, el contador se actualizará automáticamente."
               }
             </p>
