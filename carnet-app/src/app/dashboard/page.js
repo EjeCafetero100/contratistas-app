@@ -54,6 +54,27 @@ export default function DashboardPage() {
             Gestión de Personal y Visitantes {selectedCity ? `— Centro de Distribución ${selectedCity}` : ''}
           </p>
         </div>
+
+        {selectedCity === 'Pereira' && (
+          <Link
+            href="/calculadora"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              backgroundColor: '#00205b',
+              color: '#fcd116',
+              padding: '0.6rem 1.2rem',
+              borderRadius: '8px',
+              fontWeight: '800',
+              fontSize: '0.9rem',
+              textDecoration: 'none',
+              boxShadow: '0 4px 12px rgba(0, 32, 91, 0.2)'
+            }}
+          >
+            <span>🔺</span> PIRÁMIDE DE SEGURIDAD
+          </Link>
+        )}
       </header>
 
       <div className="glass-panel">

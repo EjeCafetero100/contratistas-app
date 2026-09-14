@@ -9,7 +9,11 @@ export default function HomePage() {
 
   const handleSelectCity = (cityName) => {
     selectCity(cityName);
-    router.push("/dashboard");
+    if (cityName === "Pereira") {
+      router.push("/calculadora");
+    } else {
+      router.push("/dashboard");
+    }
   };
 
   return (
@@ -75,7 +79,7 @@ export default function HomePage() {
             </div>
             <h2 className="cd-card-title">PEREIRA</h2>
             <p className="cd-card-desc">
-              Centro de Distribución Pereira • Eje Cafetero. Consulta inspecciones, inventario de botiquines, extintores y KPIs de seguridad.
+              Centro de Distribución Pereira • Eje Cafetero. Pirámide de seguridad, consulta de inspecciones, inventario de botiquines, extintores y KPIs.
             </p>
           </div>
           

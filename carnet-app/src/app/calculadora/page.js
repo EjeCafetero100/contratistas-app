@@ -54,6 +54,9 @@ export default function CalculadoraPage() {
 
   useEffect(() => {
     setIsClient(true);
+    if (typeof document !== "undefined") {
+      document.title = "Pirámide de Seguridad - CD Pereira | AB InBev";
+    }
     try {
       const saved = localStorage.getItem("piramide_pereira_2026");
       if (saved) {
@@ -281,7 +284,7 @@ export default function CalculadoraPage() {
                   textTransform: "uppercase"
                 }}
               >
-                INDICADOR CRONOLÓGICO & PIRÁMIDE DE INCIDENTES 2026
+                PIRÁMIDE DE SEGURIDAD 2026
               </h1>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "0.1rem" }}>
                 <span style={{ fontSize: "0.68rem", fontWeight: "800", color: "#00205b", textTransform: "uppercase" }}>
