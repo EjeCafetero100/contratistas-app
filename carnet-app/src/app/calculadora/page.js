@@ -44,7 +44,7 @@ export default function CalculadoraPage() {
     sif_potencial: 2,
     sif_precursor: 318,
     dias_sin_lti: 3122,
-    comentarios: "• FAI – SIF POTENCIAL – 22 JULIO 2026\nEvento en taller aliado (golpe con objeto a colaborador)."
+    comentarios: "• SIF POTENCIAL – 10 AGOSTO 2026\n• Evento registrado / Simulacro Terremoto."
   };
 
   const [pyramid, setPyramid] = useState(defaultPyramidData);
@@ -307,8 +307,29 @@ export default function CalculadoraPage() {
             </div>
           </div>
 
-          {/* Botones de Control Rápidos */}
+          {/* Botones de Control Rápidos y Badge Terremoto */}
           <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", padding: "0.4rem 0.8rem" }}>
+            <div
+              style={{
+                backgroundColor: "#dc2626",
+                color: "#ffffff",
+                padding: "0.25rem 0.6rem",
+                borderRadius: "6px",
+                fontWeight: "900",
+                fontSize: "0.7rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.3rem",
+                boxShadow: "0 2px 8px rgba(220, 38, 38, 0.4)",
+                border: "1px solid rgba(255, 255, 255, 0.4)",
+                textTransform: "uppercase",
+                letterSpacing: "0.5px",
+                marginRight: "0.2rem"
+              }}
+            >
+              <span>🌋</span>
+              <span>TERREMOTO</span>
+            </div>
             <button
               onClick={() => setIsPyramidEditOpen(true)}
               style={{
