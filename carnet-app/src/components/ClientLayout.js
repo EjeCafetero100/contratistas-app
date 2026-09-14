@@ -1,127 +1,122 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCity } from '@/context/CityContext';
 
-const DEFAULT_MENU_ITEMS = [
-  { id: 'calculadora', label: 'Gestión de incidentes', icon: '🗓️', href: '/calculadora', matchPrefix: false, visible: true },
-  { id: 'dashboard', label: 'Panel de Control', icon: '📋', href: '/dashboard', matchPrefix: false, visible: true },
-  { id: 'register', label: 'Añadir Persona', icon: '➕', href: '/register', matchPrefix: false, visible: true },
-  { id: 'historial', label: 'Historial Ingresos', icon: '📜', href: '/historial', matchPrefix: false, visible: true },
-  { id: 'no-grato', label: 'Personal No Grato', icon: '🚫', href: '/no-grato', color: '#ef4444', matchPrefix: false, visible: true },
-  { id: 'control-documental', label: 'Control Documental ABI', icon: '📂', href: '/control-documental', matchPrefix: false, visible: true },
-  { id: 'botiquin', label: 'Botiquín', icon: '🚑', href: '/botiquin', matchPrefix: true, excludePrefix: '/botiquin-2', visible: true },
-  { id: 'botiquin-2', label: 'Botiquín 2', icon: '🚑', href: '/botiquin-2', matchPrefix: true, visible: true },
-  { id: 'calculadora-accidentes', label: 'Calculadora Accidentes', icon: '⏱️', href: '/calculadora-accidentes', matchPrefix: true, visible: true },
-  { id: 'inspecciones', label: 'Inspecciones Mensuales', icon: '📝', href: '/inspecciones', matchPrefix: true, visible: true },
-  { id: 'extintores', label: 'Extintores', icon: '🧯', href: '/extintores', matchPrefix: true, excludePrefix: '/extintores2', visible: true },
-  { id: 'extintores2', label: 'Extintores 2', icon: '🧯', href: '/extintores2', matchPrefix: true, visible: true },
-  { id: 'credit-360', label: 'Credit 360', icon: '📈', href: '/credit-360', matchPrefix: true, visible: true },
-  { id: 'dashboard-excel', label: 'Dashboard Dinámico Excel', icon: '📊', href: '/dashboard-excel', matchPrefix: true, visible: true },
-  { id: 'kpis', label: 'Indicadores (KPIs)', icon: '📊', href: '/kpis', matchPrefix: true, isSeparator: true, visible: true }
+const BASE_MENU_ITEMS = [
+  { id: 'calculadora', label: 'Gestión de incidentes', icon: '🗓️', href: '/calculadora', matchPrefix: false },
+  { id: 'dashboard', label: 'Panel de Control', icon: '📋', href: '/dashboard', matchPrefix: false },
+  { id: 'register', label: 'Añadir Persona', icon: '➕', href: '/register', matchPrefix: false },
+  { id: 'historial', label: 'Historial Ingresos', icon: '📜', href: '/historial', matchPrefix: false },
+  { id: 'no-grato', label: 'Personal No Grato', icon: '🚫', href: '/no-grato', color: '#ef4444', matchPrefix: false },
+  { id: 'control-documental', label: 'Control Documental ABI', icon: '📂', href: '/control-documental', matchPrefix: false },
+  { id: 'botiquin', label: 'Botiquín', icon: '🚑', href: '/botiquin', matchPrefix: true, excludePrefix: '/botiquin-2' },
+  { id: 'botiquin-2', label: 'Botiquín 2', icon: '🚑', href: '/botiquin-2', matchPrefix: true },
+  { id: 'calculadora-accidentes', label: 'Calculadora Accidentes', icon: '⏱️', href: '/calculadora-accidentes', matchPrefix: true },
+  { id: 'inspecciones', label: 'Inspecciones Mensuales', icon: '📝', href: '/inspecciones', matchPrefix: true },
+  { id: 'extintores', label: 'Extintores', icon: '🧯', href: '/extintores', matchPrefix: true, excludePrefix: '/extintores2' },
+  { id: 'extintores2', label: 'Extintores 2', icon: '🧯', href: '/extintores2', matchPrefix: true },
+  { id: 'credit-360', label: 'Credit 360', icon: '📈', href: '/credit-360', matchPrefix: true },
+  { id: 'dashboard-excel', label: 'Dashboard Dinámico Excel', icon: '📊', href: '/dashboard-excel', matchPrefix: true },
+  { id: 'kpis', label: 'Indicadores (KPIs)', icon: '📊', href: '/kpis', matchPrefix: true, isSeparator: true }
 ];
+
+// Configuración inicial por sede (Armenia, Pereira, Barrancabermeja)
+const getInitialOrderForCity = (cityName) => {
+  const city = (cityName || '').toLowerCase();
+  const list = [...BASE_MENU_ITEMS];
+
+  if (city === 'pereira') {
+    // Para Pereira: Gestión de incidentes en la parte superior
+    const idx = list.findIndex(i => i.id === 'calculadora');
+    if (idx > -1) {
+      const [item] = list.splice(idx, 1);
+      list.unshift(item);
+    }
+  } else if (city === 'armenia') {
+    // Para Armenia: Control Documental y Panel de Control primero
+    const idx = list.findIndex(i => i.id === 'control-documental');
+    if (idx > -1) {
+      const [item] = list.splice(idx, 1);
+      list.splice(1, 0, item);
+    }
+  } else if (city === 'barrancabermeja') {
+    // Para Barrancabermeja: Personal No Grato y Panel primero
+    const idx = list.findIndex(i => i.id === 'no-grato');
+    if (idx > -1) {
+      const [item] = list.splice(idx, 1);
+      list.splice(1, 0, item);
+    }
+  }
+
+  return list;
+};
 
 export default function ClientLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const { selectedCity, clearCity } = useCity();
+  const cityKey = selectedCity ? selectedCity.toLowerCase() : 'general';
 
-  // Menú configurable y reordenable
-  const [menuItems, setMenuItems] = useState(DEFAULT_MENU_ITEMS);
-  const [isEditingMenu, setIsEditingMenu] = useState(false);
+  const [menuItems, setMenuItems] = useState(() => getInitialOrderForCity(selectedCity));
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
+  const isDraggingRef = useRef(false);
 
-  // Cargar orden guardado en localStorage
+  // Cargar orden personalizado según la sede (Armenia, Pereira o Barrancabermeja)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('sidebar_custom_menu_order_v2');
+      const storageKey = `sidebar_drag_order_${cityKey}`;
+      const saved = localStorage.getItem(storageKey);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const savedIds = new Set(parsed.map(i => i.id));
-          const merged = parsed
-            .map(savedItem => {
-              const def = DEFAULT_MENU_ITEMS.find(d => d.id === savedItem.id);
-              if (!def) return null;
-              return {
-                ...def,
-                ...savedItem,
-                label: savedItem.label || def.label,
-                visible: savedItem.visible !== undefined ? savedItem.visible : true
-              };
-            })
-            .filter(Boolean);
-
-          DEFAULT_MENU_ITEMS.forEach(def => {
-            if (!savedIds.has(def.id)) {
-              merged.push(def);
+        const savedIds = JSON.parse(saved);
+        if (Array.isArray(savedIds) && savedIds.length > 0) {
+          const ordered = [];
+          savedIds.forEach(id => {
+            const found = BASE_MENU_ITEMS.find(item => item.id === id);
+            if (found) ordered.push(found);
+          });
+          BASE_MENU_ITEMS.forEach(item => {
+            if (!ordered.some(o => o.id === item.id)) {
+              ordered.push(item);
             }
           });
-
-          setMenuItems(merged);
+          setMenuItems(ordered);
+          return;
         }
       }
+      setMenuItems(getInitialOrderForCity(selectedCity));
     } catch (e) {
-      console.error(e);
+      setMenuItems(getInitialOrderForCity(selectedCity));
     }
-  }, []);
+  }, [selectedCity, cityKey]);
 
-  const saveItems = (newItems) => {
+  // Guardar orden de arrastre en localStorage para la sede actual
+  const saveOrder = (newItems) => {
     setMenuItems(newItems);
     try {
-      const toSave = newItems.map(({ id, label, visible }) => ({ id, label, visible }));
-      localStorage.setItem('sidebar_custom_menu_order_v2', JSON.stringify(toSave));
+      const storageKey = `sidebar_drag_order_${cityKey}`;
+      const ids = newItems.map(i => i.id);
+      localStorage.setItem(storageKey, JSON.stringify(ids));
     } catch (e) {
       console.error(e);
     }
   };
 
-  const moveItem = (index, direction) => {
-    const targetIndex = index + direction;
-    if (targetIndex < 0 || targetIndex >= menuItems.length) return;
-    const updated = [...menuItems];
-    const [moved] = updated.splice(index, 1);
-    updated.splice(targetIndex, 0, moved);
-    saveItems(updated);
-  };
-
-  const toggleVisibility = (id) => {
-    const updated = menuItems.map(item =>
-      item.id === id ? { ...item, visible: !item.visible } : item
-    );
-    saveItems(updated);
-  };
-
-  const renameItem = (id, currentLabel) => {
-    const newName = prompt('Ingresa el nuevo nombre para este botón:', currentLabel);
-    if (newName && newName.trim()) {
-      const updated = menuItems.map(item =>
-        item.id === id ? { ...item, label: newName.trim() } : item
-      );
-      saveItems(updated);
-    }
-  };
-
-  const resetMenu = () => {
-    if (confirm('¿Deseas restablecer el panel al orden y nombres predeterminados?')) {
-      saveItems(DEFAULT_MENU_ITEMS);
-      localStorage.removeItem('sidebar_custom_menu_order_v2');
-      setIsEditingMenu(false);
-    }
-  };
-
-  // Drag & Drop
+  // Manejadores Drag & Drop directo
   const handleDragStart = (e, index) => {
     setDraggedIndex(index);
+    isDraggingRef.current = true;
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
   };
 
   const handleDragOver = (e, index) => {
     e.preventDefault();
-    if (draggedIndex !== index && dragOverIndex !== index) {
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
       setDragOverIndex(index);
     }
   };
@@ -135,6 +130,7 @@ export default function ClientLayout({ children }) {
     if (draggedIndex === null || draggedIndex === targetIndex) {
       setDraggedIndex(null);
       setDragOverIndex(null);
+      setTimeout(() => { isDraggingRef.current = false; }, 80);
       return;
     }
     const updated = [...menuItems];
@@ -142,7 +138,29 @@ export default function ClientLayout({ children }) {
     updated.splice(targetIndex, 0, moved);
     setDraggedIndex(null);
     setDragOverIndex(null);
-    saveItems(updated);
+    saveOrder(updated);
+    setTimeout(() => { isDraggingRef.current = false; }, 80);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    setTimeout(() => { isDraggingRef.current = false; }, 80);
+  };
+
+  const handleLinkClick = (e) => {
+    if (isDraggingRef.current) {
+      e.preventDefault();
+    }
+  };
+
+  const resetCityOrder = () => {
+    if (confirm(`¿Restablecer el orden del panel para ${selectedCity || 'esta sede'}?`)) {
+      try {
+        localStorage.removeItem(`sidebar_drag_order_${cityKey}`);
+      } catch (e) {}
+      setMenuItems(getInitialOrderForCity(selectedCity));
+    }
   };
 
   const isItemActive = (item) => {
@@ -177,9 +195,6 @@ export default function ClientLayout({ children }) {
     );
   }
 
-  // En modo normal, mostramos sólo los que no están ocultos. En modo edición, mostramos todos.
-  const displayedItems = isEditingMenu ? menuItems : menuItems.filter(item => item.visible !== false);
-
   return (
     <div className="app-layout">
       {/* Panel Lateral */}
@@ -203,145 +218,59 @@ export default function ClientLayout({ children }) {
           )}
         </div>
 
-        {/* Botón para activar/desactivar el modo de organizar panel */}
-        <button
-          onClick={() => setIsEditingMenu(!isEditingMenu)}
-          className={`sidebar-customizer-btn ${isEditingMenu ? 'active' : ''}`}
-          title="Personalizar orden y visibilidad del panel"
-        >
-          {isEditingMenu ? '✓ Finalizar Organización' : '⚙️ Organizar / Mover Panel'}
-        </button>
-
-        {/* Caja de instrucciones y controles rápidos en modo edición */}
-        {isEditingMenu && (
-          <div className="sidebar-edit-box">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <strong style={{ color: '#fcd116', fontSize: '0.72rem' }}>🛠️ Mover a tu gusto</strong>
-              <button
-                onClick={resetMenu}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#94a3b8',
-                  fontSize: '0.65rem',
-                  cursor: 'pointer',
-                  textDecoration: 'underline'
-                }}
-              >
-                ↺ Restablecer
-              </button>
-            </div>
-            <p className="sidebar-edit-info">
-              Arrastra con <strong>⋮⋮</strong> o usa <strong>⬆️ ⬇️</strong> para reordenar. Clic en <strong>👁️</strong> para ocultar/mostrar y <strong>✏️</strong> para renombrar.
-            </p>
-          </div>
-        )}
-
+        {/* Lista de navegación 100% de arrastre directo */}
         <nav className="sidebar-nav">
-          {displayedItems.map((item) => {
-            const actualIndex = menuItems.findIndex(i => i.id === item.id);
+          {menuItems.map((item, index) => {
             const active = isItemActive(item);
-            const isHidden = item.visible === false;
-            const isDragging = draggedIndex === actualIndex;
-            const isDragOver = dragOverIndex === actualIndex;
+            const isDragging = draggedIndex === index;
+            const isDragOver = dragOverIndex === index;
 
             return (
               <div
                 key={item.id}
                 draggable
-                onDragStart={(e) => handleDragStart(e, actualIndex)}
-                onDragOver={(e) => handleDragOver(e, actualIndex)}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
                 onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, actualIndex)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
                 className={`sidebar-item-container ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
                 style={{
-                  opacity: isHidden ? 0.45 : 1,
-                  background: isEditingMenu ? 'rgba(255,255,255,0.04)' : 'transparent',
-                  borderTop: item.isSeparator && !isEditingMenu ? '1px solid rgba(252, 209, 22, 0.2)' : 'none',
-                  marginTop: item.isSeparator && !isEditingMenu ? '0.5rem' : '0',
-                  paddingTop: item.isSeparator && !isEditingMenu ? '0.5rem' : '0'
+                  borderTop: item.isSeparator ? '1px solid rgba(252, 209, 22, 0.2)' : 'none',
+                  marginTop: item.isSeparator ? '0.4rem' : '0',
+                  paddingTop: item.isSeparator ? '0.4rem' : '0'
                 }}
+                title="Arrastra para mover a tu gusto"
               >
-                {/* Drag handle */}
-                <span
-                  className="sidebar-drag-handle"
-                  title="Arrastra para mover de posición"
-                >
+                {/* Agarrador visual para arrastrar */}
+                <span className="sidebar-drag-handle" title="Arrastra hacia arriba o abajo">
                   ⋮⋮
                 </span>
 
-                {/* Enlace normal */}
+                {/* Enlace */}
                 <div className="sidebar-item-link">
-                  {isEditingMenu ? (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        padding: '0.6rem 0.5rem',
-                        color: item.color || '#fcd116',
-                        fontSize: '0.85rem',
-                        fontWeight: '600',
-                        textDecoration: isHidden ? 'line-through' : 'none'
-                      }}
-                    >
-                      <span>{item.icon}</span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.label}
-                      </span>
-                    </div>
-                  ) : (
-                    <Link
-                      href={item.href}
-                      className={`sidebar-link ${active ? 'active' : ''}`}
-                      style={{ color: item.color || undefined, padding: '0.65rem 0.75rem' }}
-                    >
-                      <span style={{ marginRight: '0.4rem' }}>{item.icon}</span>
-                      <span>{item.label}</span>
-                    </Link>
-                  )}
+                  <Link
+                    href={item.href}
+                    onClick={handleLinkClick}
+                    className={`sidebar-link ${active ? 'active' : ''}`}
+                    style={{ color: item.color || undefined, padding: '0.65rem 0.75rem' }}
+                  >
+                    <span style={{ marginRight: '0.45rem' }}>{item.icon}</span>
+                    <span>{item.label}</span>
+                  </Link>
                 </div>
-
-                {/* Controles de edición (flechas, ocultar, renombrar) */}
-                {isEditingMenu && (
-                  <div className="sidebar-item-actions">
-                    <button
-                      onClick={() => moveItem(actualIndex, -1)}
-                      disabled={actualIndex === 0}
-                      className="sidebar-action-btn"
-                      title="Mover hacia arriba"
-                      style={{ opacity: actualIndex === 0 ? 0.3 : 1 }}
-                    >
-                      ⬆️
-                    </button>
-                    <button
-                      onClick={() => moveItem(actualIndex, 1)}
-                      disabled={actualIndex === menuItems.length - 1}
-                      className="sidebar-action-btn"
-                      title="Mover hacia abajo"
-                      style={{ opacity: actualIndex === menuItems.length - 1 ? 0.3 : 1 }}
-                    >
-                      ⬇️
-                    </button>
-                    <button
-                      onClick={() => renameItem(item.id, item.label)}
-                      className="sidebar-action-btn"
-                      title="Cambiar nombre de este botón"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={() => toggleVisibility(item.id)}
-                      className="sidebar-action-btn"
-                      title={isHidden ? "Mostrar botón" : "Ocultar botón"}
-                    >
-                      {isHidden ? '🙈' : '👁️'}
-                    </button>
-                  </div>
-                )}
               </div>
             );
           })}
+
+          {/* Opción rápida para restablecer el orden de la sede actual */}
+          <button
+            onClick={resetCityOrder}
+            className="sidebar-reset-link"
+            title="Restablecer orden predeterminado"
+          >
+            ↺ Restablecer orden de {selectedCity || 'la sede'}
+          </button>
         </nav>
       </aside>
 
