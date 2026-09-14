@@ -35,49 +35,170 @@ body {
 }
 
 .sidebar {
-  width: 280px;
+  width: 290px;
   background: var(--primary);
   color: var(--secondary);
   display: flex;
   flex-direction: column;
-  padding: 2rem 0;
+  padding: 1.5rem 0;
   box-shadow: 2px 0 10px rgba(0,0,0,0.1);
   z-index: 10;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
 }
 
 .sidebar-header {
-  padding: 0 2rem 2rem 2rem;
+  padding: 0 1.5rem 1rem 1.5rem;
   border-bottom: 1px solid rgba(252, 209, 22, 0.2);
-  margin-bottom: 2rem;
+  margin-bottom: 0.8rem;
+  flex-shrink: 0;
 }
 
 .sidebar-header h2 {
   color: var(--secondary);
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0 1rem;
+  gap: 0.35rem;
+  padding: 0 0.8rem;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .sidebar-link {
   display: flex;
   align-items: center;
-  padding: 1rem 1.5rem;
-  color: rgba(252, 209, 22, 0.8);
+  padding: 0.75rem 1rem;
+  color: rgba(252, 209, 22, 0.85);
   text-decoration: none;
   font-weight: 600;
   border-radius: 8px;
   transition: all 0.2s;
+  font-size: 0.9rem;
 }
 
 .sidebar-link:hover, .sidebar-link.active {
-  background: rgba(252, 209, 22, 0.1);
+  background: rgba(252, 209, 22, 0.12);
   color: var(--secondary);
+  border: 1px solid rgba(252, 209, 22, 0.25);
+}
+
+/* Sidebar Menu Customizer */
+.sidebar-customizer-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(252, 209, 22, 0.35);
+  color: #fcd116;
+  padding: 0.5rem 0.8rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  margin: 0.5rem 0.8rem;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.sidebar-customizer-btn:hover {
+  background: rgba(252, 209, 22, 0.2);
+  border-color: #fcd116;
+}
+
+.sidebar-customizer-btn.active {
+  background: #fcd116;
+  color: #00205b;
+  border-color: #fcd116;
+}
+
+.sidebar-edit-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px dashed rgba(252, 209, 22, 0.4);
+  border-radius: 8px;
+  padding: 0.6rem;
+  margin: 0 0.8rem 0.6rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.sidebar-edit-info {
+  font-size: 0.7rem;
+  color: #e2e8f0;
+  line-height: 1.35;
+}
+
+.sidebar-item-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.sidebar-item-container.dragging {
+  opacity: 0.35;
+  transform: scale(0.97);
+}
+
+.sidebar-item-container.drag-over {
+  border-top: 2px solid #fcd116;
+}
+
+.sidebar-item-link {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-right: 0.4rem;
+}
+
+.sidebar-action-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.sidebar-action-btn:hover {
+  background: #fcd116;
+  color: #00205b;
+  border-color: #fcd116;
+}
+
+.sidebar-drag-handle {
+  cursor: grab;
+  padding: 0 0.35rem 0 0.5rem;
+  color: rgba(252, 209, 22, 0.6);
+  font-size: 0.85rem;
+  user-select: none;
+}
+
+.sidebar-drag-handle:active {
+  cursor: grabbing;
 }
 
 .main-content {
