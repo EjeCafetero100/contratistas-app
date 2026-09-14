@@ -4,11 +4,16 @@ import { useState, useEffect } from "react";
 import { useCity } from "@/context/CityContext";
 
 export default function CalculadoraAccidentes() {
-  const { selectedCity } = useCity();
-  // Pereira es la sede por defecto si selectedCity es nula o 'pereira'
-  const isPereira = !selectedCity || (selectedCity || "").toLowerCase() === "pereira";
+  const { selectedCity, selectCity } = useCity();
+  const currentCity = (selectedCity || "Pereira").toLowerCase();
+  const isPereira = currentCity === "pereira";
+  const isArmenia = currentCity === "armenia";
+
+  // Fechas fijas
   const FIXED_PEREIRA_DATE = "2020-01-08"; // 08-01-2020
   const FIXED_PEREIRA_SIF_DATE = "2026-08-10"; // 10-08-2026
+
+  const FIXED_ARMENIA_DATE = "2018-03-17"; // 17-03-2018
 
   // Formateadores de fecha amigables
   const formatDateDMY = (isoDate) => {
@@ -28,23 +33,28 @@ export default function CalculadoraAccidentes() {
     return date.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
   };
 
-  // Fecha del último accidente (en Pereira 08-01-2020)
+  // Fecha del último accidente (Pereira: 08-01-2020, Armenia: 17-03-2018)
   const [lastAccidentDate, setLastAccidentDate] = useState(() => {
     if (typeof window !== "undefined") {
+      if (isArmenia) {
+        const manualArmenia = localStorage.getItem("manual_accident_date_armenia_v2");
+        if (manualArmenia) return manualArmenia;
+        return FIXED_ARMENIA_DATE;
+      }
       if (isPereira) {
-        const manual = localStorage.getItem("manual_accident_date_pereira_v2");
-        if (manual) return manual;
+        const manualPereira = localStorage.getItem("manual_accident_date_pereira_v2");
+        if (manualPereira) return manualPereira;
         return FIXED_PEREIRA_DATE;
       }
       const cityKey = (selectedCity || "general").toLowerCase();
       const saved = localStorage.getItem(`last_accident_date_${cityKey}`);
       if (saved) return saved;
     }
-    return isPereira ? FIXED_PEREIRA_DATE : (() => {
-      const defaultDate = new Date();
-      defaultDate.setDate(defaultDate.getDate() - 21);
-      return defaultDate.toISOString().split('T')[0];
-    })();
+    if (isArmenia) return FIXED_ARMENIA_DATE;
+    if (isPereira) return FIXED_PEREIRA_DATE;
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() - 21);
+    return defaultDate.toISOString().split('T')[0];
   });
 
   const [daysWithoutAccidents, setDaysWithoutAccidents] = useState(0);
@@ -61,18 +71,29 @@ export default function CalculadoraAccidentes() {
       const saved = localStorage.getItem(`last_sif_date_${cityKey}`);
       if (saved) return saved;
     }
-    return isPereira ? FIXED_PEREIRA_SIF_DATE : (() => {
-      const defaultDate = new Date();
-      defaultDate.setDate(defaultDate.getDate() - 45);
-      return defaultDate.toISOString().split('T')[0];
-    })();
+    if (isPereira) return FIXED_PEREIRA_SIF_DATE;
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() - 45);
+    return defaultDate.toISOString().split('T')[0];
   });
 
   const [daysWithoutSif, setDaysWithoutSif] = useState(0);
 
   // Sincronizar fechas según la sede seleccionada
   useEffect(() => {
-    if (isPereira) {
+    if (isArmenia) {
+      const manualArmenia = localStorage.getItem("manual_accident_date_armenia_v2");
+      setLastAccidentDate(manualArmenia || FIXED_ARMENIA_DATE);
+
+      const savedSif = localStorage.getItem("last_sif_date_armenia");
+      if (savedSif) {
+        setLastSifDate(savedSif);
+      } else {
+        const defaultDate = new Date();
+        defaultDate.setDate(defaultDate.getDate() - 45);
+        setLastSifDate(defaultDate.toISOString().split('T')[0]);
+      }
+    } else if (isPereira) {
       const manualAccident = localStorage.getItem("manual_accident_date_pereira_v2");
       setLastAccidentDate(manualAccident || FIXED_PEREIRA_DATE);
 
@@ -98,12 +119,19 @@ export default function CalculadoraAccidentes() {
         setLastSifDate(defaultDate.toISOString().split('T')[0]);
       }
     }
-  }, [selectedCity, isPereira]);
+  }, [selectedCity, isArmenia, isPereira]);
 
   // Manejar cambio manual de fecha de accidentes
   const handleAccidentDateChange = (newDate) => {
     setLastAccidentDate(newDate);
-    if (isPereira) {
+    if (isArmenia) {
+      if (newDate === FIXED_ARMENIA_DATE) {
+        localStorage.removeItem("manual_accident_date_armenia_v2");
+      } else {
+        localStorage.setItem("manual_accident_date_armenia_v2", newDate);
+      }
+      localStorage.setItem("last_accident_date_armenia", newDate);
+    } else if (isPereira) {
       if (newDate === FIXED_PEREIRA_DATE) {
         localStorage.removeItem("manual_accident_date_pereira_v2");
       } else {
@@ -162,11 +190,41 @@ export default function CalculadoraAccidentes() {
 
       <header style={{ textAlign: 'center', marginBottom: '2.5rem', marginTop: '1rem' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#00205b', color: '#fcd116', padding: '0.35rem 1.1rem', borderRadius: '20px', fontSize: '0.85rem', fontWeight: '800', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
-          📍 CENTRO DE DISTRIBUCIÓN: {selectedCity ? selectedCity.toUpperCase() : 'PEREIRA'}
+          📍 CENTRO DE DISTRIBUCIÓN: {selectedCity ? selectedCity.toUpperCase() : 'ARMENIA'}
         </div>
+
+        {/* Selector rápido de CD */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.6rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          {['Armenia', 'Pereira', 'Barrancabermeja'].map((city) => {
+            const active = (selectedCity || 'Armenia').toLowerCase() === city.toLowerCase();
+            return (
+              <button
+                key={city}
+                onClick={() => selectCity(city)}
+                style={{
+                  backgroundColor: active ? '#00205b' : '#ffffff',
+                  color: active ? '#fcd116' : '#475569',
+                  border: active ? '2px solid #00205b' : '1px solid #cbd5e1',
+                  borderRadius: '20px',
+                  padding: '0.35rem 1rem',
+                  fontSize: '0.85rem',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  boxShadow: active ? '0 4px 10px rgba(0,32,91,0.25)' : 'none',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                📍 {city}
+              </button>
+            );
+          })}
+        </div>
+
         <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>⏱️ Calculadora de Accidentes</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>
-          {isPereira 
+          {isArmenia
+            ? "CD Armenia • Accidente: 17-03-2018 (Explosión de botella) - Fecha fija actualizable solo manualmente."
+            : isPereira 
             ? "CD Pereira • Accidente: 08-01-2020 | SIF Potencial: 10-08-2026 (solo actualizable manualmente)."
             : "Seguimiento de nuestro compromiso con la Seguridad y Salud en el Trabajo"
           }
@@ -189,9 +247,38 @@ export default function CalculadoraAccidentes() {
             boxShadow: '0 20px 40px rgba(162, 219, 115, 0.15)',
             border: '2px solid rgba(162, 219, 115, 0.3)',
             borderRadius: '24px',
-            background: 'linear-gradient(145deg, rgba(255,255,255,0.8) 0%, rgba(240, 255, 230, 0.6) 100%)'
+            background: 'linear-gradient(145deg, rgba(255,255,255,0.8) 0%, rgba(240, 255, 230, 0.6) 100%)',
+            position: 'relative'
           }}
         >
+          {/* Badge EXPLOSIÓN DE BOTELLA dentro de este recuadro para Armenia */}
+          {isArmenia && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '1.2rem',
+                right: '1.2rem',
+                backgroundColor: '#dc2626',
+                color: '#ffffff',
+                padding: '0.45rem 1rem',
+                borderRadius: '14px',
+                fontSize: '0.85rem',
+                fontWeight: '900',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                boxShadow: '0 4px 16px rgba(220, 38, 38, 0.45)',
+                border: '2px solid rgba(255, 255, 255, 0.6)',
+                letterSpacing: '0.8px',
+                textTransform: 'uppercase',
+                zIndex: 10
+              }}
+            >
+              <span style={{ fontSize: '1.15rem' }}>💥</span>
+              <span>EXPLOSIÓN DE BOTELLA</span>
+            </div>
+          )}
+
           <h2 style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '2px', fontSize: '1.1rem', marginBottom: '0.75rem' }}>
             Llevamos
           </h2>
@@ -217,6 +304,12 @@ export default function CalculadoraAccidentes() {
               ✓ Desde el 08-01-2020 (08 de Enero de 2020)
             </span>
           )}
+
+          {isArmenia && (
+            <span style={{ marginTop: '0.6rem', fontSize: '0.9rem', color: '#166534', fontWeight: '800', backgroundColor: '#dcfce7', padding: '0.3rem 0.9rem', borderRadius: '12px', border: '1px solid #86efac' }}>
+              ✓ Desde el 17-03-2018 (17 de Marzo de 2018)
+            </span>
+          )}
         </div>
 
         {/* Contenedor Principal del Gran Número SIF */}
@@ -237,7 +330,7 @@ export default function CalculadoraAccidentes() {
             position: 'relative'
           }}
         >
-          {/* Badge TERREMOTO dentro de este recuadro */}
+          {/* Badge TERREMOTO dentro de este recuadro para Pereira */}
           {isPereira && (
             <div
               style={{
@@ -299,6 +392,34 @@ export default function CalculadoraAccidentes() {
         {/* Selector de Fechas */}
         <div className="glass-panel" style={{ width: '100%', maxWidth: '650px', padding: '2rem', textAlign: 'center' }}>
           <h3 style={{ marginBottom: '1.25rem', color: 'var(--primary)' }}>Configuración de Fechas de Eventos</h3>
+
+          {/* Aviso especial CD Armenia */}
+          {isArmenia && (
+            <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '1rem 1.25rem', marginBottom: '1.5rem', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#166534', fontSize: '0.9rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>🔒</span>
+                <div>
+                  <strong>CD Armenia:</strong> Fecha del último accidente fijada permanentemente en <strong>17-03-2018</strong>.
+                  <div style={{ fontSize: '0.8rem', color: '#15803d', marginTop: '0.2rem' }}>
+                    • Evento: <strong>💥 Explosión de botella</strong><br />
+                    • Fecha del último accidente: <strong>17-03-2018</strong> (17 de Marzo de 2018)<br />
+                    <em>Esta fecha es fija y no cambia automáticamente; solo tú puedes modificarla de forma manual.</em>
+                  </div>
+                </div>
+              </div>
+
+              {lastAccidentDate !== FIXED_ARMENIA_DATE && (
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', paddingTop: '0.25rem' }}>
+                  <button
+                    onClick={() => handleAccidentDateChange(FIXED_ARMENIA_DATE)}
+                    style={{ background: '#00205b', color: '#fcd116', border: 'none', padding: '0.45rem 0.85rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                  >
+                    ↺ Restablecer Accidente (17-03-2018)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Aviso especial CD Pereira */}
           {isPereira && (
@@ -387,7 +508,9 @@ export default function CalculadoraAccidentes() {
               }}
             />
             <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: '0.25rem 0 0 0', maxWidth: '480px', lineHeight: '1.4' }}>
-              {isPereira 
+              {isArmenia 
+                ? "🔒 Fecha fijada permanentemente en 17-03-2018 para CD Armenia (Explosión de botella). No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
+                : isPereira 
                 ? "🔒 Fecha fijada permanentemente en 08-01-2020 para CD Pereira. No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
                 : "Al cambiar la fecha, el contador se actualizará automáticamente."
               }
