@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area
+  PieChart, Pie, Cell, LabelList
 } from 'recharts';
 
 // Paleta corporativa de Seguridad Vial y SST
@@ -14,6 +14,25 @@ const PIE_COLORS = {
   'Exceso de velocidad en curva semiabierta': '#dc2626',
   'Cinturón desabrochado fuera del CD (> 5 seg)': '#8b5cf6',
   'Otros': '#0284c7'
+};
+
+// Comparador inteligente de nombres de conductores entre hojas
+const matchDriverName = (driver1, driver2) => {
+  if (!driver1 || !driver2) return false;
+  const d1 = String(driver1).trim().toUpperCase();
+  const d2 = String(driver2).trim().toUpperCase();
+  if (d1 === d2 || d1.includes(d2) || d2.includes(d1)) return true;
+
+  const p1 = d1.split(/\s+/);
+  const p2 = d2.split(/\s+/);
+  if (p1[0] && p2[0] && (p1[0] === p2[0] || p1[0].startsWith(p2[0]) || p2[0].startsWith(p1[0]))) {
+    if (p1.length > 1 && p2.length > 1) {
+      const last1 = p1[p1.length - 1];
+      const last2 = p2[p2.length - 1];
+      if (last1 === last2 || last1.slice(0, 4) === last2.slice(0, 4)) return true;
+    }
+  }
+  return false;
 };
 
 export default function TelemetriaPage() {
@@ -28,7 +47,7 @@ export default function TelemetriaPage() {
   // Modal interactivo de detalle al oprimir un cuadro
   const [modalDetail, setModalDetail] = useState(null);
 
-  // Filtros interactivos
+  // Filtros interactivos coordinados
   const [selectedMes, setSelectedMes] = useState('Todos');
   const [selectedSemana, setSelectedSemana] = useState('Todas');
   const [selectedTipo, setSelectedTipo] = useState('Todos');
@@ -203,7 +222,7 @@ export default function TelemetriaPage() {
       if (selectedTipo !== 'Todos' && e.tipoEvento !== selectedTipo) return false;
       if (selectedMotivo !== 'Todos' && e.motivo !== selectedMotivo) return false;
       if (selectedPlaca !== 'Todas' && e.placa !== selectedPlaca) return false;
-      if (selectedConductor !== 'Todos' && e.responsable !== selectedConductor) return false;
+      if (selectedConductor !== 'Todos' && !matchDriverName(selectedConductor, e.responsable)) return false;
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
         const match = 
@@ -218,10 +237,21 @@ export default function TelemetriaPage() {
     });
   }, [dataEventos, selectedMes, selectedSemana, selectedTipo, selectedMotivo, selectedPlaca, selectedConductor, searchTerm]);
 
+  // Coordinación profunda: si se filtra por tipo, placa, mes o semana, la gestión se coordina con los conductores de esos eventos
   const filteredGestion = useMemo(() => {
+    const isEventFilterActive = selectedTipo !== 'Todos' || selectedPlaca !== 'Todas' || selectedMes !== 'Todos' || selectedSemana !== 'Todas' || selectedMotivo !== 'Todos';
+    const driversInEvents = isEventFilterActive ? filteredEventos.map(e => e.responsable) : null;
+
     return dataGestion.filter(g => {
-      if (selectedConductor !== 'Todos' && !g.conductor.includes(selectedConductor) && !selectedConductor.includes(g.conductor)) return false;
-      if (selectedReincidente !== 'Todos' && g.reincidente !== selectedReincidente) return false;
+      if (driversInEvents && !driversInEvents.some(d => matchDriverName(d, g.conductor))) {
+        return false;
+      }
+      if (selectedConductor !== 'Todos' && !matchDriverName(selectedConductor, g.conductor)) {
+        return false;
+      }
+      if (selectedReincidente !== 'Todos' && g.reincidente !== selectedReincidente) {
+        return false;
+      }
       if (searchTerm.trim()) {
         const q = searchTerm.toLowerCase();
         const match = 
@@ -233,7 +263,7 @@ export default function TelemetriaPage() {
       }
       return true;
     });
-  }, [dataGestion, selectedConductor, selectedReincidente, searchTerm]);
+  }, [dataGestion, filteredEventos, selectedTipo, selectedPlaca, selectedMes, selectedSemana, selectedMotivo, selectedConductor, selectedReincidente, searchTerm]);
 
   // 5. KPIs calculados dinámicamente
   const kpis = useMemo(() => {
@@ -343,6 +373,9 @@ export default function TelemetriaPage() {
     ];
   }, [filteredGestion]);
 
+  // Indicador de filtros activos
+  const hasActiveFilters = selectedMes !== 'Todos' || selectedSemana !== 'Todas' || selectedTipo !== 'Todos' || selectedMotivo !== 'Todos' || selectedPlaca !== 'Todas' || selectedConductor !== 'Todos' || selectedReincidente !== 'Todos' || searchTerm.trim() !== '';
+
   // Limpieza de filtros
   const handleClearFilters = () => {
     setSelectedMes('Todos');
@@ -355,7 +388,58 @@ export default function TelemetriaPage() {
     setSearchTerm('');
   };
 
-  // 7. Manejo interactivo de clics en los cuadros (Drill-Down / Modal Específico)
+  // 7. Acciones al hacer clic en los Gráficos para coordinar todo interactivamente
+  const handlePieTipoClick = (entry) => {
+    if (!entry) return;
+    const targetName = entry.name;
+    if (selectedTipo === targetName) {
+      setSelectedTipo('Todos');
+    } else {
+      setSelectedTipo(targetName);
+    }
+  };
+
+  const handleConductorBarClick = (entry) => {
+    if (!entry) return;
+    const cond = entry.conductor;
+    if (selectedConductor === cond) {
+      setSelectedConductor('Todos');
+    } else {
+      setSelectedConductor(cond);
+    }
+  };
+
+  const handlePlacaBarClick = (entry) => {
+    if (!entry) return;
+    const p = entry.placa;
+    if (selectedPlaca === p) {
+      setSelectedPlaca('Todas');
+    } else {
+      setSelectedPlaca(p);
+    }
+  };
+
+  const handleMesBarClick = (entry) => {
+    if (!entry) return;
+    const m = entry.mes;
+    if (selectedMes === m) {
+      setSelectedMes('Todos');
+    } else {
+      setSelectedMes(m);
+    }
+  };
+
+  const handleReincidenciaClick = (entry) => {
+    if (!entry) return;
+    const val = entry.name === 'Reincidentes' ? 'SÍ' : 'NO';
+    if (selectedReincidente === val) {
+      setSelectedReincidente('Todos');
+    } else {
+      setSelectedReincidente(val);
+    }
+  };
+
+  // 8. Manejo de clics en los cuadros de KPI (Modales con desglose exacto)
   const openCardDetail = (type) => {
     switch (type) {
       case 'total_eventos':
@@ -496,7 +580,6 @@ export default function TelemetriaPage() {
     }
   };
 
-  // Aplicar filtro directo desde el modal
   const applyFilterFromModal = (filterKey) => {
     if (!filterKey) return;
     if (filterKey.type === 'tipo') setSelectedTipo(filterKey.value);
@@ -506,7 +589,6 @@ export default function TelemetriaPage() {
     setModalDetail(null);
   };
 
-  // Exportar a CSV
   const exportToCSV = (tipo, customRows = null) => {
     const rows = customRows || (tipo === 'eventos' ? filteredEventos : filteredGestion);
     if (!rows || !rows.length) return;
@@ -526,7 +608,7 @@ export default function TelemetriaPage() {
         border: '1px solid #e2e8f0',
         borderRadius: '20px',
         padding: '2rem 2.5rem',
-        marginBottom: '2rem',
+        marginBottom: '1.75rem',
         boxShadow: '0 10px 25px rgba(0, 32, 91, 0.06)',
         display: 'flex',
         flexWrap: 'wrap',
@@ -561,6 +643,16 @@ export default function TelemetriaPage() {
             }}>
               Seguridad Vial & SST
             </span>
+            <span style={{
+              backgroundColor: '#dcfce7',
+              color: '#15803d',
+              padding: '0.35rem 0.85rem',
+              borderRadius: '9999px',
+              fontSize: '0.78rem',
+              fontWeight: '800'
+            }}>
+              ✨ Gráficos Coordinados
+            </span>
           </div>
 
           <h1 style={{
@@ -581,8 +673,8 @@ export default function TelemetriaPage() {
           
           <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', fontSize: '0.86rem', color: '#64748b', flexWrap: 'wrap' }}>
             <span>🕒 <strong>Última actualización:</strong> {lastUpdate || 'Cargando...'}</span>
-            <span>📁 <strong>Fuente de datos:</strong> {dataSource}</span>
-            <span>📊 <strong>Registros analizados:</strong> {dataEventos.length} eventos / {dataGestion.length} gestiones</span>
+            <span>📁 <strong>Fuente:</strong> {dataSource}</span>
+            <span>📊 <strong>Registros:</strong> {dataEventos.length} eventos / {dataGestion.length} gestiones</span>
           </div>
         </div>
 
@@ -662,7 +754,7 @@ export default function TelemetriaPage() {
         border: '1px solid #e2e8f0',
         borderRadius: '18px',
         padding: '1.5rem 2rem',
-        marginBottom: '2rem',
+        marginBottom: '1.5rem',
         boxShadow: '0 4px 14px rgba(0,0,0,0.03)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -672,7 +764,7 @@ export default function TelemetriaPage() {
               Filtros Dinámicos de Análisis
             </h3>
             <span style={{ fontSize: '0.8rem', color: '#64748b', backgroundColor: '#f1f5f9', padding: '0.2rem 0.6rem', borderRadius: '6px' }}>
-              Los gráficos e indicadores se recalculan automáticamente
+              También puedes oprimir directamente cualquier barra o torta de los gráficos para filtrar
             </span>
           </div>
 
@@ -865,17 +957,105 @@ export default function TelemetriaPage() {
         </div>
       </section>
 
-      {/* 3. BLOQUE DESTACADO: TIPOS DE EVENTOS ESPECÍFICOS (¡INTERACTIVOS!) */}
+      {/* BARRA DE FILTROS ACTIVOS COORDINADOS */}
+      {hasActiveFilters && (
+        <div style={{
+          backgroundColor: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: '14px',
+          padding: '0.85rem 1.25rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+          marginBottom: '1.75rem',
+          boxShadow: '0 2px 8px rgba(37, 99, 235, 0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.86rem', fontWeight: '900', color: '#1e40af', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <span>🎯</span> Filtros Activos Coordinados:
+            </span>
+
+            {selectedTipo !== 'Todos' && (
+              <span style={{ backgroundColor: '#ffffff', border: '1px solid #93c5fd', color: '#1d4ed8', padding: '0.25rem 0.7rem', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                Infracción: <strong>{selectedTipo}</strong>
+                <button onClick={() => setSelectedTipo('Todos')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: '900', color: '#dc2626', fontSize: '0.9rem' }}>✕</button>
+              </span>
+            )}
+
+            {selectedConductor !== 'Todos' && (
+              <span style={{ backgroundColor: '#ffffff', border: '1px solid #93c5fd', color: '#1d4ed8', padding: '0.25rem 0.7rem', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                Conductor: <strong>{selectedConductor}</strong>
+                <button onClick={() => setSelectedConductor('Todos')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: '900', color: '#dc2626', fontSize: '0.9rem' }}>✕</button>
+              </span>
+            )}
+
+            {selectedPlaca !== 'Todas' && (
+              <span style={{ backgroundColor: '#ffffff', border: '1px solid #93c5fd', color: '#1d4ed8', padding: '0.25rem 0.7rem', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                Placa: <strong>{selectedPlaca}</strong>
+                <button onClick={() => setSelectedPlaca('Todas')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: '900', color: '#dc2626', fontSize: '0.9rem' }}>✕</button>
+              </span>
+            )}
+
+            {selectedMes !== 'Todos' && (
+              <span style={{ backgroundColor: '#ffffff', border: '1px solid #93c5fd', color: '#1d4ed8', padding: '0.25rem 0.7rem', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                Mes: <strong>{selectedMes}</strong>
+                <button onClick={() => setSelectedMes('Todos')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: '900', color: '#dc2626', fontSize: '0.9rem' }}>✕</button>
+              </span>
+            )}
+
+            {selectedSemana !== 'Todas' && (
+              <span style={{ backgroundColor: '#ffffff', border: '1px solid #93c5fd', color: '#1d4ed8', padding: '0.25rem 0.7rem', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                Semana: <strong>{selectedSemana}</strong>
+                <button onClick={() => setSelectedSemana('Todas')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: '900', color: '#dc2626', fontSize: '0.9rem' }}>✕</button>
+              </span>
+            )}
+
+            {selectedReincidente !== 'Todos' && (
+              <span style={{ backgroundColor: '#ffffff', border: '1px solid #93c5fd', color: '#1d4ed8', padding: '0.25rem 0.7rem', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                Reincidente: <strong>{selectedReincidente}</strong>
+                <button onClick={() => setSelectedReincidente('Todos')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: '900', color: '#dc2626', fontSize: '0.9rem' }}>✕</button>
+              </span>
+            )}
+
+            {searchTerm.trim() !== '' && (
+              <span style={{ backgroundColor: '#ffffff', border: '1px solid #93c5fd', color: '#1d4ed8', padding: '0.25rem 0.7rem', borderRadius: '9999px', fontSize: '0.8rem', fontWeight: '800', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                Búsqueda: <em>&quot;{searchTerm}&quot;</em>
+                <button onClick={() => setSearchTerm('')} style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: '900', color: '#dc2626', fontSize: '0.9rem' }}>✕</button>
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={handleClearFilters}
+            style={{
+              backgroundColor: '#fee2e2',
+              color: '#b91c1c',
+              border: '1px solid #fecaca',
+              padding: '0.35rem 0.85rem',
+              borderRadius: '8px',
+              fontSize: '0.78rem',
+              fontWeight: '800',
+              cursor: 'pointer'
+            }}
+          >
+            Restablecer Todo
+          </button>
+        </div>
+      )}
+
+      {/* 3. BLOQUE DESTACADO: TIPOS DE EVENTOS ESPECÍFICOS (CLICABLES PARA FILTRAR O VER DETALLE) */}
       <section style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ fontSize: '1.25rem' }}>⚡</span>
             <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#00205b', fontWeight: '800' }}>
-              Tipos Específicos de Infracción (Haz clic en cualquiera para ver el detalle)
+              Tipos Específicos de Infracción (Oprime para coordinar todo el Dashboard)
             </h3>
           </div>
           <span style={{ fontSize: '0.8rem', color: '#0369a1', backgroundColor: '#e0f2fe', padding: '0.3rem 0.75rem', borderRadius: '9999px', fontWeight: '800' }}>
-            👆 Oprime un recuadro para ver conductores, placas y fechas
+            👆 Oprime un recuadro para filtrar gráficos o ver detalle
           </span>
         </div>
 
@@ -886,13 +1066,19 @@ export default function TelemetriaPage() {
         }}>
           {/* Card Tipo 1: Exceso en Carretera */}
           <div
-            onClick={() => openCardDetail('tipo_carretera')}
+            onClick={() => {
+              if (selectedTipo === 'Exceso de velocidad en carretera') {
+                setSelectedTipo('Todos');
+              } else {
+                setSelectedTipo('Exceso de velocidad en carretera');
+              }
+            }}
             style={{
-              backgroundColor: selectedTipo === 'Exceso de velocidad en carretera' ? '#fefce8' : '#ffffff',
+              backgroundColor: selectedTipo === 'Exceso de velocidad en carretera' ? '#fffbeb' : '#ffffff',
               border: selectedTipo === 'Exceso de velocidad en carretera' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
               borderRadius: '16px',
               padding: '1.4rem 1.5rem',
-              boxShadow: '0 6px 18px rgba(245, 158, 11, 0.12)',
+              boxShadow: selectedTipo === 'Exceso de velocidad en carretera' ? '0 10px 25px rgba(245, 158, 11, 0.25)' : '0 4px 14px rgba(0,0,0,0.03)',
               cursor: 'pointer',
               borderLeft: '6px solid #f59e0b',
               transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -901,11 +1087,11 @@ export default function TelemetriaPage() {
               justifyContent: 'space-between',
               position: 'relative'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <span style={{
                   backgroundColor: '#fffbeb',
                   color: '#b45309',
@@ -918,14 +1104,14 @@ export default function TelemetriaPage() {
                 }}>
                   62.5% del total
                 </span>
-                <h4 style={{ margin: '0.6rem 0 0.2rem 0', fontSize: '1.15rem', color: '#78350f', fontWeight: '900' }}>
-                  Exceso en Carretera
-                </h4>
-                <p style={{ margin: 0, fontSize: '0.82rem', color: '#92400e' }}>
-                  Velocidad superior al límite de vía nacional
-                </p>
+                <div style={{ fontSize: '1.8rem' }}>⚡</div>
               </div>
-              <div style={{ fontSize: '2rem' }}>⚡</div>
+              <h4 style={{ margin: '0.6rem 0 0.2rem 0', fontSize: '1.15rem', color: '#78350f', fontWeight: '900' }}>
+                Exceso en Carretera
+              </h4>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: '#92400e' }}>
+                Velocidad superior al límite en carretera nacional
+              </p>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '1.2rem' }}>
@@ -937,32 +1123,50 @@ export default function TelemetriaPage() {
                   eventos
                 </span>
               </div>
-              <span style={{
-                backgroundColor: '#f59e0b',
-                color: '#ffffff',
-                padding: '0.35rem 0.8rem',
-                borderRadius: '8px',
-                fontSize: '0.78rem',
-                fontWeight: '800',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)'
-              }}>
-                Ver Detalle ➔
-              </span>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openCardDetail('tipo_carretera');
+                  }}
+                  style={{
+                    backgroundColor: '#f59e0b',
+                    color: '#ffffff',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '8px',
+                    fontSize: '0.76rem',
+                    fontWeight: '800',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)'
+                  }}
+                >
+                  🔍 Ver Detalle
+                </button>
+              </div>
             </div>
+            {selectedTipo === 'Exceso de velocidad en carretera' && (
+              <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: '#b45309', fontWeight: '800' }}>
+                ✓ Filtro activo en gráficos (Oprime de nuevo para quitar)
+              </div>
+            )}
           </div>
 
           {/* Card Tipo 2: Exceso en Curva Semiabierta */}
           <div
-            onClick={() => openCardDetail('tipo_curva')}
+            onClick={() => {
+              if (selectedTipo === 'Exceso de velocidad en curva semiabierta') {
+                setSelectedTipo('Todos');
+              } else {
+                setSelectedTipo('Exceso de velocidad en curva semiabierta');
+              }
+            }}
             style={{
               backgroundColor: selectedTipo === 'Exceso de velocidad en curva semiabierta' ? '#fef2f2' : '#ffffff',
               border: selectedTipo === 'Exceso de velocidad en curva semiabierta' ? '2px solid #dc2626' : '1px solid #e2e8f0',
               borderRadius: '16px',
               padding: '1.4rem 1.5rem',
-              boxShadow: '0 6px 18px rgba(220, 38, 38, 0.12)',
+              boxShadow: selectedTipo === 'Exceso de velocidad en curva semiabierta' ? '0 10px 25px rgba(220, 38, 38, 0.25)' : '0 4px 14px rgba(0,0,0,0.03)',
               cursor: 'pointer',
               borderLeft: '6px solid #dc2626',
               transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -971,11 +1175,11 @@ export default function TelemetriaPage() {
               justifyContent: 'space-between',
               position: 'relative'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <span style={{
                   backgroundColor: '#fee2e2',
                   color: '#991b1b',
@@ -988,14 +1192,14 @@ export default function TelemetriaPage() {
                 }}>
                   25.0% (Crítico / SIF)
                 </span>
-                <h4 style={{ margin: '0.6rem 0 0.2rem 0', fontSize: '1.15rem', color: '#7f1d1d', fontWeight: '900' }}>
-                  Exceso en Curva Semiabierta
-                </h4>
-                <p style={{ margin: 0, fontSize: '0.82rem', color: '#991b1b' }}>
-                  Riesgo alto de volcamiento vehicular
-                </p>
+                <div style={{ fontSize: '1.8rem' }}>🔄</div>
               </div>
-              <div style={{ fontSize: '2rem' }}>🔄</div>
+              <h4 style={{ margin: '0.6rem 0 0.2rem 0', fontSize: '1.15rem', color: '#7f1d1d', fontWeight: '900' }}>
+                Exceso en Curva Semiabierta
+              </h4>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: '#991b1b' }}>
+                Riesgo alto de volcamiento vehicular
+              </p>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '1.2rem' }}>
@@ -1007,32 +1211,50 @@ export default function TelemetriaPage() {
                   eventos
                 </span>
               </div>
-              <span style={{
-                backgroundColor: '#dc2626',
-                color: '#ffffff',
-                padding: '0.35rem 0.8rem',
-                borderRadius: '8px',
-                fontSize: '0.78rem',
-                fontWeight: '800',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)'
-              }}>
-                Ver Detalle ➔
-              </span>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openCardDetail('tipo_curva');
+                  }}
+                  style={{
+                    backgroundColor: '#dc2626',
+                    color: '#ffffff',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '8px',
+                    fontSize: '0.76rem',
+                    fontWeight: '800',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(220, 38, 38, 0.3)'
+                  }}
+                >
+                  🔍 Ver Detalle
+                </button>
+              </div>
             </div>
+            {selectedTipo === 'Exceso de velocidad en curva semiabierta' && (
+              <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: '#991b1b', fontWeight: '800' }}>
+                ✓ Filtro activo en gráficos (Oprime de nuevo para quitar)
+              </div>
+            )}
           </div>
 
           {/* Card Tipo 3: Cinturón Desabrochado */}
           <div
-            onClick={() => openCardDetail('tipo_cinturon')}
+            onClick={() => {
+              if (selectedTipo === 'Cinturón desabrochado fuera del CD (> 5 seg)') {
+                setSelectedTipo('Todos');
+              } else {
+                setSelectedTipo('Cinturón desabrochado fuera del CD (> 5 seg)');
+              }
+            }}
             style={{
               backgroundColor: selectedTipo === 'Cinturón desabrochado fuera del CD (> 5 seg)' ? '#f5f3ff' : '#ffffff',
               border: selectedTipo === 'Cinturón desabrochado fuera del CD (> 5 seg)' ? '2px solid #8b5cf6' : '1px solid #e2e8f0',
               borderRadius: '16px',
               padding: '1.4rem 1.5rem',
-              boxShadow: '0 6px 18px rgba(139, 92, 246, 0.12)',
+              boxShadow: selectedTipo === 'Cinturón desabrochado fuera del CD (> 5 seg)' ? '0 10px 25px rgba(139, 92, 246, 0.25)' : '0 4px 14px rgba(0,0,0,0.03)',
               cursor: 'pointer',
               borderLeft: '6px solid #8b5cf6',
               transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -1041,11 +1263,11 @@ export default function TelemetriaPage() {
               justifyContent: 'space-between',
               position: 'relative'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-3px)'}
             onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <span style={{
                   backgroundColor: '#ede9fe',
                   color: '#6d28d9',
@@ -1056,16 +1278,16 @@ export default function TelemetriaPage() {
                   letterSpacing: '0.5px',
                   textTransform: 'uppercase'
                 }}>
-                  12.5% (Detectado Dashcam)
+                  12.5% (Dashcam)
                 </span>
-                <h4 style={{ margin: '0.6rem 0 0.2rem 0', fontSize: '1.15rem', color: '#4c1d95', fontWeight: '900' }}>
-                  Cinturón Desabrochado
-                </h4>
-                <p style={{ margin: 0, fontSize: '0.82rem', color: '#5b21b6' }}>
-                  Cinturón desabrochado fuera del CD &gt; 5 seg
-                </p>
+                <div style={{ fontSize: '1.8rem' }}>🦺</div>
               </div>
-              <div style={{ fontSize: '2rem' }}>🦺</div>
+              <h4 style={{ margin: '0.6rem 0 0.2rem 0', fontSize: '1.15rem', color: '#4c1d95', fontWeight: '900' }}>
+                Cinturón Desabrochado
+              </h4>
+              <p style={{ margin: 0, fontSize: '0.82rem', color: '#5b21b6' }}>
+                Cinturón desabrochado fuera del CD &gt; 5 seg
+              </p>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '1.2rem' }}>
@@ -1077,21 +1299,33 @@ export default function TelemetriaPage() {
                   evento
                 </span>
               </div>
-              <span style={{
-                backgroundColor: '#7c3aed',
-                color: '#ffffff',
-                padding: '0.35rem 0.8rem',
-                borderRadius: '8px',
-                fontSize: '0.78rem',
-                fontWeight: '800',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                boxShadow: '0 2px 6px rgba(124, 58, 237, 0.3)'
-              }}>
-                Ver Detalle ➔
-              </span>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openCardDetail('tipo_cinturon');
+                  }}
+                  style={{
+                    backgroundColor: '#7c3aed',
+                    color: '#ffffff',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '8px',
+                    fontSize: '0.76rem',
+                    fontWeight: '800',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(124, 58, 237, 0.3)'
+                  }}
+                >
+                  🔍 Ver Detalle
+                </button>
+              </div>
             </div>
+            {selectedTipo === 'Cinturón desabrochado fuera del CD (> 5 seg)' && (
+              <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: '#6d28d9', fontWeight: '800' }}>
+                ✓ Filtro activo en gráficos (Oprime de nuevo para quitar)
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -1128,7 +1362,7 @@ export default function TelemetriaPage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.8rem', color: '#0284c7', fontWeight: '600' }}>
-              100% de los registrados
+              {kpis.totalEventos === dataEventos.length ? '100% registros' : `${((kpis.totalEventos / (dataEventos.length || 1)) * 100).toFixed(0)}% del total`}
             </span>
             <span style={{ fontSize: '0.72rem', color: '#0284c7', fontWeight: '800' }}>👆 Clic detalle</span>
           </div>
@@ -1221,7 +1455,7 @@ export default function TelemetriaPage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.8rem', color: '#4338ca', fontWeight: '600' }}>
-              Reportes procesados
+              Reportes disciplinarios
             </span>
             <span style={{ fontSize: '0.72rem', color: '#4338ca', fontWeight: '800' }}>👆 Clic detalle</span>
           </div>
@@ -1229,10 +1463,16 @@ export default function TelemetriaPage() {
 
         {/* KPI 5: Reincidentes */}
         <div 
-          onClick={() => openCardDetail('reincidentes')}
+          onClick={() => {
+            if (selectedReincidente === 'SÍ') {
+              setSelectedReincidente('Todos');
+            } else {
+              setSelectedReincidente('SÍ');
+            }
+          }}
           style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid #e2e8f0',
+            backgroundColor: selectedReincidente === 'SÍ' ? '#fee2e2' : '#ffffff',
+            border: selectedReincidente === 'SÍ' ? '2px solid #dc2626' : '1px solid #e2e8f0',
             borderRadius: '16px',
             padding: '1.4rem 1.5rem',
             boxShadow: '0 4px 15px rgba(0,0,0,0.03)',
@@ -1252,9 +1492,9 @@ export default function TelemetriaPage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.8rem', color: '#b91c1c', fontWeight: '600' }}>
-              Reincidencia crítica
+              {selectedReincidente === 'SÍ' ? '✓ Filtrando Reincidentes' : 'Reincidencia crítica'}
             </span>
-            <span style={{ fontSize: '0.72rem', color: '#dc2626', fontWeight: '800' }}>👆 Clic detalle</span>
+            <span style={{ fontSize: '0.72rem', color: '#dc2626', fontWeight: '800' }}>👆 Clic filtrar</span>
           </div>
         </div>
 
@@ -1313,7 +1553,7 @@ export default function TelemetriaPage() {
             style={{
               backgroundColor: '#ffffff',
               borderRadius: '20px',
-              maxWidth: '900px',
+              maxWidth: '920px',
               width: '100%',
               maxHeight: '90vh',
               overflowY: 'auto',
@@ -1431,7 +1671,7 @@ export default function TelemetriaPage() {
 
               {/* VISTA 2: Desglose por Vehículos */}
               {modalDetail.type === 'vehiculos' && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
                   {modalDetail.items.map((veh, idx) => (
                     <div key={idx} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem', backgroundColor: '#f8fafc' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
@@ -1440,10 +1680,10 @@ export default function TelemetriaPage() {
                           {veh.eventos} {veh.eventos === 1 ? 'evento' : 'eventos'}
                         </span>
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: '#475569', marginBottom: '0.4rem' }}>
+                      <div style={{ fontSize: '0.82rem', color: '#475569', marginBottom: '0.4rem' }}>
                         <strong>Conductores:</strong> {Array.from(veh.conductores).join(', ')}
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: '#475569' }}>
+                      <div style={{ fontSize: '0.82rem', color: '#475569' }}>
                         <strong>Infracciones:</strong>
                         <div style={{ marginTop: '0.25rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                           {Array.from(veh.tipos).map((t, tIdx) => (
@@ -1451,6 +1691,15 @@ export default function TelemetriaPage() {
                           ))}
                         </div>
                       </div>
+                      <button
+                        onClick={() => {
+                          setSelectedPlaca(veh.placa);
+                          setModalDetail(null);
+                        }}
+                        style={{ marginTop: '0.75rem', width: '100%', padding: '0.4rem', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#00205b', fontWeight: '800', fontSize: '0.76rem', cursor: 'pointer' }}
+                      >
+                        Filtrar solo este vehículo
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1478,6 +1727,15 @@ export default function TelemetriaPage() {
                           ))}
                         </div>
                       </div>
+                      <button
+                        onClick={() => {
+                          setSelectedConductor(cond.conductor);
+                          setModalDetail(null);
+                        }}
+                        style={{ marginTop: '0.75rem', width: '100%', padding: '0.4rem', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#ffffff', color: '#00205b', fontWeight: '800', fontSize: '0.76rem', cursor: 'pointer' }}
+                      >
+                        Filtrar solo este conductor
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1539,7 +1797,7 @@ export default function TelemetriaPage() {
 
             </div>
 
-            {/* Footer del Modal con Acciones */}
+            {/* Footer del Modal */}
             <div style={{
               padding: '1.25rem 2rem',
               borderTop: '1px solid #e2e8f0',
@@ -1644,7 +1902,7 @@ export default function TelemetriaPage() {
             transition: 'all 0.2s ease'
           }}
         >
-          <span>📊</span> Gráficos y Análisis General
+          <span>📊</span> Gráficos Coordinados y Análisis General
         </button>
 
         <button
@@ -1713,14 +1971,14 @@ export default function TelemetriaPage() {
 
       {/* 7. CONTENIDO DE LAS PESTAÑAS */}
 
-      {/* PESTAÑA 1: RESUMEN GRÁFICO */}
+      {/* PESTAÑA 1: RESUMEN GRÁFICO COORDINADO CON ETIQUETAS DE DATOS */}
       {activeTab === 'resumen' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           
           {/* Fila 1 de Gráficos */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1.75rem' }}>
             
-            {/* Gráfico 1: Evolución Temporal */}
+            {/* Gráfico 1: Evolución Temporal con Etiquetas de Datos */}
             <div style={{
               backgroundColor: '#ffffff',
               borderRadius: '18px',
@@ -1731,41 +1989,60 @@ export default function TelemetriaPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <div>
                   <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#00205b', fontWeight: '800' }}>
-                    📈 Evolución de Eventos por Mes
+                    📈 Eventos por Mes (Oprime una barra para filtrar)
                   </h4>
                   <p style={{ margin: '0.2rem 0 0 0', color: '#64748b', fontSize: '0.82rem' }}>
-                    Comportamiento mensual de infracciones registradas
+                    Etiquetas de datos en vivo sobre cada periodo
                   </p>
                 </div>
-                <span style={{ fontSize: '0.75rem', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '0.25rem 0.6rem', borderRadius: '6px', fontWeight: '700' }}>
-                  Tendencia 2026
-                </span>
+                {selectedMes !== 'Todos' && (
+                  <button
+                    onClick={() => setSelectedMes('Todos')}
+                    style={{ fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '0.25rem 0.6rem', borderRadius: '6px', fontWeight: '800', cursor: 'pointer' }}
+                  >
+                    Quitar filtro mes ✕
+                  </button>
+                )}
               </div>
 
-              <div style={{ width: '100%', height: '300px' }}>
+              <div style={{ width: '100%', height: '320px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={dataPorMes}>
-                    <defs>
-                      <linearGradient id="colorEventos" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#00205b" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#00205b" stopOpacity={0.05}/>
-                      </linearGradient>
-                    </defs>
+                  <BarChart data={dataPorMes} margin={{ top: 25, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="mes" tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: '#cbd5e1' }} />
-                    <YAxis allowDecimals={false} tick={{ fill: '#64748b', fontSize: 11 }} axisLine={{ stroke: '#cbd5e1' }} />
+                    <XAxis dataKey="mes" tick={{ fill: '#475569', fontSize: 11, fontWeight: '700' }} />
+                    <YAxis allowDecimals={false} tick={{ fill: '#64748b', fontSize: 11 }} />
                     <Tooltip
                       contentStyle={{ backgroundColor: '#00205b', borderRadius: '8px', color: '#ffffff', border: 'none' }}
-                      itemStyle={{ color: '#fcd116' }}
-                      formatter={(val) => [`${val} eventos`, 'Cantidad']}
+                      formatter={(val) => [`${val} eventos`, 'Total']}
                     />
-                    <Area type="monotone" dataKey="cantidad" stroke="#00205b" strokeWidth={3} fillOpacity={1} fill="url(#colorEventos)" />
-                  </AreaChart>
+                    <Bar 
+                      dataKey="cantidad" 
+                      fill="#00205b" 
+                      radius={[8, 8, 0, 0]} 
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data) => handleMesBarClick(data)}
+                    >
+                      <LabelList 
+                        dataKey="cantidad" 
+                        position="top" 
+                        fill="#00205b" 
+                        fontWeight="900" 
+                        fontSize={13} 
+                        formatter={(val) => `${val} ev.`} 
+                      />
+                      {dataPorMes.map((entry, index) => (
+                        <Cell 
+                          key={`cell-mes-${index}`} 
+                          fill={selectedMes === entry.mes ? '#f59e0b' : '#00205b'} 
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Gráfico 2: Distribución por Tipo de Evento */}
+            {/* Gráfico 2: Distribución por Tipo con Etiquetas de Datos y Clic Coordinado */}
             <div style={{
               backgroundColor: '#ffffff',
               borderRadius: '18px',
@@ -1776,15 +2053,23 @@ export default function TelemetriaPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <div>
                   <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#00205b', fontWeight: '800' }}>
-                    🍩 Distribución por Tipo de Infracción
+                    🍩 Distribución por Infracción (Oprime para filtrar infractor)
                   </h4>
                   <p style={{ margin: '0.2rem 0 0 0', color: '#64748b', fontSize: '0.82rem' }}>
-                    Porcentaje de participación sobre el total de eventos
+                    Etiquetas de conteo y porcentaje directo en cada sector
                   </p>
                 </div>
+                {selectedTipo !== 'Todos' && (
+                  <button
+                    onClick={() => setSelectedTipo('Todos')}
+                    style={{ fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '0.25rem 0.6rem', borderRadius: '6px', fontWeight: '800', cursor: 'pointer' }}
+                  >
+                    Quitar filtro tipo ✕
+                  </button>
+                )}
               </div>
 
-              <div style={{ width: '100%', height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '100%', height: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {dataPorTipo.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -1792,15 +2077,21 @@ export default function TelemetriaPage() {
                         data={dataPorTipo}
                         cx="50%"
                         cy="50%"
-                        innerRadius={65}
-                        outerRadius={105}
+                        innerRadius={60}
+                        outerRadius={95}
                         paddingAngle={5}
                         dataKey="value"
+                        style={{ cursor: 'pointer' }}
+                        onClick={(entry) => handlePieTipoClick(entry)}
+                        label={({ name, value, porcentaje }) => `${value} (${porcentaje}%)`}
+                        labelLine={true}
                       >
                         {dataPorTipo.map((entry, index) => (
                           <Cell 
                             key={`cell-${index}`} 
                             fill={PIE_COLORS[entry.name] || COLORS[index % COLORS.length]} 
+                            stroke={selectedTipo === entry.name ? '#00205b' : '#ffffff'}
+                            strokeWidth={selectedTipo === entry.name ? 3 : 1}
                           />
                         ))}
                       </Pie>
@@ -1826,7 +2117,7 @@ export default function TelemetriaPage() {
           {/* Fila 2 de Gráficos */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1.75rem' }}>
             
-            {/* Gráfico 3: Ranking de Conductores */}
+            {/* Gráfico 3: Ranking de Conductores con Etiquetas de Datos */}
             <div style={{
               backgroundColor: '#ffffff',
               borderRadius: '18px',
@@ -1837,35 +2128,64 @@ export default function TelemetriaPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <div>
                   <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#00205b', fontWeight: '800' }}>
-                    🏆 Ranking de Conductores con Eventos
+                    🏆 Ranking de Conductores (Oprime para aislar conductor)
                   </h4>
                   <p style={{ margin: '0.2rem 0 0 0', color: '#64748b', fontSize: '0.82rem' }}>
-                    Número total de infracciones acumuladas por conductor
+                    Etiqueta visible con número total de infracciones por persona
                   </p>
                 </div>
+                {selectedConductor !== 'Todos' && (
+                  <button
+                    onClick={() => setSelectedConductor('Todos')}
+                    style={{ fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '0.25rem 0.6rem', borderRadius: '6px', fontWeight: '800', cursor: 'pointer' }}
+                  >
+                    Quitar filtro conductor ✕
+                  </button>
+                )}
               </div>
 
-              <div style={{ width: '100%', height: '300px' }}>
+              <div style={{ width: '100%', height: '320px' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={dataRankingConductores}
                     layout="vertical"
-                    margin={{ top: 5, right: 30, left: 40, bottom: 5 }}
+                    margin={{ top: 5, right: 60, left: 30, bottom: 5 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
                     <XAxis type="number" allowDecimals={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                    <YAxis dataKey="conductor" type="category" width={110} tick={{ fill: '#1e293b', fontSize: 10, fontWeight: '600' }} />
+                    <YAxis dataKey="conductor" type="category" width={120} tick={{ fill: '#1e293b', fontSize: 10, fontWeight: '700' }} />
                     <Tooltip
                       contentStyle={{ backgroundColor: '#00205b', borderRadius: '8px', color: '#ffffff', border: 'none' }}
                       formatter={(val) => [`${val} eventos`, 'Infracciones']}
                     />
-                    <Bar dataKey="eventos" fill="#0284c7" radius={[0, 8, 8, 0]} />
+                    <Bar 
+                      dataKey="eventos" 
+                      fill="#0284c7" 
+                      radius={[0, 8, 8, 0]} 
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data) => handleConductorBarClick(data)}
+                    >
+                      <LabelList 
+                        dataKey="eventos" 
+                        position="right" 
+                        fill="#0284c7" 
+                        fontWeight="900" 
+                        fontSize={12} 
+                        formatter={(val) => `${val} ${val === 1 ? 'evento' : 'eventos'}`} 
+                      />
+                      {dataRankingConductores.map((entry, index) => (
+                        <Cell 
+                          key={`cell-cond-${index}`} 
+                          fill={selectedConductor === entry.conductor ? '#f59e0b' : '#0284c7'} 
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Gráfico 4: Eventos por Placa */}
+            {/* Gráfico 4: Eventos por Placa con Etiquetas de Datos */}
             <div style={{
               backgroundColor: '#ffffff',
               borderRadius: '18px',
@@ -1876,35 +2196,64 @@ export default function TelemetriaPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <div>
                   <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#00205b', fontWeight: '800' }}>
-                    🚚 Eventos por Vehículo (Placa)
+                    🚚 Eventos por Vehículo (Oprime para aislar placa)
                   </h4>
                   <p style={{ margin: '0.2rem 0 0 0', color: '#64748b', fontSize: '0.82rem' }}>
-                    Identificación de vehículos con mayor recurrencia
+                    Etiqueta superior en cada placa vehicular
                   </p>
                 </div>
+                {selectedPlaca !== 'Todas' && (
+                  <button
+                    onClick={() => setSelectedPlaca('Todas')}
+                    style={{ fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '0.25rem 0.6rem', borderRadius: '6px', fontWeight: '800', cursor: 'pointer' }}
+                  >
+                    Quitar filtro placa ✕
+                  </button>
+                )}
               </div>
 
-              <div style={{ width: '100%', height: '300px' }}>
+              <div style={{ width: '100%', height: '320px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dataPorVehiculo} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                  <BarChart data={dataPorVehiculo} margin={{ top: 25, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="placa" tick={{ fill: '#1e293b', fontSize: 11, fontWeight: '700' }} />
+                    <XAxis dataKey="placa" tick={{ fill: '#1e293b', fontSize: 11, fontWeight: '800' }} />
                     <YAxis allowDecimals={false} tick={{ fill: '#64748b', fontSize: 11 }} />
                     <Tooltip
                       contentStyle={{ backgroundColor: '#00205b', borderRadius: '8px', color: '#ffffff', border: 'none' }}
                       formatter={(val) => [`${val} eventos`, 'Vehículo']}
                     />
-                    <Bar dataKey="eventos" fill="#f59e0b" radius={[6, 6, 0, 0]} />
+                    <Bar 
+                      dataKey="eventos" 
+                      fill="#f59e0b" 
+                      radius={[6, 6, 0, 0]} 
+                      style={{ cursor: 'pointer' }}
+                      onClick={(data) => handlePlacaBarClick(data)}
+                    >
+                      <LabelList 
+                        dataKey="eventos" 
+                        position="top" 
+                        fill="#b45309" 
+                        fontWeight="900" 
+                        fontSize={12} 
+                        formatter={(val) => `${val} ev.`} 
+                      />
+                      {dataPorVehiculo.map((entry, index) => (
+                        <Cell 
+                          key={`cell-placa-${index}`} 
+                          fill={selectedPlaca === entry.placa ? '#dc2626' : '#f59e0b'} 
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
           </div>
 
-          {/* Fila 3: Análisis de Consecuencias */}
+          {/* Fila 3: Análisis de Consecuencias Coordinado */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '1.75rem' }}>
             
-            {/* Gráfico 5: Medidas Disciplinarias */}
+            {/* Gráfico 5: Medidas Disciplinarias con Etiquetas */}
             <div style={{
               backgroundColor: '#ffffff',
               borderRadius: '18px',
@@ -1918,28 +2267,37 @@ export default function TelemetriaPage() {
                     ⚖️ Medidas Disciplinarias Aplicadas (Credit)
                   </h4>
                   <p style={{ margin: '0.2rem 0 0 0', color: '#64748b', fontSize: '0.82rem' }}>
-                    Tipos de sanciones ejecutadas según política de consecuencias
+                    Etiquetas numéricas de sanciones ejecutadas según política
                   </p>
                 </div>
               </div>
 
-              <div style={{ width: '100%', height: '280px' }}>
+              <div style={{ width: '100%', height: '300px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={dataMedidas} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                  <BarChart data={dataMedidas} margin={{ top: 25, right: 20, left: 10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="medida" tick={{ fill: '#1e293b', fontSize: 10, fontWeight: '600' }} />
+                    <XAxis dataKey="medida" tick={{ fill: '#1e293b', fontSize: 10, fontWeight: '700' }} />
                     <YAxis allowDecimals={false} tick={{ fill: '#64748b', fontSize: 11 }} />
                     <Tooltip
                       contentStyle={{ backgroundColor: '#00205b', borderRadius: '8px', color: '#ffffff', border: 'none' }}
                       formatter={(val) => [`${val} aplicaciones`, 'Medida']}
                     />
-                    <Bar dataKey="cantidad" fill="#10b981" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="cantidad" fill="#10b981" radius={[6, 6, 0, 0]}>
+                      <LabelList 
+                        dataKey="cantidad" 
+                        position="top" 
+                        fill="#047857" 
+                        fontWeight="900" 
+                        fontSize={12} 
+                        formatter={(val) => `${val} actas`} 
+                      />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
 
-            {/* Gráfico 6: Proporción de Reincidencia */}
+            {/* Gráfico 6: Proporción de Reincidencia con Clic Coordinado */}
             <div style={{
               backgroundColor: '#ffffff',
               borderRadius: '18px',
@@ -1950,15 +2308,23 @@ export default function TelemetriaPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <div>
                   <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#00205b', fontWeight: '800' }}>
-                    🔄 Proporción de Reincidencia en Conductores
+                    🔄 Proporción de Reincidencia (Oprime para filtrar)
                   </h4>
                   <p style={{ margin: '0.2rem 0 0 0', color: '#64748b', fontSize: '0.82rem' }}>
-                    Conductores primerizos vs infractores reincidentes
+                    Etiquetas de casos y porcentajes de reincidencia
                   </p>
                 </div>
+                {selectedReincidente !== 'Todos' && (
+                  <button
+                    onClick={() => setSelectedReincidente('Todos')}
+                    style={{ fontSize: '0.75rem', backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '0.25rem 0.6rem', borderRadius: '6px', fontWeight: '800', cursor: 'pointer' }}
+                  >
+                    Quitar filtro reincidencia ✕
+                  </button>
+                )}
               </div>
 
-              <div style={{ width: '100%', height: '280px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '100%', height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1969,9 +2335,18 @@ export default function TelemetriaPage() {
                       outerRadius={95}
                       paddingAngle={5}
                       dataKey="value"
+                      style={{ cursor: 'pointer' }}
+                      onClick={(entry) => handleReincidenciaClick(entry)}
+                      label={({ name, value }) => `${value} (${((value / (filteredGestion.length || 1)) * 100).toFixed(0)}%)`}
+                      labelLine={true}
                     >
                       {dataReincidencia.map((entry, index) => (
-                        <Cell key={`cell-reinc-${index}`} fill={entry.color} />
+                        <Cell 
+                          key={`cell-reinc-${index}`} 
+                          fill={entry.color} 
+                          stroke={(selectedReincidente === 'SÍ' && entry.name === 'Reincidentes') || (selectedReincidente === 'NO' && entry.name === 'No Reincidentes') ? '#00205b' : '#ffffff'}
+                          strokeWidth={3}
+                        />
                       ))}
                     </Pie>
                     <Tooltip
@@ -2062,14 +2437,19 @@ export default function TelemetriaPage() {
                       <td style={{ padding: '0.85rem 1rem', color: '#475569' }}>{e.mes}</td>
                       <td style={{ padding: '0.85rem 1rem', color: '#475569' }}>Semana {e.semana}</td>
                       <td style={{ padding: '0.85rem 1rem' }}>
-                        <span style={{
-                          backgroundColor: '#f1f5f9',
-                          color: '#00205b',
-                          padding: '0.25rem 0.6rem',
-                          borderRadius: '6px',
-                          fontWeight: '800',
-                          letterSpacing: '0.5px'
-                        }}>
+                        <span 
+                          onClick={() => setSelectedPlaca(e.placa)}
+                          style={{
+                            backgroundColor: '#f1f5f9',
+                            color: '#00205b',
+                            padding: '0.25rem 0.6rem',
+                            borderRadius: '6px',
+                            fontWeight: '800',
+                            letterSpacing: '0.5px',
+                            cursor: 'pointer'
+                          }}
+                          title="Clic para filtrar por esta placa"
+                        >
                           {e.placa}
                         </span>
                       </td>
@@ -2086,20 +2466,31 @@ export default function TelemetriaPage() {
                         </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem' }}>
-                        <span style={{
-                          backgroundColor: e.tipoEvento.includes('curva') ? '#fef2f2' : e.tipoEvento.includes('cinturón') ? '#f5f3ff' : '#fffbeb',
-                          color: e.tipoEvento.includes('curva') ? '#dc2626' : e.tipoEvento.includes('cinturón') ? '#7c3aed' : '#d97706',
-                          padding: '0.35rem 0.75rem',
-                          borderRadius: '8px',
-                          fontWeight: '700',
-                          fontSize: '0.8rem',
-                          display: 'inline-block'
-                        }}>
+                        <span 
+                          onClick={() => setSelectedTipo(e.tipoEvento)}
+                          style={{
+                            backgroundColor: e.tipoEvento.includes('curva') ? '#fef2f2' : e.tipoEvento.includes('cinturón') ? '#f5f3ff' : '#fffbeb',
+                            color: e.tipoEvento.includes('curva') ? '#dc2626' : e.tipoEvento.includes('cinturón') ? '#7c3aed' : '#d97706',
+                            padding: '0.35rem 0.75rem',
+                            borderRadius: '8px',
+                            fontWeight: '700',
+                            fontSize: '0.8rem',
+                            display: 'inline-block',
+                            cursor: 'pointer'
+                          }}
+                          title="Clic para filtrar por esta infracción"
+                        >
                           {e.tipoEvento}
                         </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: '700', color: '#1e293b' }}>
-                        {e.responsable}
+                        <span 
+                          onClick={() => setSelectedConductor(e.responsable)}
+                          style={{ cursor: 'pointer', textDecoration: 'underline decoration-dotted' }}
+                          title="Clic para filtrar por este conductor"
+                        >
+                          {e.responsable}
+                        </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', textAlign: 'center', fontWeight: '800', color: '#00205b' }}>
                         {e.total}
@@ -2183,7 +2574,13 @@ export default function TelemetriaPage() {
                     >
                       <td style={{ padding: '0.85rem 1rem', fontWeight: '700', color: '#94a3b8' }}>{idx + 1}</td>
                       <td style={{ padding: '0.85rem 1rem', fontWeight: '800', color: '#00205b' }}>
-                        {g.conductor}
+                        <span
+                          onClick={() => setSelectedConductor(g.conductor)}
+                          style={{ cursor: 'pointer', textDecoration: 'underline decoration-dotted' }}
+                          title="Clic para filtrar por este conductor"
+                        >
+                          {g.conductor}
+                        </span>
                       </td>
                       <td style={{ padding: '0.85rem 1rem', color: '#475569', fontFamily: 'monospace' }}>
                         {g.cedula ? Number(g.cedula).toLocaleString('es-CO') : 'N/A'}
@@ -2195,14 +2592,19 @@ export default function TelemetriaPage() {
                         {g.fechaReporte}
                       </td>
                       <td style={{ padding: '0.85rem 1rem' }}>
-                        <span style={{
-                          backgroundColor: g.reincidente === 'SÍ' ? '#fee2e2' : '#dcfce7',
-                          color: g.reincidente === 'SÍ' ? '#dc2626' : '#166534',
-                          padding: '0.3rem 0.75rem',
-                          borderRadius: '9999px',
-                          fontWeight: '800',
-                          fontSize: '0.78rem'
-                        }}>
+                        <span 
+                          onClick={() => setSelectedReincidente(g.reincidente)}
+                          style={{
+                            backgroundColor: g.reincidente === 'SÍ' ? '#fee2e2' : '#dcfce7',
+                            color: g.reincidente === 'SÍ' ? '#dc2626' : '#166534',
+                            padding: '0.3rem 0.75rem',
+                            borderRadius: '9999px',
+                            fontWeight: '800',
+                            fontSize: '0.78rem',
+                            cursor: 'pointer'
+                          }}
+                          title="Clic para filtrar reincidentes"
+                        >
                           {g.reincidente === 'SÍ' ? '⚠️ SÍ (Crítico)' : '✓ NO'}
                         </span>
                       </td>
@@ -2265,8 +2667,8 @@ export default function TelemetriaPage() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
             {optionsConductor.filter(c => c !== 'Todos').map(conductor => {
-              const evs = dataEventos.filter(e => e.responsable.includes(conductor) || conductor.includes(e.responsable));
-              const ges = dataGestion.filter(g => g.conductor.includes(conductor) || conductor.includes(g.conductor));
+              const evs = dataEventos.filter(e => matchDriverName(conductor, e.responsable));
+              const ges = dataGestion.filter(g => matchDriverName(conductor, g.conductor));
               const hasReinc = ges.some(g => g.reincidente === 'SÍ');
               const hasBloqueoPerm = ges.some(g => g.medidas.some(m => m.toLowerCase().includes('permanente')));
 
@@ -2286,7 +2688,13 @@ export default function TelemetriaPage() {
                 >
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
-                      <strong style={{ fontSize: '1rem', color: '#00205b' }}>{conductor}</strong>
+                      <strong 
+                        onClick={() => setSelectedConductor(conductor)}
+                        style={{ fontSize: '1rem', color: '#00205b', cursor: 'pointer', textDecoration: 'underline decoration-dotted' }}
+                        title="Clic para filtrar por este conductor"
+                      >
+                        {conductor}
+                      </strong>
                       {hasBloqueoPerm && (
                         <span style={{ backgroundColor: '#dc2626', color: '#ffffff', fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: '800' }}>
                           BLOQUEADO
