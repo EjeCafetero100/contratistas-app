@@ -7,7 +7,8 @@ const ALLOWED_FILES = [
   { id: 'botiquin-pereira', name: 'Botiquín Pereira', fileName: 'BOTIQUIN PEREIRA.xlsx', icon: '🚑', category: 'SST & Emergencias' },
   { id: 'control-documental', name: 'Control Documental ABI', fileName: 'Control documental abi.xlsx', icon: '📑', category: 'Documentación' },
   { id: 'proveedores', name: 'Proveedores y Contratistas', fileName: 'Proveedores, Contratistas y VisitantesP.xlsx', icon: '👷', category: 'Personal' },
-  { id: 'bavaria-ingreso', name: 'Base Ingreso Bavaria', fileName: 'Base Datos Ingreso Bavaria (1).xlsx', icon: '🏬', category: 'Ingresos' }
+  { id: 'bavaria-ingreso', name: 'Base Ingreso Bavaria', fileName: 'Base Datos Ingreso Bavaria (1).xlsx', icon: '🏬', category: 'Ingresos' },
+  { id: 'telemetria-barranca', name: 'Telemetría Barrancabermeja', fileName: 'Barrancabermeja/telemetria.xlsx', icon: '📡', category: 'Telemetría & Flota' }
 ];
 
 export async function GET(request) {
@@ -16,6 +17,19 @@ export async function GET(request) {
     const fileName = searchParams.get('file');
 
     const parentDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), '..');
+    const publicDir = path.resolve(/*turbopackIgnore: true*/ process.cwd(), 'public');
+
+    const resolveExistingPath = (relativeName) => {
+      const candidates = [
+        path.join(parentDir, relativeName),
+        path.join(publicDir, relativeName),
+        path.join(publicDir, path.basename(relativeName))
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) return p;
+      }
+      return null;
+    };
 
     if (fileName) {
       const match = ALLOWED_FILES.find(f => f.fileName === fileName || f.id === fileName);
@@ -23,8 +37,8 @@ export async function GET(request) {
         return NextResponse.json({ error: 'Archivo no permitido' }, { status: 400 });
       }
 
-      const filePath = path.join(parentDir, match.fileName);
-      if (!fs.existsSync(filePath)) {
+      const filePath = resolveExistingPath(match.fileName);
+      if (!filePath) {
         return NextResponse.json({ error: 'Archivo no encontrado en el servidor' }, { status: 404 });
       }
 
@@ -33,15 +47,15 @@ export async function GET(request) {
       return new NextResponse(fileBuffer, {
         headers: {
           'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'Content-Disposition': `attachment; filename="${match.fileName}"`,
+          'Content-Disposition': `attachment; filename="${path.basename(match.fileName)}"`,
         },
       });
     }
 
     // Retornar lista de muestras disponibles con tamaño de archivo
     const available = ALLOWED_FILES.map(file => {
-      const filePath = path.join(parentDir, file.fileName);
-      const exists = fs.existsSync(filePath);
+      const filePath = resolveExistingPath(file.fileName);
+      const exists = !!filePath;
       let sizeMB = 0;
       if (exists) {
         const stats = fs.statSync(filePath);
