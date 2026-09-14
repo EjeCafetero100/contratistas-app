@@ -19,6 +19,7 @@ const BASE_MENU_ITEMS = [
   { id: 'extintores', label: 'Extintores', icon: '🧯', href: '/extintores', matchPrefix: true, excludePrefix: '/extintores2' },
   { id: 'extintores2', label: 'Extintores 2', icon: '🧯', href: '/extintores2', matchPrefix: true },
   { id: 'credit-360', label: 'Credit 360', icon: '📈', href: '/credit-360', matchPrefix: true },
+  { id: 'telemetria', label: 'Telemetría', icon: '📡', href: '/telemetria', matchPrefix: true },
   { id: 'dashboard-excel', label: 'Dashboard Dinámico Excel', icon: '📊', href: '/dashboard-excel', matchPrefix: true },
   { id: 'kpis', label: 'Indicadores (KPIs)', icon: '📊', href: '/kpis', matchPrefix: true, isSeparator: true }
 ];
@@ -43,7 +44,12 @@ const getInitialOrderForCity = (cityName) => {
       list.splice(1, 0, item);
     }
   } else if (city === 'barrancabermeja') {
-    // Para Barrancabermeja: Personal No Grato y Panel primero
+    // Para Barrancabermeja: Telemetría y Personal No Grato en la parte superior
+    const tIdx = list.findIndex(i => i.id === 'telemetria');
+    if (tIdx > -1) {
+      const [tItem] = list.splice(tIdx, 1);
+      list.unshift(tItem);
+    }
     const idx = list.findIndex(i => i.id === 'no-grato');
     if (idx > -1) {
       const [item] = list.splice(idx, 1);
