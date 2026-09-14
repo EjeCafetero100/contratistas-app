@@ -14,6 +14,7 @@ export default function CalculadoraAccidentes() {
   const FIXED_PEREIRA_SIF_DATE = "2026-08-10"; // 10-08-2026
 
   const FIXED_ARMENIA_DATE = "2018-03-17"; // 17-03-2018
+  const FIXED_ARMENIA_SIF_DATE = "2026-08-10"; // 10-08-2026
 
   // Formateadores de fecha amigables
   const formatDateDMY = (isoDate) => {
@@ -59,9 +60,14 @@ export default function CalculadoraAccidentes() {
 
   const [daysWithoutAccidents, setDaysWithoutAccidents] = useState(0);
 
-  // Fecha SIF (en Pereira fijada permanentemente al 10-08-2026)
+  // Fecha SIF (Pereira y Armenia fijadas permanentemente al 10-08-2026)
   const [lastSifDate, setLastSifDate] = useState(() => {
     if (typeof window !== "undefined") {
+      if (isArmenia) {
+        const manualArmeniaSif = localStorage.getItem("manual_sif_date_armenia_v2");
+        if (manualArmeniaSif) return manualArmeniaSif;
+        return FIXED_ARMENIA_SIF_DATE;
+      }
       if (isPereira) {
         const manual = localStorage.getItem("manual_sif_date_pereira_v2");
         if (manual) return manual;
@@ -71,6 +77,7 @@ export default function CalculadoraAccidentes() {
       const saved = localStorage.getItem(`last_sif_date_${cityKey}`);
       if (saved) return saved;
     }
+    if (isArmenia) return FIXED_ARMENIA_SIF_DATE;
     if (isPereira) return FIXED_PEREIRA_SIF_DATE;
     const defaultDate = new Date();
     defaultDate.setDate(defaultDate.getDate() - 45);
@@ -85,14 +92,8 @@ export default function CalculadoraAccidentes() {
       const manualArmenia = localStorage.getItem("manual_accident_date_armenia_v2");
       setLastAccidentDate(manualArmenia || FIXED_ARMENIA_DATE);
 
-      const savedSif = localStorage.getItem("last_sif_date_armenia");
-      if (savedSif) {
-        setLastSifDate(savedSif);
-      } else {
-        const defaultDate = new Date();
-        defaultDate.setDate(defaultDate.getDate() - 45);
-        setLastSifDate(defaultDate.toISOString().split('T')[0]);
-      }
+      const manualArmeniaSif = localStorage.getItem("manual_sif_date_armenia_v2");
+      setLastSifDate(manualArmeniaSif || FIXED_ARMENIA_SIF_DATE);
     } else if (isPereira) {
       const manualAccident = localStorage.getItem("manual_accident_date_pereira_v2");
       setLastAccidentDate(manualAccident || FIXED_PEREIRA_DATE);
@@ -147,7 +148,14 @@ export default function CalculadoraAccidentes() {
   // Manejar cambio manual de fecha SIF
   const handleSifDateChange = (newDate) => {
     setLastSifDate(newDate);
-    if (isPereira) {
+    if (isArmenia) {
+      if (newDate === FIXED_ARMENIA_SIF_DATE) {
+        localStorage.removeItem("manual_sif_date_armenia_v2");
+      } else {
+        localStorage.setItem("manual_sif_date_armenia_v2", newDate);
+      }
+      localStorage.setItem("last_sif_date_armenia", newDate);
+    } else if (isPereira) {
       if (newDate === FIXED_PEREIRA_SIF_DATE) {
         localStorage.removeItem("manual_sif_date_pereira_v2");
       } else {
@@ -223,7 +231,7 @@ export default function CalculadoraAccidentes() {
         <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>⏱️ Calculadora de Accidentes</h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>
           {isArmenia
-            ? "CD Armenia • Accidente: 17-03-2018 (Explosión de botella) - Fecha fija actualizable solo manualmente."
+            ? "CD Armenia • Accidente: 17-03-2018 (Explosión de botella) | SIF Potencial: 10-08-2026 (solo actualizable manualmente)."
             : isPereira 
             ? "CD Pereira • Accidente: 08-01-2020 | SIF Potencial: 10-08-2026 (solo actualizable manualmente)."
             : "Seguimiento de nuestro compromiso con la Seguridad y Salud en el Trabajo"
@@ -378,7 +386,7 @@ export default function CalculadoraAccidentes() {
             DÍAS SIN SIF POTENCIAL
           </h2>
 
-          {isPereira && (
+          {(isPereira || isArmenia) && (
             <span style={{ marginTop: '0.6rem', fontSize: '0.9rem', color: '#0f766e', fontWeight: '800', backgroundColor: '#ccfbf1', padding: '0.3rem 0.9rem', borderRadius: '12px', border: '1px solid #5eead4' }}>
               ✓ Desde el 10-08-2026 (10 de Agosto de 2026)
             </span>
@@ -399,25 +407,33 @@ export default function CalculadoraAccidentes() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#166534', fontSize: '0.9rem' }}>
                 <span style={{ fontSize: '1.2rem' }}>🔒</span>
                 <div>
-                  <strong>CD Armenia:</strong> Fecha del último accidente fijada permanentemente en <strong>17-03-2018</strong>.
+                  <strong>CD Armenia:</strong> Fechas base fijadas de forma permanente.
                   <div style={{ fontSize: '0.8rem', color: '#15803d', marginTop: '0.2rem' }}>
-                    • Evento: <strong>💥 Explosión de botella</strong><br />
-                    • Fecha del último accidente: <strong>17-03-2018</strong> (17 de Marzo de 2018)<br />
-                    <em>Esta fecha es fija y no cambia automáticamente; solo tú puedes modificarla de forma manual.</em>
+                    • Último Accidente: <strong>17-03-2018</strong> (17 de Marzo de 2018) — <strong>💥 Explosión de botella</strong><br />
+                    • Último SIF Potencial: <strong>10-08-2026</strong> (10 de Agosto de 2026)<br />
+                    <em>Estas fechas no se mueven solas ni se borran; únicamente si tú las editas manualmente aquí abajo.</em>
                   </div>
                 </div>
               </div>
 
-              {lastAccidentDate !== FIXED_ARMENIA_DATE && (
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', paddingTop: '0.25rem' }}>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', paddingTop: '0.25rem' }}>
+                {lastAccidentDate !== FIXED_ARMENIA_DATE && (
                   <button
                     onClick={() => handleAccidentDateChange(FIXED_ARMENIA_DATE)}
                     style={{ background: '#00205b', color: '#fcd116', border: 'none', padding: '0.45rem 0.85rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
                   >
                     ↺ Restablecer Accidente (17-03-2018)
                   </button>
-                </div>
-              )}
+                )}
+                {lastSifDate !== FIXED_ARMENIA_SIF_DATE && (
+                  <button
+                    onClick={() => handleSifDateChange(FIXED_ARMENIA_SIF_DATE)}
+                    style={{ background: '#00205b', color: '#fcd116', border: 'none', padding: '0.45rem 0.85rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '800', cursor: 'pointer' }}
+                  >
+                    ↺ Restablecer SIF (10-08-2026)
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -568,7 +584,9 @@ export default function CalculadoraAccidentes() {
               }}
             />
             <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: '0.25rem 0 0 0', maxWidth: '480px', lineHeight: '1.4' }}>
-              {isPereira 
+              {isArmenia
+                ? "🔒 Fecha fijada permanentemente en 10-08-2026 para CD Armenia. No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
+                : isPereira 
                 ? "🔒 Fecha fijada permanentemente en 10-08-2026 para CD Pereira. No se puede quitar ni modificar automáticamente (solo si tú la cambias manualmente aquí)."
                 : "Al cambiar la fecha, el contador se actualizará automáticamente."
               }
