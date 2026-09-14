@@ -313,3 +313,397 @@ textarea:focus {
   border-color: var(--secondary);
   box-shadow: 0 0 0 2px rgba(252, 209, 22, 0.3);
 }
+
+/* ==========================================================================
+   NUEVA PANTALLA DE INICIO PRINCIPAL & IDENTIDAD SAFE TOGETHER / AB INBEV
+   ========================================================================== */
+
+/* Full Layout para el Inicio */
+.home-layout-full {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #00205b 0%, #001233 60%, #0a192f 100%);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content-full {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Hero Section */
+.home-portal-container {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  justify-content: space-between;
+}
+
+.home-hero {
+  text-align: center;
+  margin-top: 1rem;
+  margin-bottom: 3.5rem;
+}
+
+.home-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #fcd116;
+  color: #00205b;
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 9999px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 15px rgba(252, 209, 22, 0.4);
+  margin-bottom: 1.5rem;
+}
+
+.safe-shield {
+  font-size: 1.1rem;
+}
+
+.home-title {
+  font-size: 2.75rem;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  line-height: 1.15;
+  margin-bottom: 1rem;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.home-subtitle {
+  font-size: 1.25rem;
+  color: #cbd5e1;
+  font-weight: 500;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+/* Grid de Centros de Distribución */
+.cd-grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+/* Cards de CD */
+.cd-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 2.25rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  border: 3px solid transparent;
+}
+
+.cd-card-armenia {
+  border-top: 6px solid #00205b;
+}
+
+.cd-card-pereira {
+  border-top: 6px solid #fcd116;
+}
+
+.cd-card-barrancabermeja {
+  border-top: 6px solid #00153c;
+}
+
+.cd-card:hover {
+  transform: translateY(-10px);
+  border-color: #fcd116;
+  box-shadow: 0 25px 50px rgba(252, 209, 22, 0.25);
+}
+
+.cd-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.cd-svg-icon {
+  width: 52px;
+  height: 52px;
+  color: #00205b;
+  background: #f1f5f9;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+}
+
+.cd-location-badge {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #00205b;
+  background: rgba(252, 209, 22, 0.25);
+  border: 1px solid rgba(252, 209, 22, 0.6);
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  letter-spacing: 0.04em;
+}
+
+.cd-card-title {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #00205b;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+}
+
+.cd-card-desc {
+  font-size: 0.95rem;
+  color: #475569;
+  line-height: 1.55;
+  margin-bottom: 2rem;
+  font-weight: 400;
+}
+
+.btn-cd-action {
+  width: 100%;
+  background: #fcd116;
+  color: #00205b;
+  font-weight: 800;
+  font-size: 1.05rem;
+  padding: 1.1rem 1.5rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(252, 209, 22, 0.3);
+}
+
+.btn-cd-action:hover {
+  background: #e6bc0a;
+  color: #000000;
+  transform: scale(1.02);
+  box-shadow: 0 6px 18px rgba(252, 209, 22, 0.5);
+}
+
+.arrow-icon {
+  font-size: 1.3rem;
+  transition: transform 0.2s ease;
+}
+
+.btn-cd-action:hover .arrow-icon {
+  transform: translateX(4px);
+}
+
+.home-footer {
+  text-align: center;
+  padding: 1.5rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  font-size: 0.875rem;
+}
+
+/* Top Navigation Bar */
+.top-nav-bar {
+  background: #ffffff;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 0.85rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.top-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.btn-top-home {
+  background: #00205b;
+  color: #ffffff;
+  border: none;
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 0.875rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  letter-spacing: 0.02em;
+}
+
+.btn-top-home:hover {
+  background: #fcd116;
+  color: #00205b;
+  transform: translateY(-1px);
+}
+
+.top-city-badge {
+  font-size: 0.9rem;
+  color: #00205b;
+  background: #f1f5f9;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.badge-warning-city {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.safe-together-pill {
+  background: #00205b;
+  color: #fcd116;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 0.4rem 1rem;
+  border-radius: 9999px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* Componentes en Sidebar */
+.sidebar-brand {
+  margin-bottom: 1.25rem;
+}
+
+.brand-badge {
+  background: #fcd116;
+  color: #00205b;
+  font-size: 0.7rem;
+  font-weight: 900;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-block;
+  margin-bottom: 0.25rem;
+}
+
+.sidebar-home-btn {
+  width: 100%;
+  background: rgba(252, 209, 22, 0.15);
+  color: #fcd116;
+  border: 1px solid rgba(252, 209, 22, 0.4);
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+}
+
+.sidebar-home-btn:hover {
+  background: #fcd116;
+  color: #00205b;
+}
+
+.sidebar-city-info {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.6rem 0.85rem;
+  border-radius: 8px;
+  border-left: 3px solid #fcd116;
+  margin-top: 0.5rem;
+}
+
+.city-label {
+  display: block;
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.city-value {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.city-badge-header {
+  background: #00205b;
+  color: #fcd116;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+}
+
+.page-content-wrapper {
+  padding: 1rem 0;
+}
+
+/* Responsiveness (Computador, Tablet y Móvil) */
+@media (max-width: 992px) {
+  .home-title {
+    font-size: 2.2rem;
+  }
+  .cd-grid-container {
+    grid-template-columns: 1fr;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .top-nav-bar {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .home-title {
+    font-size: 1.75rem;
+  }
+  .home-subtitle {
+    font-size: 1rem;
+  }
+  .home-portal-container {
+    padding: 2rem 1rem;
+  }
+  .cd-card {
+    padding: 1.5rem;
+  }
+  .top-nav-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+

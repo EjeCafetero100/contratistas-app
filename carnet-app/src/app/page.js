@@ -1,123 +1,129 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useCity } from "@/context/CityContext";
+import { useRouter } from "next/navigation";
 
-export default function Home() {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+export default function HomePage() {
+  const { selectCity } = useCity();
+  const router = useRouter();
 
-  useEffect(() => {
-    fetch('/api/users', { cache: 'no-store' })
-      .then(res => res.json())
-      .then(data => {
-        setUsers(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
-
-  const handleDelete = async (id, nombre) => {
-    if (confirm(`¿Estás seguro de que deseas eliminar a ${nombre}?`)) {
-      try {
-        const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-          setUsers(users.filter(u => u.id !== id));
-        } else {
-          alert("Error al eliminar");
-        }
-      } catch (err) {
-        alert("Error de red al eliminar");
-      }
-    }
+  const handleSelectCity = (cityName) => {
+    selectCity(cityName);
+    router.push("/dashboard");
   };
 
   return (
-    <div className="container">
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div>
-          <h1>Panel de Control</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Gestión de Personal y Visitantes</p>
-        </div>
-      </header>
-
-      <div className="glass-panel">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <h2 style={{ margin: 0 }}>Personal Registrado</h2>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '1.2rem' }}>🔍</span>
-            <input 
-              type="text" 
-              placeholder="Buscar por cédula o nombre..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0', minWidth: '250px' }}
-            />
-          </div>
+    <div className="home-portal-container">
+      {/* Hero Header Corporativo AB InBev / SafeTogether */}
+      <header className="home-hero">
+        <div className="home-hero-badge">
+          <span className="safe-shield">🛡️</span>
+          <span className="safe-text">AB InBev | SafeTogether</span>
         </div>
         
-        {loading ? (
-          <p>Cargando datos...</p>
-        ) : users.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)' }}>No hay personas registradas aún.</p>
-        ) : (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Nombre</th>
-                  <th>Cédula</th>
-                  <th>Empresa</th>
-                  <th>Tipo</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users
-                  .filter(u => {
-                    if (!searchTerm) return true;
-                    const term = searchTerm.toLowerCase();
-                    return String(u.cedula).toLowerCase().includes(term) || String(u.nombre).toLowerCase().includes(term);
-                  })
-                  .map(user => (
-                  <tr key={user.id}>
-                    <td style={{ fontWeight: 500 }}>{user.nombre}</td>
-                    <td>{user.cedula}</td>
-                    <td>{user.empresa}</td>
-                    <td>{user.tipo}</td>
-                    <td>
-                      <span className={`badge ${user.estado === 'Activo' ? 'badge-success' : 'badge-danger'}`}>
-                        {user.estado || 'Activo'}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <Link href={`/carnet/${user.id}`} style={{ color: 'var(--primary)', fontWeight: '500' }}>
-                          Ver Carnet
-                        </Link>
-                        <Link href={`/edit/${user.id}`} style={{ color: '#f59e0b', fontWeight: '500' }}>
-                          Editar
-                        </Link>
-                        <button 
-                          onClick={() => handleDelete(user.id, user.nombre)} 
-                          style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '500', cursor: 'pointer', padding: 0, fontSize: 'inherit', fontFamily: 'inherit' }}
-                        >
-                          Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <h1 className="home-title">
+          TABLERO DE SEGURIDAD Y GESTIÓN OPERACIONAL
+        </h1>
+        
+        <p className="home-subtitle">
+          Selecciona el centro de distribución que deseas consultar.
+        </p>
+      </header>
+
+      {/* Grid de Centros de Distribución */}
+      <div className="cd-grid-container">
+        {/* Tarjeta ARMENIA */}
+        <div className="cd-card cd-card-armenia">
+          <div className="cd-card-header">
+            <div className="cd-icon-wrapper">
+              <svg className="cd-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18" />
+                <path d="M5 21V7l7-4 7 4v14" />
+                <path d="M9 18h6v-4H9v4z" />
+                <circle cx="12" cy="9" r="1.5" />
+              </svg>
+              <span className="cd-location-badge">📍 ARMENIA</span>
+            </div>
+            <h2 className="cd-card-title">ARMENIA</h2>
+            <p className="cd-card-desc">
+              Centro de Distribución Armenia • Eje Cafetero. Accede al control documental, gestión de contratistas e indicadores operativos.
+            </p>
           </div>
-        )}
+          
+          <div className="cd-card-footer">
+            <button 
+              className="btn-cd-action"
+              onClick={() => handleSelectCity("Armenia")}
+            >
+              INGRESAR A ARMENIA
+              <span className="arrow-icon">→</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Tarjeta PEREIRA */}
+        <div className="cd-card cd-card-pereira">
+          <div className="cd-card-header">
+            <div className="cd-icon-wrapper">
+              <svg className="cd-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18" />
+                <path d="M19 21V10l-7-5-7 5v11" />
+                <path d="M9 14h6v7H9v-7z" />
+                <path d="M9 9h.01M15 9h.01" />
+              </svg>
+              <span className="cd-location-badge">📍 PEREIRA</span>
+            </div>
+            <h2 className="cd-card-title">PEREIRA</h2>
+            <p className="cd-card-desc">
+              Centro de Distribución Pereira • Eje Cafetero. Consulta inspecciones, inventario de botiquines, extintores y KPIs de seguridad.
+            </p>
+          </div>
+          
+          <div className="cd-card-footer">
+            <button 
+              className="btn-cd-action"
+              onClick={() => handleSelectCity("Pereira")}
+            >
+              INGRESAR A PEREIRA
+              <span className="arrow-icon">→</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Tarjeta BARRANCABERMEJA */}
+        <div className="cd-card cd-card-barrancabermeja">
+          <div className="cd-card-header">
+            <div className="cd-icon-wrapper">
+              <svg className="cd-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18" />
+                <path d="M4 21V9l8-6 8 6v12" />
+                <path d="M9 17h6v4H9v-4z" />
+                <circle cx="12" cy="11" r="2" />
+              </svg>
+              <span className="cd-location-badge">📍 BARRANCABERMEJA</span>
+            </div>
+            <h2 className="cd-card-title">BARRANCABERMEJA</h2>
+            <p className="cd-card-desc">
+              Centro de Distribución Barrancabermeja • Santander. Monitorea la gestión de personal no grato, licencias y vehículos.
+            </p>
+          </div>
+          
+          <div className="cd-card-footer">
+            <button 
+              className="btn-cd-action"
+              onClick={() => handleSelectCity("Barrancabermeja")}
+            >
+              INGRESAR A BARRANCABERMEJA
+              <span className="arrow-icon">→</span>
+            </button>
+          </div>
+        </div>
       </div>
+
+      {/* Footer corporativo de respaldo */}
+      <footer className="home-footer">
+        <p>© 2026 AB InBev / SafeTogether — Todos los derechos reservados.</p>
+      </footer>
     </div>
   );
 }
