@@ -184,9 +184,8 @@ export default function TelemetriaPage() {
 
   // 3. Opciones dinámicas para los selectores de filtro
   const optionsMes = useMemo(() => {
-    const set = new Set(dataEventos.map(e => e.mes).filter(Boolean));
-    return ['Todos', ...Array.from(set)];
-  }, [dataEventos]);
+    return ['Todos', 'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO'];
+  }, []);
 
   const optionsSemana = useMemo(() => {
     const set = new Set(dataEventos.map(e => e.semana).filter(Boolean));
@@ -297,16 +296,17 @@ export default function TelemetriaPage() {
 
   // 6. Datos para Gráficos
   const dataPorMes = useMemo(() => {
-    const orderMeses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+    const mesesEvaluados = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO'];
     const agrupado = {};
     filteredEventos.forEach(e => {
       const mes = e.mes || 'OTRO';
       agrupado[mes] = (agrupado[mes] || 0) + e.total;
     });
 
-    return Object.entries(agrupado)
-      .sort(([a], [b]) => orderMeses.indexOf(a) - orderMeses.indexOf(b))
-      .map(([mes, cantidad]) => ({ mes, cantidad }));
+    return mesesEvaluados.map(mes => ({
+      mes,
+      cantidad: agrupado[mes] || 0
+    }));
   }, [filteredEventos]);
 
   const dataPorTipo = useMemo(() => {
@@ -386,35 +386,15 @@ export default function TelemetriaPage() {
       conteoMeses[mes] = (conteoMeses[mes] || 0) + e.total;
     });
 
-    // Meses con datos reales ordenados cronológicamente
-    const mesesConDatos = orderMeses.filter(m => conteoMeses[m] !== undefined && conteoMeses[m] > 0);
-
-    if (mesesConDatos.length === 0) {
-      return {
-        chartData: [],
-        tableData: [],
-        resumen: {
-          metaPct: targetReductionPct,
-          ultimoMes: 'N/A',
-          ultimoReal: 0,
-          variacionUltimoMoM: 0,
-          cumpleUltimo: false,
-          brechaUltimo: 0,
-          mejorMes: 'N/A',
-          mejorVariacion: 0,
-          proximoMes: 'SEPTIEMBRE',
-          proximaMeta: 0,
-          topePermitido: 0
-        }
-      };
-    }
+    // Meses históricos evaluados a la fecha en CD Barrancabermeja (incluyendo Marzo, Abril y Mayo con 0 alertas)
+    const mesesHistoricos = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO'];
 
     const tableData = [];
     const chartData = [];
     let prevReal = null;
 
-    mesesConDatos.forEach((mes, idx) => {
-      const real = conteoMeses[mes];
+    mesesHistoricos.forEach((mes, idx) => {
+      const real = conteoMeses[mes] || 0;
       let meta = null;
       let topeMaximo = null;
       let varMoM = null;
@@ -435,28 +415,53 @@ export default function TelemetriaPage() {
         statusColor = '#00205b';
         recomendacion = 'Punto de partida inicial de telemetría en Barrancabermeja (1 evento registrado).';
       } else {
-        meta = Number((prevReal * reductionFactor).toFixed(2));
-        topeMaximo = Math.floor(meta);
-        metaEnteraLabel = topeMaximo === 0 ? '0 eventos' : `≤ ${topeMaximo} ${topeMaximo === 1 ? 'evento' : 'eventos'}`;
-        varMoM = Number((((real - prevReal) / prevReal) * 100).toFixed(1));
-        brecha = Number((real - meta).toFixed(2));
-        brechaEntera = real - topeMaximo;
-
-        if (real <= topeMaximo) {
-          status = 'CUMPLE';
-          statusLabel = `🟢 Cumple Meta (≤ ${topeMaximo} ev.)`;
-          statusColor = '#10b981';
-          recomendacion = `Excelente desempeño: ${real} evento registrado dentro del tope permitido de ${metaEnteraLabel} (-${Math.abs(varMoM)}% MoM). Mantener buenas prácticas.`;
-        } else if (varMoM <= 0) {
-          status = 'PARCIAL';
-          statusLabel = `⚠️ Excede Meta Entera (+${brechaEntera} ev.)`;
-          statusColor = '#f59e0b';
-          recomendacion = `Hubo reducción porcentual de ${Math.abs(varMoM)}%, pero en números enteros la meta exigía ${metaEnteraLabel} (exceso de +${brechaEntera} ${brechaEntera === 1 ? 'evento' : 'eventos'}).`;
+        if (prevReal === 0) {
+          meta = 0;
+          topeMaximo = 0;
+          metaEnteraLabel = '0 eventos';
+          if (real === 0) {
+            varMoM = 0.0;
+            brecha = 0;
+            brechaEntera = 0;
+            status = 'CUMPLE';
+            statusLabel = '🟢 Cero Alertas (0 ev.)';
+            statusColor = '#10b981';
+            recomendacion = '¡Excelente gestión SST! Mes consecutivo con Cero Incidentes en ruta.';
+          } else {
+            varMoM = 100.0;
+            brecha = real;
+            brechaEntera = real;
+            status = 'NO_CUMPLE';
+            statusLabel = `🔴 Desviación (+${brechaEntera} ev.)`;
+            statusColor = '#dc2626';
+            recomendacion = `Rebrote de incidentes: ${real} infracciones registradas tras periodos limpios en cero. Requiere plan de choque SST.`;
+          }
         } else {
-          status = 'NO_CUMPLE';
-          statusLabel = `🔴 Desviación (+${brechaEntera} ev.)`;
-          statusColor = '#dc2626';
-          recomendacion = `Aumento de +${varMoM}% respecto al mes anterior. Excede el tope de ${metaEnteraLabel} en +${brechaEntera} ${brechaEntera === 1 ? 'evento' : 'eventos'}. Requiere plan de choque SST.`;
+          meta = Number((prevReal * reductionFactor).toFixed(2));
+          topeMaximo = Math.floor(meta);
+          metaEnteraLabel = topeMaximo === 0 ? '0 eventos' : `≤ ${topeMaximo} ${topeMaximo === 1 ? 'evento' : 'eventos'}`;
+          varMoM = Number((((real - prevReal) / prevReal) * 100).toFixed(1));
+          brecha = Number((real - meta).toFixed(2));
+          brechaEntera = real - topeMaximo;
+
+          if (real <= topeMaximo) {
+            status = 'CUMPLE';
+            statusLabel = real === 0 ? '🟢 Cero Alertas (-100%)' : `🟢 Cumple Meta (≤ ${topeMaximo} ev.)`;
+            statusColor = '#10b981';
+            recomendacion = real === 0 
+              ? '¡Excelente desempeño! Reducción total del -100% alcanzando Cero Incidentes en el mes.'
+              : `Excelente desempeño: ${real} evento registrado dentro del tope permitido de ${metaEnteraLabel} (-${Math.abs(varMoM)}% MoM).`;
+          } else if (varMoM <= 0) {
+            status = 'PARCIAL';
+            statusLabel = `⚠️ Excede Meta Entera (+${brechaEntera} ev.)`;
+            statusColor = '#f59e0b';
+            recomendacion = `Hubo reducción porcentual de ${Math.abs(varMoM)}%, pero en números enteros la meta exigía ${metaEnteraLabel} (exceso de +${brechaEntera} ${brechaEntera === 1 ? 'evento' : 'eventos'}).`;
+          } else {
+            status = 'NO_CUMPLE';
+            statusLabel = `🔴 Desviación (+${brechaEntera} ev.)`;
+            statusColor = '#dc2626';
+            recomendacion = `Aumento de +${varMoM}% respecto al mes anterior. Excede el tope de ${metaEnteraLabel} en +${brechaEntera} ${brechaEntera === 1 ? 'evento' : 'eventos'}. Requiere plan de choque SST.`;
+          }
         }
       }
 
@@ -492,12 +497,10 @@ export default function TelemetriaPage() {
     });
 
     // Proyecciones futuras de Ramp-Down en enteros (4 meses hacia adelante)
-    const ultMesConDatos = mesesConDatos[mesesConDatos.length - 1];
-    const ultIdx = orderMeses.indexOf(ultMesConDatos);
-    const mesesFuturos = orderMeses.slice(ultIdx + 1, ultIdx + 5);
+    const mesesFuturos = ['SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
 
     let baseProyeccion = prevReal;
-    mesesFuturos.forEach((mesFuturo, fIdx) => {
+    mesesFuturos.forEach((mesFuturo) => {
       const metaFutura = Number((baseProyeccion * reductionFactor).toFixed(2));
       const tope = Math.floor(metaFutura);
       const metaEnteraLabel = tope === 0 ? '0 eventos' : `≤ ${tope} ${tope === 1 ? 'evento' : 'eventos'}`;
@@ -561,7 +564,7 @@ export default function TelemetriaPage() {
       tableData,
       resumen: {
         metaPct: targetReductionPct,
-        ultimoMes: ultimoEvaluado ? ultimoEvaluado.mes : ultMesConDatos,
+        ultimoMes: ultimoEvaluado ? ultimoEvaluado.mes : 'AGOSTO',
         ultimoReal: ultimoEvaluado ? ultimoEvaluado.real : prevReal,
         variacionUltimoMoM: ultimoEvaluado ? ultimoEvaluado.varMoM : 0,
         cumpleUltimo: ultimoEvaluado ? ultimoEvaluado.real <= ultimoEvaluado.topeMaximo : false,
