@@ -22,6 +22,7 @@ const BASE_MENU_ITEMS = [
   { id: 'credit-360', label: 'Credit 360', icon: '📈', href: '/credit-360', matchPrefix: true },
   { id: 'telemetria', label: 'Telemetría', icon: '📡', href: '/telemetria', matchPrefix: true },
   { id: 'regreso-seguro', label: 'Regreso Seguro a Casa', icon: '🏡', href: '/regreso-seguro', matchPrefix: true },
+  { id: 'herramientas-manuales', label: 'Inspección de Herramientas Manuales', icon: '🛠️', href: '/herramientas-manuales', matchPrefix: true },
   { id: 'dashboard-excel', label: 'Dashboard Dinámico Excel', icon: '📊', href: '/dashboard-excel', matchPrefix: true },
   { id: 'kpis', label: 'Indicadores (KPIs)', icon: '📊', href: '/kpis', matchPrefix: true, isSeparator: true }
 ];
@@ -46,7 +47,7 @@ const getInitialOrderForCity = (cityName) => {
       list.unshift(item);
     }
   } else if (city === 'barrancabermeja') {
-    // Para Barrancabermeja: INDUCCIONES en la parte superior, seguido de Regreso Seguro a Casa y Telemetría
+    // Para Barrancabermeja: INDUCCIONES en la parte superior, seguido de Regreso Seguro a Casa, Herramientas Manuales y Telemetría
     const indIdx = list.findIndex(i => i.id === 'induccion');
     if (indIdx > -1) {
       const [indItem] = list.splice(indIdx, 1);
@@ -57,10 +58,15 @@ const getInitialOrderForCity = (cityName) => {
       const [rItem] = list.splice(rIdx, 1);
       list.splice(1, 0, rItem);
     }
+    const hIdx = list.findIndex(i => i.id === 'herramientas-manuales');
+    if (hIdx > -1) {
+      const [hItem] = list.splice(hIdx, 1);
+      list.splice(2, 0, hItem);
+    }
     const tIdx = list.findIndex(i => i.id === 'telemetria');
     if (tIdx > -1) {
       const [tItem] = list.splice(tIdx, 1);
-      list.splice(2, 0, tItem);
+      list.splice(3, 0, tItem);
     }
   }
 
@@ -89,11 +95,22 @@ export default function ClientLayout({ children }) {
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const isDraggingRef = useRef(false);
   const [isInduccionesOpen, setIsInduccionesOpen] = useState(false);
+  const [isHerramientasOpen, setIsHerramientasOpen] = useState(false);
 
-  // Cargar orden personalizado según la sede (Armenia, Pereira o Barrancabermeja) usando versión v4 para incorporar Regreso Seguro a Casa
+  // Auto-abrir submenús si la ruta corresponde
+  useEffect(() => {
+    if (pathname?.startsWith('/herramientas-manuales')) {
+      setIsHerramientasOpen(true);
+    }
+    if (pathname?.startsWith('/barrancabermeja/inducciones') || pathname?.startsWith('/inducciones')) {
+      setIsInduccionesOpen(true);
+    }
+  }, [pathname]);
+
+  // Cargar orden personalizado según la sede (Armenia, Pereira o Barrancabermeja) usando versión v5 para incorporar Inspección de Herramientas
   useEffect(() => {
     try {
-      const storageKey = `sidebar_drag_order_v4_${cityKey}`;
+      const storageKey = `sidebar_drag_order_v5_${cityKey}`;
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const savedIds = JSON.parse(saved);
@@ -146,7 +163,7 @@ export default function ClientLayout({ children }) {
   const saveOrder = (newItems) => {
     setMenuItems(newItems);
     try {
-      const storageKey = `sidebar_drag_order_v4_${cityKey}`;
+      const storageKey = `sidebar_drag_order_v5_${cityKey}`;
       const ids = newItems.map(i => i.id);
       localStorage.setItem(storageKey, JSON.stringify(ids));
     } catch (e) {
@@ -209,6 +226,7 @@ export default function ClientLayout({ children }) {
         localStorage.removeItem(`sidebar_drag_order_${cityKey}`);
         localStorage.removeItem(`sidebar_drag_order_v3_${cityKey}`);
         localStorage.removeItem(`sidebar_drag_order_v4_${cityKey}`);
+        localStorage.removeItem(`sidebar_drag_order_v5_${cityKey}`);
       } catch (e) {}
       setMenuItems(getInitialOrderForCity(effectiveCity));
     }
@@ -225,6 +243,9 @@ export default function ClientLayout({ children }) {
       if (pathname?.startsWith('/regreso-seguro')) return true;
       if (pathname?.startsWith('/barrancabermeja/regreso-seguro')) return true;
     }
+    if (item.id === 'herramientas-manuales') {
+      if (pathname?.startsWith('/herramientas-manuales')) return true;
+    }
     if (item.excludePrefix && pathname.startsWith(item.excludePrefix)) return false;
     if (item.matchPrefix) return pathname.startsWith(item.href);
     return pathname === item.href;
@@ -233,6 +254,9 @@ export default function ClientLayout({ children }) {
   const getItemHref = (item) => {
     if (item.id === 'induccion') {
       return '/barrancabermeja/inducciones';
+    }
+    if (item.id === 'herramientas-manuales') {
+      return '/herramientas-manuales';
     }
     return item.href;
   };
@@ -351,6 +375,9 @@ export default function ClientLayout({ children }) {
                         if (item.id === 'induccion') {
                           setIsInduccionesOpen(prev => !prev);
                         }
+                        if (item.id === 'herramientas-manuales') {
+                          setIsHerramientasOpen(prev => !prev);
+                        }
                       }}
                       className={`sidebar-link ${active ? 'active' : ''}`}
                       style={{
@@ -378,6 +405,19 @@ export default function ClientLayout({ children }) {
                           ▼
                         </span>
                       )}
+                      {item.id === 'herramientas-manuales' && (
+                        <span
+                          style={{
+                            fontSize: '0.65rem',
+                            marginLeft: 'auto',
+                            transition: 'transform 0.25s ease',
+                            transform: isHerramientasOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                            opacity: 0.85
+                          }}
+                        >
+                          ▼
+                        </span>
+                      )}
                     </Link>
                   </div>
                 </div>
@@ -398,6 +438,50 @@ export default function ClientLayout({ children }) {
                       { label: 'Distoyota', href: '/barrancabermeja/inducciones/distoyota', icon: '🚜' },
                       { label: 'Contratistas', href: '/barrancabermeja/inducciones/contratistas', icon: '👷' },
                       { label: 'Visitantes', href: '/barrancabermeja/inducciones/visitantes', icon: '🪪' }
+                    ].map(sub => {
+                      const isSubActive = pathname === sub.href;
+                      return (
+                        <Link
+                          key={sub.href}
+                          href={sub.href}
+                          onClick={handleLinkClick}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.45rem',
+                            padding: '0.35rem 0.55rem',
+                            borderRadius: '6px',
+                            fontSize: '0.78rem',
+                            fontWeight: isSubActive ? 800 : 600,
+                            color: isSubActive ? '#00205b' : 'rgba(255, 255, 255, 0.85)',
+                            background: isSubActive ? '#fcd116' : 'transparent',
+                            textDecoration: 'none',
+                            boxShadow: isSubActive ? '0 2px 8px rgba(252, 209, 22, 0.35)' : 'none',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <span>{sub.icon}</span>
+                          <span>{sub.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Submódulos de Inspección de Herramientas Manuales en el panel izquierdo (desplegables) */}
+                {item.id === 'herramientas-manuales' && isHerramientasOpen && (
+                  <div style={{
+                    margin: '0.3rem 0 0.5rem 1.6rem',
+                    paddingLeft: '0.65rem',
+                    borderLeft: '2px solid rgba(252, 209, 22, 0.4)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.2rem'
+                  }}>
+                    {[
+                      { label: 'Carretillas OL', href: '/herramientas-manuales/carretillas-ol', icon: '🛒' },
+                      { label: 'Estibadores OL', href: '/herramientas-manuales/estibadores-ol', icon: '📦' },
+                      { label: 'Carretillas UC', href: '/herramientas-manuales/carretillas-uc', icon: '⚙️' }
                     ].map(sub => {
                       const isSubActive = pathname === sub.href;
                       return (
