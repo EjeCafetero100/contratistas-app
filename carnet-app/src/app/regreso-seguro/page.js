@@ -3,11 +3,33 @@
 import { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend
 } from 'recharts';
 
-const COLORS = ['#0284c7', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
+// Colores corporativos y semafóricos
+const SOAT_COLORS = {
+  'Vigente': '#10b981',        // Verde esmeralda
+  'Por Vencer': '#f59e0b',     // Amarillo / Ámbar
+  'Vencido': '#ef4444',        // Rojo alerta
+  'Sin Vehículo': '#94a3b8'    // Gris pizarra
+};
+
+const TRANSPORT_COLORS = {
+  'Pasajero de motocicleta': '#3b82f6',
+  'Conductor motocicleta': '#f59e0b',
+  'Peatón': '#10b981',
+  'Pasajero Servicio Público Transporte': '#8b5cf6',
+  'Conductor de vehiculo particular': '#0284c7',
+  'Conductor bicicleta': '#ec4899',
+  'Pasajero de compañero de trabajo': '#64748b'
+};
+
+const EMPRESA_COLORS = {
+  'C&R ASOCIADOS SAS': '#00205b',
+  'Easy Logistica': '#f59e0b',
+  'Abi': '#10b981'
+};
 
 export default function RegresoSeguroPage() {
   const [data, setData] = useState({ records: [], kpis: {}, stats: {}, inspecciones: [] });
@@ -16,11 +38,12 @@ export default function RegresoSeguroPage() {
   const [activeTab, setActiveTab] = useState('resumen'); // 'resumen', 'documentos', 'inspecciones', 'censo'
   const [source, setSource] = useState('Cargando...');
 
-  // Filtros
+  // FILTROS VINCULADOS INTERACTIVOS
+  const [selectedSoat, setSelectedSoat] = useState(null);            // 'Vigente', 'Vencido', 'Por Vencer', 'Sin Vehículo'
+  const [selectedTransport, setSelectedTransport] = useState(null);  // Rol de movilidad
+  const [selectedEmpresa, setSelectedEmpresa] = useState(null);      // Empresa
+  const [selectedRiesgo, setSelectedRiesgo] = useState(null);        // Riesgo específico
   const [search, setSearch] = useState('');
-  const [filterEmpresa, setFilterEmpresa] = useState('Todas');
-  const [filterRol, setFilterRol] = useState('Todos');
-  const [filterDocStatus, setFilterDocStatus] = useState('Todos');
 
   // Modales
   const [selectedRecord, setSelectedRecord] = useState(null);
@@ -39,7 +62,7 @@ export default function RegresoSeguroPage() {
   });
   const [submitting, setSubmitting] = useState(false);
 
-  // Carga de datos
+  // Carga de datos desde API
   const fetchData = async () => {
     setLoading(true);
     setError(null);
@@ -62,40 +85,164 @@ export default function RegresoSeguroPage() {
     fetchData();
   }, []);
 
-  // Filtrado de registros para la tabla y censo
+  // Función para normalizar el estado SOAT del colaborador
+  const getCollaboratorSoatCategory = (r) => {
+    if (!r.placa) return 'Sin Vehículo';
+    if (r.estado_soat === 'Vigente') return 'Vigente';
+    if (r.estado_soat === 'Por Vencer') return 'Por Vencer';
+    if (r.estado_soat === 'Vencido') return 'Vencido';
+    return 'Sin Vehículo';
+  };
+
+  // MANEJADORES DE CLIC EN GRÁFICAS (TOGGLE)
+  const handleSoatClick = (soatCategory) => {
+    if (!soatCategory) return;
+    setSelectedSoat(prev => (prev === soatCategory ? null : soatCategory));
+  };
+
+  const handleTransportClick = (transportName) => {
+    if (!transportName) return;
+    setSelectedTransport(prev => (prev === transportName ? null : transportName));
+  };
+
+  const handleEmpresaClick = (empresaName) => {
+    if (!empresaName) return;
+    setSelectedEmpresa(prev => (prev === empresaName ? null : empresaName));
+  };
+
+  const handleRiesgoClick = (riesgoName) => {
+    if (!riesgoName) return;
+    setSelectedRiesgo(prev => (prev === riesgoName ? null : riesgoName));
+  };
+
+  const clearAllFilters = () => {
+    setSelectedSoat(null);
+    setSelectedTransport(null);
+    setSelectedEmpresa(null);
+    setSelectedRiesgo(null);
+    setSearch('');
+  };
+
+  const hasActiveFilters = Boolean(selectedSoat || selectedTransport || selectedEmpresa || selectedRiesgo || search);
+
+  // 1. REGISTROS FILTRADOS DINÁMICAMENTE (REPLICA EN TODO EL DASHBOARD)
   const filteredRecords = useMemo(() => {
-    if (!data.records) return [];
-    return data.records.filter(r => {
-      // Filtro texto
-      const q = search.toLowerCase();
-      const matchText = !q ||
-        (r.nombre && r.nombre.toLowerCase().includes(q)) ||
-        (r.cedula && r.cedula.toLowerCase().includes(q)) ||
-        (r.placa && r.placa.toLowerCase().includes(q)) ||
-        (r.cargo && r.cargo.toLowerCase().includes(q)) ||
-        (r.barrio && r.barrio.toLowerCase().includes(q));
-
-      // Filtro Empresa
-      const matchEmpresa = filterEmpresa === 'Todas' || r.empresa === filterEmpresa;
-
-      // Filtro Rol
-      const matchRol = filterRol === 'Todos' || r.rol_principal === filterRol;
-
-      // Filtro Documental
-      let matchDoc = true;
-      if (filterDocStatus === 'con_vehiculo') {
-        matchDoc = Boolean(r.placa);
-      } else if (filterDocStatus === 'alerta_soat') {
-        matchDoc = r.estado_soat === 'Vencido' || r.estado_soat === 'Por Vencer';
-      } else if (filterDocStatus === 'alerta_tecno') {
-        matchDoc = r.estado_tecnomecanica === 'Vencido' || r.estado_tecnomecanica === 'Por Vencer';
-      } else if (filterDocStatus === 'documentos_al_dia') {
-        matchDoc = r.placa && r.estado_soat === 'Vigente' && r.estado_tecnomecanica === 'Vigente';
+    const rawList = data.records || [];
+    return rawList.filter(r => {
+      // 1. Filtro SOAT
+      if (selectedSoat) {
+        const cat = getCollaboratorSoatCategory(r);
+        if (cat !== selectedSoat) return false;
       }
 
-      return matchText && matchEmpresa && matchRol && matchDoc;
+      // 2. Filtro Tipo de Transporte
+      if (selectedTransport) {
+        if (r.rol_principal !== selectedTransport) return false;
+      }
+
+      // 3. Filtro Empresa
+      if (selectedEmpresa && selectedEmpresa !== 'Todas') {
+        if (r.empresa !== selectedEmpresa) return false;
+      }
+
+      // 4. Filtro Riesgo Específico
+      if (selectedRiesgo) {
+        const listRiesgos = Array.isArray(r.riesgos_identificados) ? r.riesgos_identificados : [];
+        if (!listRiesgos.includes(selectedRiesgo)) return false;
+      }
+
+      // 5. Búsqueda de Texto
+      if (search) {
+        const q = search.toLowerCase();
+        const match =
+          (r.nombre && r.nombre.toLowerCase().includes(q)) ||
+          (r.cedula && r.cedula.toLowerCase().includes(q)) ||
+          (r.placa && r.placa.toLowerCase().includes(q)) ||
+          (r.cargo && r.cargo.toLowerCase().includes(q)) ||
+          (r.barrio && r.barrio.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+
+      return true;
     });
-  }, [data.records, search, filterEmpresa, filterRol, filterDocStatus]);
+  }, [data.records, selectedSoat, selectedTransport, selectedEmpresa, selectedRiesgo, search]);
+
+  // 2. CÁLCULO DINÁMICO DE DATOS PARA LA GRÁFICA DE SOAT (BASADA EN EL SUBCONJUNTO ACTUAL)
+  const soatChartData = useMemo(() => {
+    // Si queremos ver el conteo de SOAT dentro del filtro de transporte actual, usamos una base sin filtro de SOAT
+    const baseList = (data.records || []).filter(r => {
+      if (selectedTransport && r.rol_principal !== selectedTransport) return false;
+      if (selectedEmpresa && r.empresa !== selectedEmpresa) return false;
+      if (selectedRiesgo && (!Array.isArray(r.riesgos_identificados) || !r.riesgos_identificados.includes(selectedRiesgo))) return false;
+      return true;
+    });
+
+    const counts = { 'Vigente': 0, 'Por Vencer': 0, 'Vencido': 0, 'Sin Vehículo': 0 };
+    baseList.forEach(r => {
+      const cat = getCollaboratorSoatCategory(r);
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+
+    const totalBase = baseList.length || 1;
+    return [
+      { name: 'Vigente', value: counts['Vigente'], pct: Math.round((counts['Vigente'] / totalBase) * 100), color: SOAT_COLORS['Vigente'] },
+      { name: 'Por Vencer', value: counts['Por Vencer'], pct: Math.round((counts['Por Vencer'] / totalBase) * 100), color: SOAT_COLORS['Por Vencer'] },
+      { name: 'Vencido', value: counts['Vencido'], pct: Math.round((counts['Vencido'] / totalBase) * 100), color: SOAT_COLORS['Vencido'] },
+      { name: 'Sin Vehículo', value: counts['Sin Vehículo'], pct: Math.round((counts['Sin Vehículo'] / totalBase) * 100), color: SOAT_COLORS['Sin Vehículo'] }
+    ];
+  }, [data.records, selectedTransport, selectedEmpresa, selectedRiesgo]);
+
+  // 3. CÁLCULO DINÁMICO DE DATOS PARA LA GRÁFICA DE TRANSPORTE
+  const transportChartData = useMemo(() => {
+    // Base considerando filtro de SOAT, Empresa y Riesgo
+    const baseList = (data.records || []).filter(r => {
+      if (selectedSoat) {
+        const cat = getCollaboratorSoatCategory(r);
+        if (cat !== selectedSoat) return false;
+      }
+      if (selectedEmpresa && r.empresa !== selectedEmpresa) return false;
+      if (selectedRiesgo && (!Array.isArray(r.riesgos_identificados) || !r.riesgos_identificados.includes(selectedRiesgo))) return false;
+      return true;
+    });
+
+    const counts = {};
+    baseList.forEach(r => {
+      const rol = r.rol_principal || 'No especificado';
+      counts[rol] = (counts[rol] || 0) + 1;
+    });
+
+    const totalBase = baseList.length || 1;
+    return Object.entries(counts)
+      .map(([rol, count]) => ({
+        rol,
+        count,
+        pct: Math.round((count / totalBase) * 100),
+        color: TRANSPORT_COLORS[rol] || '#0284c7'
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [data.records, selectedSoat, selectedEmpresa, selectedRiesgo]);
+
+  // 4. CÁLCULO DINÁMICO DE KPIS VINCULADOS
+  const dynamicKpis = useMemo(() => {
+    const list = filteredRecords;
+    const total = list.length;
+    const conPlaca = list.filter(r => r.placa).length;
+    const motos = list.filter(r => (r.rol_principal || '').toLowerCase().includes('moto')).length;
+    const soatVigente = list.filter(r => r.placa && r.estado_soat === 'Vigente').length;
+    const soatVencido = list.filter(r => r.placa && r.estado_soat === 'Vencido').length;
+    const soatPorVencer = list.filter(r => r.placa && r.estado_soat === 'Por Vencer').length;
+    const tecnoVencida = list.filter(r => r.placa && r.estado_tecnomecanica === 'Vencido').length;
+
+    return {
+      total,
+      conPlaca,
+      motos,
+      soatVigente,
+      soatVencido,
+      soatPorVencer,
+      tecnoVencida
+    };
+  }, [filteredRecords]);
 
   // Exportar a Excel
   const exportToExcel = () => {
@@ -121,7 +268,7 @@ export default function RegresoSeguroPage() {
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Regreso_Seguro');
-    XLSX.writeFile(wb, `Regreso_Seguro_Barrancabermeja_${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.writeFile(wb, `Regreso_Seguro_Filtrado_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   // Crear nuevo colaborador
@@ -158,9 +305,6 @@ export default function RegresoSeguroPage() {
       setSubmitting(false);
     }
   };
-
-  const kpis = data.kpis || {};
-  const stats = data.stats || {};
 
   return (
     <div style={{ padding: '1.2rem', color: '#1e293b', minHeight: '100vh', background: '#f8fafc' }}>
@@ -207,8 +351,8 @@ export default function RegresoSeguroPage() {
           <h1 style={{ fontSize: '1.85rem', fontWeight: 900, margin: '0 0 0.4rem 0', letterSpacing: '-0.02em' }}>
             REGRESO SEGURO A CASA
           </h1>
-          <p style={{ margin: 0, opacity: 0.85, fontSize: '0.9rem', maxWidth: '650px' }}>
-            Monitoreo y gestión de riesgos viales, desplazamientos casa-trabajo, censo del parque automotor y control documental de colaboradores y contratistas.
+          <p style={{ margin: 0, opacity: 0.85, fontSize: '0.9rem', maxWidth: '680px' }}>
+            Dashboard interactivo de desplazamiento seguro. <strong>Haz clic en cualquier gráfica (SOAT, transporte o empresa)</strong> para filtrar y replicar automáticamente todas las métricas y la tabla en tiempo real.
           </p>
         </div>
 
@@ -297,14 +441,173 @@ export default function RegresoSeguroPage() {
         </div>
       </div>
 
-      {/* Tarjetas KPI Superiores */}
+      {/* BARRA DE FILTROS ACTIVOS DINÁMICOS (CROSS-FILTERING) */}
+      {hasActiveFilters && (
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '12px',
+          padding: '0.8rem 1.2rem',
+          marginBottom: '1.2rem',
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 4px 12px rgba(0, 32, 91, 0.08)',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.8rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#00205b' }}>
+              🎯 FILTROS APLICADOS:
+            </span>
+
+            {/* Chip SOAT */}
+            {selectedSoat && (
+              <span style={{
+                background: SOAT_COLORS[selectedSoat] || '#3b82f6',
+                color: '#ffffff',
+                padding: '0.3rem 0.65rem',
+                borderRadius: '999px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem'
+              }}>
+                📄 SOAT: {selectedSoat}
+                <button
+                  onClick={() => setSelectedSoat(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: '0.8rem' }}
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+
+            {/* Chip Transporte */}
+            {selectedTransport && (
+              <span style={{
+                background: '#00205b',
+                color: '#fcd116',
+                padding: '0.3rem 0.65rem',
+                borderRadius: '999px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem'
+              }}>
+                🛵 Transporte: {selectedTransport}
+                <button
+                  onClick={() => setSelectedTransport(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#fcd116', cursor: 'pointer', fontWeight: 900, fontSize: '0.8rem' }}
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+
+            {/* Chip Empresa */}
+            {selectedEmpresa && (
+              <span style={{
+                background: '#f59e0b',
+                color: '#ffffff',
+                padding: '0.3rem 0.65rem',
+                borderRadius: '999px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem'
+              }}>
+                🏢 {selectedEmpresa}
+                <button
+                  onClick={() => setSelectedEmpresa(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: '0.8rem' }}
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+
+            {/* Chip Riesgo */}
+            {selectedRiesgo && (
+              <span style={{
+                background: '#ef4444',
+                color: '#ffffff',
+                padding: '0.3rem 0.65rem',
+                borderRadius: '999px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem'
+              }}>
+                ⚠️ Riesgo: {selectedRiesgo}
+                <button
+                  onClick={() => setSelectedRiesgo(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: '0.8rem' }}
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+
+            {/* Chip Texto */}
+            {search && (
+              <span style={{
+                background: '#64748b',
+                color: '#ffffff',
+                padding: '0.3rem 0.65rem',
+                borderRadius: '999px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem'
+              }}>
+                🔍 "{search}"
+                <button
+                  onClick={() => setSearch('')}
+                  style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: '0.8rem' }}
+                >
+                  ✕
+                </button>
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+            <span style={{ fontSize: '0.82rem', color: '#475569', fontWeight: 700 }}>
+              Mostrando <strong>{filteredRecords.length}</strong> de {data.records?.length || 204} colaboradores
+            </span>
+            <button
+              onClick={clearAllFilters}
+              style={{
+                background: '#fee2e2',
+                color: '#b91c1c',
+                border: '1px solid #fecaca',
+                padding: '0.35rem 0.75rem',
+                borderRadius: '8px',
+                fontWeight: 800,
+                fontSize: '0.75rem',
+                cursor: 'pointer'
+              }}
+            >
+              ↺ Restablecer Filtros
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* TARJETAS KPI VINCULADAS EN TIEMPO REAL */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
         gap: '1rem',
         marginBottom: '1.5rem'
       }}>
-        {/* Card 1: Total Censo */}
+        {/* Total Colaboradores Filtrados */}
         <div style={{
           background: '#ffffff',
           borderRadius: '12px',
@@ -313,94 +616,132 @@ export default function RegresoSeguroPage() {
           borderLeft: '5px solid #00205b'
         }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-            Total Colaboradores
+            Colaboradores {hasActiveFilters ? 'Filtrados' : 'Censo'}
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 900, color: '#00205b', margin: '0.2rem 0' }}>
-            {kpis.totalEncuestados || 0}
+          <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#00205b', margin: '0.2rem 0' }}>
+            {dynamicKpis.total}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>
-            100% Censo Barrancabermeja
+          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+            {hasActiveFilters ? `${Math.round((dynamicKpis.total / (data.records?.length || 1)) * 100)}% de la población total` : '100% CD Barrancabermeja'}
           </div>
         </div>
 
-        {/* Card 2: Movilidad en Motocicleta */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          padding: '1.2rem',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-          borderLeft: '5px solid #f59e0b'
-        }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-            Uso de Motocicleta
+        {/* SOAT VIGENTE */}
+        <div
+          onClick={() => handleSoatClick('Vigente')}
+          style={{
+            background: selectedSoat === 'Vigente' ? '#ecfdf5' : '#ffffff',
+            borderRadius: '12px',
+            padding: '1.2rem',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+            borderLeft: '5px solid #10b981',
+            border: selectedSoat === 'Vigente' ? '2px solid #10b981' : '1px solid transparent',
+            cursor: 'pointer',
+            transition: 'transform 0.15s ease'
+          }}
+          title="Haz clic para filtrar solo colaboradores con SOAT Vigente"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>
+              SOAT Vigente
+            </span>
+            <span style={{ fontSize: '0.9rem' }}>🟢</span>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 900, color: '#f59e0b', margin: '0.2rem 0' }}>
-            {(kpis.conductoresMoto || 0) + (kpis.pasajerosMoto || 0)}
+          <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#15803d', margin: '0.2rem 0' }}>
+            {dynamicKpis.soatVigente}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-            <strong>{kpis.conductoresMoto || 0}</strong> conductores • <strong>{kpis.pasajerosMoto || 0}</strong> pasajeros
-          </div>
-        </div>
-
-        {/* Card 3: Parque Automotor */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          padding: '1.2rem',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-          borderLeft: '5px solid #0284c7'
-        }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-            Vehículos con Placa
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 900, color: '#0284c7', margin: '0.2rem 0' }}>
-            {kpis.totalVehiculosRegistrados || 0}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-            Motos, Carros y Transporte propio
+          <div style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 600 }}>
+            {selectedSoat === 'Vigente' ? '✔ Filtro Activo (Clic para quitar)' : 'Documentos al día'}
           </div>
         </div>
 
-        {/* Card 4: Alertas SOAT */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          padding: '1.2rem',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-          borderLeft: '5px solid #ef4444'
-        }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-            Semáforo SOAT
+        {/* SOAT VENCIDO */}
+        <div
+          onClick={() => handleSoatClick('Vencido')}
+          style={{
+            background: selectedSoat === 'Vencido' ? '#fef2f2' : '#ffffff',
+            borderRadius: '12px',
+            padding: '1.2rem',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+            borderLeft: '5px solid #ef4444',
+            border: selectedSoat === 'Vencido' ? '2px solid #ef4444' : '1px solid transparent',
+            cursor: 'pointer',
+            transition: 'transform 0.15s ease'
+          }}
+          title="Haz clic para filtrar solo colaboradores con SOAT Vencido"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase' }}>
+              SOAT Vencido
+            </span>
+            <span style={{ fontSize: '0.9rem' }}>🔴</span>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 900, color: '#ef4444', margin: '0.2rem 0' }}>
-            {(kpis.documentacion?.soat?.vencidos || 0) + (kpis.documentacion?.soat?.porVencer || 0)}
+          <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#b91c1c', margin: '0.2rem 0' }}>
+            {dynamicKpis.soatVencido}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-            <span style={{ color: '#10b981', fontWeight: 700 }}>{kpis.documentacion?.soat?.vigentes || 0} al día</span> • <span style={{ color: '#ef4444', fontWeight: 700 }}>{kpis.documentacion?.soat?.vencidos || 0} vencidos</span>
+          <div style={{ fontSize: '0.75rem', color: '#991b1b', fontWeight: 600 }}>
+            {selectedSoat === 'Vencido' ? '✔ Filtro Activo (Clic para quitar)' : 'Requiere gestión urgente'}
           </div>
         </div>
 
-        {/* Card 5: Alertas Tecnicomecánica */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          padding: '1.2rem',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-          borderLeft: '5px solid #8b5cf6'
-        }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-            Semáforo Tecnomecánica
+        {/* SOAT POR VENCER */}
+        <div
+          onClick={() => handleSoatClick('Por Vencer')}
+          style={{
+            background: selectedSoat === 'Por Vencer' ? '#fffbeb' : '#ffffff',
+            borderRadius: '12px',
+            padding: '1.2rem',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+            borderLeft: '5px solid #f59e0b',
+            border: selectedSoat === 'Por Vencer' ? '2px solid #f59e0b' : '1px solid transparent',
+            cursor: 'pointer',
+            transition: 'transform 0.15s ease'
+          }}
+          title="Haz clic para filtrar colaboradores con SOAT próximo a vencer"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b45309', textTransform: 'uppercase' }}>
+              SOAT Por Vencer (≤30d)
+            </span>
+            <span style={{ fontSize: '0.9rem' }}>🟡</span>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 900, color: '#8b5cf6', margin: '0.2rem 0' }}>
-            {(kpis.documentacion?.tecnomecanica?.vencidos || 0) + (kpis.documentacion?.tecnomecanica?.porVencer || 0)}
+          <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#b45309', margin: '0.2rem 0' }}>
+            {dynamicKpis.soatPorVencer}
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-            <span style={{ color: '#10b981', fontWeight: 700 }}>{kpis.documentacion?.tecnomecanica?.vigentes || 0} al día</span> • <span style={{ color: '#ef4444', fontWeight: 700 }}>{kpis.documentacion?.tecnomecanica?.vencidos || 0} vencidas</span>
+          <div style={{ fontSize: '0.75rem', color: '#92400e', fontWeight: 600 }}>
+            {selectedSoat === 'Por Vencer' ? '✔ Filtro Activo (Clic para quitar)' : 'En periodo de renovación'}
+          </div>
+        </div>
+
+        {/* USO DE MOTOCICLETA */}
+        <div
+          onClick={() => handleTransportClick('Conductor motocicleta')}
+          style={{
+            background: selectedTransport?.includes('moto') ? '#eff6ff' : '#ffffff',
+            borderRadius: '12px',
+            padding: '1.2rem',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+            borderLeft: '5px solid #0284c7',
+            cursor: 'pointer'
+          }}
+          title="Haz clic para filtrar por motociclistas"
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0369a1', textTransform: 'uppercase' }}>
+              Motocicletas
+            </span>
+            <span style={{ fontSize: '0.9rem' }}>🏍️</span>
+          </div>
+          <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#0284c7', margin: '0.2rem 0' }}>
+            {dynamicKpis.motos}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 600 }}>
+            Conductores y pasajeros
           </div>
         </div>
       </div>
 
-      {/* Barra de Pestañas de Navegación */}
+      {/* PESTAÑAS */}
       <div style={{
         display: 'flex',
         gap: '0.5rem',
@@ -411,10 +752,10 @@ export default function RegresoSeguroPage() {
         borderRadius: '12px'
       }}>
         {[
-          { id: 'resumen', label: '📊 Resumen & Analítica Vial', count: null },
-          { id: 'documentos', label: '📋 Control Documental (Placas)', count: kpis.totalVehiculosRegistrados },
+          { id: 'resumen', label: '📊 Resumen & Gráficas Interactivas', count: null },
+          { id: 'documentos', label: '📋 Control Documental (Placas)', count: dynamicKpis.conPlaca },
           { id: 'inspecciones', label: '🏍️ Inspecciones Preoperacionales', count: data.inspecciones?.length || 2 },
-          { id: 'censo', label: '👥 Censo Completo de Colaboradores', count: filteredRecords.length }
+          { id: 'censo', label: '👥 Censo Filtrado de Colaboradores', count: filteredRecords.length }
         ].map(tab => (
           <button
             key={tab.id}
@@ -451,209 +792,192 @@ export default function RegresoSeguroPage() {
         ))}
       </div>
 
-      {/* Barra de Filtros Globales (Visible para Documentos y Censo) */}
-      {(activeTab === 'censo' || activeTab === 'documentos') && (
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          padding: '1rem 1.2rem',
-          marginBottom: '1.2rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '0.8rem',
-          alignItems: 'center'
-        }}>
-          {/* Buscador */}
-          <div style={{ flex: '1 1 240px', minWidth: '220px' }}>
-            <input
-              type="text"
-              placeholder="🔍 Buscar por nombre, cédula, placa, cargo..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '0.6rem 0.85rem',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.85rem',
-                outline: 'none'
-              }}
-            />
-          </div>
-
-          {/* Filtro Empresa */}
-          <div>
-            <select
-              value={filterEmpresa}
-              onChange={(e) => setFilterEmpresa(e.target.value)}
-              style={{
-                padding: '0.6rem 0.85rem',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.85rem',
-                background: '#fff',
-                color: '#334155'
-              }}
-            >
-              <option value="Todas">🏢 Todas las Empresas</option>
-              <option value="C&R ASOCIADOS SAS">C&R ASOCIADOS SAS</option>
-              <option value="Easy Logistica">Easy Logistica</option>
-              <option value="Abi">Abi</option>
-            </select>
-          </div>
-
-          {/* Filtro Rol */}
-          <div>
-            <select
-              value={filterRol}
-              onChange={(e) => setFilterRol(e.target.value)}
-              style={{
-                padding: '0.6rem 0.85rem',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.85rem',
-                background: '#fff',
-                color: '#334155'
-              }}
-            >
-              <option value="Todos">🚦 Todos los Roles</option>
-              <option value="Conductor motocicleta">Conductor Motocicleta</option>
-              <option value="Pasajero de motocicleta">Pasajero de Motocicleta</option>
-              <option value="Peatón">Peatón</option>
-              <option value="Pasajero Servicio Público Transporte">Transporte Público</option>
-              <option value="Conductor de vehiculo particular">Vehículo Particular</option>
-              <option value="Conductor bicicleta">Bicicleta</option>
-            </select>
-          </div>
-
-          {/* Filtro Estado Documental */}
-          <div>
-            <select
-              value={filterDocStatus}
-              onChange={(e) => setFilterDocStatus(e.target.value)}
-              style={{
-                padding: '0.6rem 0.85rem',
-                borderRadius: '8px',
-                border: '1px solid #cbd5e1',
-                fontSize: '0.85rem',
-                background: '#fff',
-                color: '#334155'
-              }}
-            >
-              <option value="Todos">📄 Estado Documentos: Todos</option>
-              <option value="con_vehiculo">Con Vehículo / Placa</option>
-              <option value="documentos_al_dia">Documentos al Día (Vigentes)</option>
-              <option value="alerta_soat">⚠️ Alerta SOAT (Vencido / Por Vencer)</option>
-              <option value="alerta_tecno">⚠️ Alerta Tecnomecánica</option>
-            </select>
-          </div>
-
-          {/* Contador y Limpiar */}
-          {(search || filterEmpresa !== 'Todas' || filterRol !== 'Todos' || filterDocStatus !== 'Todos') && (
-            <button
-              onClick={() => {
-                setSearch('');
-                setFilterEmpresa('Todas');
-                setFilterRol('Todos');
-                setFilterDocStatus('Todos');
-              }}
-              style={{
-                background: '#f1f5f9',
-                color: '#64748b',
-                border: 'none',
-                padding: '0.6rem 0.85rem',
-                borderRadius: '8px',
-                fontSize: '0.82rem',
-                cursor: 'pointer',
-                fontWeight: 600
-              }}
-            >
-              Limpiar Filtros
-            </button>
-          )}
-
-          <div style={{ marginLeft: 'auto', fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>
-            Mostrando <strong>{filteredRecords.length}</strong> de {data.records?.length || 0}
-          </div>
-        </div>
-      )}
-
-      {/* CONTENIDO DE PESTAÑAS */}
-
-      {/* 1. PESTAÑA RESUMEN & ANALÍTICA */}
+      {/* PESTAÑA 1: RESUMEN Y GRÁFICAS VINCULADAS INTERACTIVAS */}
       {activeTab === 'resumen' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Fila 1 de Gráficos: Distribución por Rol y Top Riesgos */}
+          {/* Fila Principal de Gráficas: SOAT (Vigente/Vencido) y Tipo de Transporte */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(460px, 1fr))',
             gap: '1.5rem'
           }}>
-            {/* Gráfico 1: Roles de Movilidad */}
+            {/* GRÁFICA 1: ESTADO DEL SOAT (INTERACTIVA) */}
             <div style={{
               background: '#ffffff',
               borderRadius: '16px',
               padding: '1.5rem',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.04)'
+              boxShadow: '0 4px 15px rgba(0,0,0,0.04)',
+              border: selectedSoat ? `2px solid ${SOAT_COLORS[selectedSoat]}` : '1px solid #e2e8f0',
+              position: 'relative'
             }}>
-              <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#00205b' }}>
-                🚴 Distribución por Rol de Desplazamiento
-              </h3>
-              <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#64748b' }}>
-                Modo de transporte principal Casa - Trabajo - Casa
-              </p>
-              <div style={{ height: '300px', width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#00205b', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    📄 Estado de SOAT (Vigentes vs Vencidos)
+                    {selectedSoat && <span style={{ fontSize: '0.75rem', background: SOAT_COLORS[selectedSoat], color: '#fff', padding: '0.15rem 0.5rem', borderRadius: '6px' }}>Filtrado: {selectedSoat}</span>}
+                  </h3>
+                  <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                    <strong>Presiona cualquier sección</strong> para filtrar la lista y demás gráficas
+                  </p>
+                </div>
+                {selectedSoat && (
+                  <button
+                    onClick={() => setSelectedSoat(null)}
+                    style={{ background: '#f1f5f9', border: 'none', color: '#475569', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    ✕ Quitar
+                  </button>
+                )}
+              </div>
+
+              {/* Gráfica Donut de SOAT */}
+              <div style={{ height: '260px', width: '100%', position: 'relative' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats.distRoles || []} layout="vertical" margin={{ top: 5, right: 30, left: 90, bottom: 5 }}>
+                  <PieChart>
+                    <Pie
+                      data={soatChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={95}
+                      paddingAngle={4}
+                      dataKey="value"
+                      onClick={(entry) => handleSoatClick(entry.name)}
+                      cursor="pointer"
+                    >
+                      {soatChartData.map((entry) => {
+                        const isSelected = selectedSoat === entry.name;
+                        const isDimmed = selectedSoat && !isSelected;
+                        return (
+                          <Cell
+                            key={`cell-${entry.name}`}
+                            fill={entry.color}
+                            opacity={isDimmed ? 0.35 : 1}
+                            stroke={isSelected ? '#00205b' : '#ffffff'}
+                            strokeWidth={isSelected ? 3 : 1}
+                          />
+                        );
+                      })}
+                    </Pie>
+                    <Tooltip formatter={(value, name, item) => [`${value} colaboradores (${item.payload.pct}%)`, name]} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Botones / Tarjetitas interactivas de SOAT */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginTop: '0.8rem' }}>
+                {soatChartData.map(s => {
+                  const isSelected = selectedSoat === s.name;
+                  return (
+                    <button
+                      key={s.name}
+                      onClick={() => handleSoatClick(s.name)}
+                      style={{
+                        background: isSelected ? s.color : '#f8fafc',
+                        color: isSelected ? '#ffffff' : '#1e293b',
+                        border: `1px solid ${isSelected ? s.color : '#cbd5e1'}`,
+                        borderRadius: '8px',
+                        padding: '0.55rem 0.3rem',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, opacity: isSelected ? 0.95 : 0.75 }}>
+                        {s.name}
+                      </div>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 900 }}>
+                        {s.value}
+                      </div>
+                      <div style={{ fontSize: '0.68rem', opacity: isSelected ? 0.9 : 0.65 }}>
+                        {s.pct}%
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* GRÁFICA 2: TIPO DE TRANSPORTE UTILIZADO (INTERACTIVA) */}
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              boxShadow: '0 4px 15px rgba(0,0,0,0.04)',
+              border: selectedTransport ? '2px solid #00205b' : '1px solid #e2e8f0',
+              position: 'relative'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#00205b', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    🛵 Tipo de Transporte Utilizado
+                    {selectedTransport && <span style={{ fontSize: '0.75rem', background: '#00205b', color: '#fcd116', padding: '0.15rem 0.5rem', borderRadius: '6px' }}>Filtrado: {selectedTransport}</span>}
+                  </h3>
+                  <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                    <strong>Presiona cualquier barra</strong> para filtrar por ese rol de movilidad
+                  </p>
+                </div>
+                {selectedTransport && (
+                  <button
+                    onClick={() => setSelectedTransport(null)}
+                    style={{ background: '#f1f5f9', border: 'none', color: '#475569', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    ✕ Quitar
+                  </button>
+                )}
+              </div>
+
+              {/* Gráfica de Barras Horizontales de Transporte */}
+              <div style={{ height: '310px', width: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={transportChartData}
+                    layout="vertical"
+                    margin={{ top: 5, right: 30, left: 110, bottom: 5 }}
+                    onClick={(state) => {
+                      if (state && state.activePayload && state.activePayload[0]) {
+                        handleTransportClick(state.activePayload[0].payload.rol);
+                      }
+                    }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                     <XAxis type="number" />
-                    <YAxis dataKey="rol" type="category" width={110} tick={{ fontSize: 10, fill: '#334155' }} />
-                    <Tooltip formatter={(val, name, item) => [`${val} personas (${item.payload.pct}%)`, 'Total']} />
-                    <Bar dataKey="count" fill="#00205b" radius={[0, 6, 6, 0]}>
-                      {(stats.distRoles || []).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
+                    <YAxis
+                      dataKey="rol"
+                      type="category"
+                      width={120}
+                      tick={{ fontSize: 9.5, fill: '#334155', cursor: 'pointer' }}
+                    />
+                    <Tooltip formatter={(val, name, item) => [`${val} colaboradores (${item.payload.pct}%)`, 'Cantidad']} />
+                    <Bar dataKey="count" radius={[0, 6, 6, 0]} cursor="pointer">
+                      {transportChartData.map((entry) => {
+                        const isSelected = selectedTransport === entry.rol;
+                        const isDimmed = selectedTransport && !isSelected;
+                        return (
+                          <Cell
+                            key={`cell-${entry.rol}`}
+                            fill={entry.color}
+                            opacity={isDimmed ? 0.35 : 1}
+                            stroke={isSelected ? '#00205b' : 'none'}
+                            strokeWidth={isSelected ? 2 : 0}
+                          />
+                        );
+                      })}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
-
-            {/* Gráfico 2: Top Riesgos Viales Identificados */}
-            <div style={{
-              background: '#ffffff',
-              borderRadius: '16px',
-              padding: '1.5rem',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.04)'
-            }}>
-              <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#00205b' }}>
-                ⚠️ Top Factores de Riesgo Vial Percibidos
-              </h3>
-              <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#64748b' }}>
-                Peligros más frecuentes reportados en sus rutas diarias
-              </p>
-              <div style={{ height: '300px', width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={(stats.topRiesgos || []).slice(0, 6)} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" />
-                    <YAxis dataKey="riesgo" type="category" width={120} tick={{ fontSize: 9.5, fill: '#334155' }} />
-                    <Tooltip formatter={(val, name, item) => [`${val} colaboradores (${item.payload.pct}%)`, 'Aplica']} />
-                    <Bar dataKey="count" fill="#ef4444" radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
           </div>
 
-          {/* Fila 2: Empresas y Elementos de Protección EPP */}
+          {/* Fila Secundaria: Empresas, Top Riesgos Viales y Tiempos de Trayecto */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
             gap: '1.5rem'
           }}>
-            {/* Empresas */}
+            {/* Filtro por Empresa */}
             <div style={{
               background: '#ffffff',
               borderRadius: '16px',
@@ -661,24 +985,97 @@ export default function RegresoSeguroPage() {
               boxShadow: '0 2px 10px rgba(0,0,0,0.04)'
             }}>
               <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#00205b' }}>
-                🏢 Distribución por Empresa
+                🏢 Empresas Participantes (Clic para filtrar)
               </h3>
-              <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.8rem', color: '#64748b' }}>
-                Participación en el censo vial de Barrancabermeja
+              <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#64748b' }}>
+                Distribución del personal encuestado en Barrancabermeja
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                {(stats.distEmpresas || []).map((emp, idx) => (
-                  <div key={emp.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #f1f5f9' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: COLORS[idx % COLORS.length] }} />
-                      <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1e293b' }}>{emp.name}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                {(data.stats?.distEmpresas || []).map((emp) => {
+                  const isSelected = selectedEmpresa === emp.name;
+                  return (
+                    <div
+                      key={emp.name}
+                      onClick={() => handleEmpresaClick(emp.name)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: '8px',
+                        background: isSelected ? '#00205b' : '#f8fafc',
+                        color: isSelected ? '#ffffff' : '#1e293b',
+                        border: `1px solid ${isSelected ? '#00205b' : '#e2e8f0'}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          background: isSelected ? '#fcd116' : (EMPRESA_COLORS[emp.name] || '#64748b')
+                        }} />
+                        <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{emp.name}</span>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontWeight: 900, fontSize: '1rem', color: isSelected ? '#fcd116' : '#00205b' }}>
+                          {emp.count}
+                        </span>
+                        <span style={{ fontSize: '0.78rem', marginLeft: '0.35rem', opacity: 0.8 }}>
+                          ({emp.pct}%)
+                        </span>
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#00205b' }}>{emp.count}</span>
-                      <span style={{ fontSize: '0.78rem', color: '#64748b', marginLeft: '0.4rem' }}>({emp.pct}%)</span>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Top Riesgos Viales Identificados */}
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              padding: '1.5rem',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.04)'
+            }}>
+              <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#00205b' }}>
+                ⚠️ Principales Riesgos en la Vía (Clic para filtrar)
+              </h3>
+              <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#64748b' }}>
+                Peligros más reportados por los colaboradores
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {(data.stats?.topRiesgos || []).slice(0, 5).map((rg) => {
+                  const isSelected = selectedRiesgo === rg.riesgo;
+                  return (
+                    <div
+                      key={rg.riesgo}
+                      onClick={() => handleRiesgoClick(rg.riesgo)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.55rem 0.75rem',
+                        borderRadius: '8px',
+                        background: isSelected ? '#ef4444' : '#fee2e2',
+                        color: isSelected ? '#ffffff' : '#991b1b',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
+                        • {rg.riesgo}
+                      </span>
+                      <span style={{ background: isSelected ? '#fff' : '#b91c1c', color: isSelected ? '#b91c1c' : '#fff', padding: '0.1rem 0.45rem', borderRadius: '999px', fontSize: '0.75rem' }}>
+                        {rg.count}
+                      </span>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -690,58 +1087,176 @@ export default function RegresoSeguroPage() {
               boxShadow: '0 2px 10px rgba(0,0,0,0.04)'
             }}>
               <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#00205b' }}>
-                🛡️ Elementos de Seguridad y EPP Contados
+                🛡️ Elementos de Seguridad Vial (EPP)
               </h3>
-              <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.8rem', color: '#64748b' }}>
-                Implementos de protección vial con los que cuentan
+              <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#64748b' }}>
+                Conteo de implementos disponibles
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.8rem' }}>
-                {(stats.distEpp || []).map((epp) => (
-                  <div key={epp.item} style={{ background: '#f8fafc', padding: '0.8rem', borderRadius: '10px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
-                    <div style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.6rem' }}>
+                {(data.stats?.distEpp || []).map((epp) => (
+                  <div key={epp.item} style={{ background: '#f8fafc', padding: '0.65rem', borderRadius: '8px', border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.1rem', marginBottom: '0.1rem' }}>
                       {epp.item.toLowerCase().includes('casco') ? '🪖' :
                        epp.item.toLowerCase().includes('luz') ? '💡' :
                        epp.item.toLowerCase().includes('guante') ? '🧤' :
                        epp.item.toLowerCase().includes('gafa') ? '🥽' :
                        epp.item.toLowerCase().includes('reflectivo') ? '🦺' : '🔧'}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 700 }}>{epp.item}</div>
-                    <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#00205b' }}>{epp.count}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Tiempos de Desplazamiento */}
-            <div style={{
-              background: '#ffffff',
-              borderRadius: '16px',
-              padding: '1.5rem',
-              boxShadow: '0 2px 10px rgba(0,0,0,0.04)'
-            }}>
-              <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#00205b' }}>
-                ⏱️ Tiempo de Desplazamiento Casa-Trabajo
-              </h3>
-              <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.8rem', color: '#64748b' }}>
-                Duración promedio del trayecto hacia la sede
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                {(stats.distTiempos || []).map((t) => (
-                  <div key={t.tiempo} style={{ background: '#f8fafc', padding: '0.8rem 1rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span>🕒</span>
-                      <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#334155' }}>{t.tiempo}</span>
-                    </div>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#0284c7' }}>{t.count}</span>
+                    <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700 }}>{epp.item}</div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#00205b' }}>{epp.count}</div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
+
+          {/* VISTA PREVIA DE LA TABLA VINCULADA EN RESUMEN */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 4px 15px rgba(0,0,0,0.04)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.6rem' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#00205b' }}>
+                  👥 Colaboradores Filtrados ({filteredRecords.length})
+                </h3>
+                <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>
+                  Esta lista responde de inmediato a los clics realizados en las gráficas de SOAT, transporte o empresa
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="🔍 Buscar en esta vista..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{
+                    padding: '0.5rem 0.8rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.82rem',
+                    minWidth: '220px'
+                  }}
+                />
+                <button
+                  onClick={() => setActiveTab('censo')}
+                  style={{
+                    background: '#00205b',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '0.5rem 0.9rem',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Ver en Censo Completo →
+                </button>
+              </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                <thead>
+                  <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>
+                    <th style={{ padding: '0.7rem 0.9rem' }}>Colaborador</th>
+                    <th style={{ padding: '0.7rem 0.9rem' }}>Empresa</th>
+                    <th style={{ padding: '0.7rem 0.9rem' }}>Rol de Movilidad</th>
+                    <th style={{ padding: '0.7rem 0.9rem' }}>Placa</th>
+                    <th style={{ padding: '0.7rem 0.9rem' }}>Estado SOAT</th>
+                    <th style={{ padding: '0.7rem 0.9rem' }}>Tecnomecánica</th>
+                    <th style={{ padding: '0.7rem 0.9rem', textAlign: 'center' }}>Detalle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRecords.slice(0, 15).map((r, idx) => (
+                    <tr key={r.id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                      <td style={{ padding: '0.7rem 0.9rem' }}>
+                        <div style={{ fontWeight: 700, color: '#0f172a' }}>{r.nombre}</div>
+                        <div style={{ fontSize: '0.72rem', color: '#64748b' }}>CC: {r.cedula} • {r.cargo}</div>
+                      </td>
+                      <td style={{ padding: '0.7rem 0.9rem', color: '#334155', fontWeight: 600 }}>
+                        {r.empresa}
+                      </td>
+                      <td style={{ padding: '0.7rem 0.9rem' }}>
+                        <span style={{
+                          background: '#f1f5f9',
+                          color: '#0f172a',
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '6px',
+                          fontWeight: 700,
+                          fontSize: '0.73rem'
+                        }}>
+                          {r.rol_principal}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.7rem 0.9rem' }}>
+                        {r.placa ? (
+                          <span style={{ background: '#fef3c7', color: '#92400e', padding: '0.2rem 0.45rem', borderRadius: '4px', fontWeight: 800, fontSize: '0.75rem' }}>
+                            {r.placa}
+                          </span>
+                        ) : (
+                          <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Sin vehículo</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '0.7rem 0.9rem' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          fontSize: '0.7rem',
+                          fontWeight: 800,
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px',
+                          background: r.estado_soat === 'Vigente' ? '#dcfce7' : r.estado_soat === 'Por Vencer' ? '#fef3c7' : r.estado_soat === 'Vencido' ? '#fee2e2' : '#f1f5f9',
+                          color: r.estado_soat === 'Vigente' ? '#15803d' : r.estado_soat === 'Por Vencer' ? '#b45309' : r.estado_soat === 'Vencido' ? '#b91c1c' : '#64748b'
+                        }}>
+                          {r.estado_soat}
+                        </span>
+                        {r.soat_vencimiento && <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.15rem' }}>{r.soat_vencimiento}</div>}
+                      </td>
+                      <td style={{ padding: '0.7rem 0.9rem' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          fontSize: '0.7rem',
+                          fontWeight: 800,
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px',
+                          background: r.estado_tecnomecanica === 'Vigente' ? '#dcfce7' : r.estado_tecnomecanica === 'Por Vencer' ? '#fef3c7' : r.estado_tecnomecanica === 'Vencido' ? '#fee2e2' : '#f1f5f9',
+                          color: r.estado_tecnomecanica === 'Vigente' ? '#15803d' : r.estado_tecnomecanica === 'Por Vencer' ? '#b45309' : r.estado_tecnomecanica === 'Vencido' ? '#b91c1c' : '#64748b'
+                        }}>
+                          {r.estado_tecnomecanica}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.7rem 0.9rem', textAlign: 'center' }}>
+                        <button
+                          onClick={() => setSelectedRecord(r)}
+                          style={{
+                            background: '#00205b',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '0.3rem 0.6rem',
+                            borderRadius: '6px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Ver Perfil
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filteredRecords.length > 15 && (
+                <div style={{ textAlign: 'center', padding: '0.8rem', fontSize: '0.8rem', color: '#64748b' }}>
+                  Mostrando los primeros 15 de <strong>{filteredRecords.length}</strong> registros filtrados. Haz clic en la pestaña <strong>"Censo Completo"</strong> para explorar todos.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
-      {/* 2. PESTAÑA CONTROL DOCUMENTAL (PLACAS) */}
+      {/* PESTAÑA 2: CONTROL DOCUMENTAL DE PLACAS */}
       {activeTab === 'documentos' && (
         <div style={{ background: '#ffffff', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -750,7 +1265,7 @@ export default function RegresoSeguroPage() {
                 🚗 Parque Automotor y Control de Vencimientos
               </h3>
               <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>
-                Listado de los 58 vehículos registrados con semaforización de SOAT y Tecnicomecánica
+                Mostrando {filteredRecords.filter(r => r.placa).length} vehículos registrados
               </p>
             </div>
           </div>
@@ -771,7 +1286,7 @@ export default function RegresoSeguroPage() {
               </thead>
               <tbody>
                 {filteredRecords.filter(r => r.placa).map((r, i) => (
-                  <tr key={r.id || i} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}>
+                  <tr key={r.id || i} style={{ borderBottom: '1px solid #f1f5f9' }}>
                     <td style={{ padding: '0.75rem 1rem', fontWeight: 800, color: '#00205b' }}>
                       <span style={{
                         background: '#fef3c7',
@@ -801,7 +1316,6 @@ export default function RegresoSeguroPage() {
                         {r.tipo_vehiculo}
                       </span>
                     </td>
-                    {/* SOAT */}
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <div>{r.soat_vencimiento || 'Sin fecha'}</div>
                       <span style={{
@@ -816,7 +1330,6 @@ export default function RegresoSeguroPage() {
                         {r.estado_soat}
                       </span>
                     </td>
-                    {/* Tecno */}
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <div>{r.tecnomecanica_vencimiento || 'Sin fecha'}</div>
                       <span style={{
@@ -831,12 +1344,10 @@ export default function RegresoSeguroPage() {
                         {r.estado_tecnomecanica}
                       </span>
                     </td>
-                    {/* Licencia */}
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <div style={{ fontWeight: 600 }}>{r.tipo_licencia || 'N/A'}</div>
                       <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{r.fecha_vencimiento_licencia || ''}</div>
                     </td>
-                    {/* Acciones */}
                     <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
                       <button
                         onClick={() => setSelectedRecord(r)}
@@ -862,7 +1373,7 @@ export default function RegresoSeguroPage() {
         </div>
       )}
 
-      {/* 3. PESTAÑA INSPECCIONES PREOPERACIONALES DE MOTOS (HOJA 2) */}
+      {/* PESTAÑA 3: INSPECCIONES PREOPERACIONALES DE MOTOS */}
       {activeTab === 'inspecciones' && (
         <div style={{ background: '#ffffff', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
           <div style={{ marginBottom: '1.5rem' }}>
@@ -870,7 +1381,7 @@ export default function RegresoSeguroPage() {
               🏍️ Inspecciones Preoperacionales de Motocicletas (Hoja 2)
             </h3>
             <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.82rem', color: '#64748b' }}>
-              Auditoría mecánica, estado de frenos, luces, llantas y equipo de seguridad vial obligatorio
+              Auditoría mecánica y de seguridad vial para motocicletas de la operación Barrancabermeja
             </p>
           </div>
 
@@ -886,7 +1397,6 @@ export default function RegresoSeguroPage() {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
                 }}
               >
-                {/* Header Moto */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                   <div>
                     <span style={{
@@ -920,33 +1430,27 @@ export default function RegresoSeguroPage() {
                   </span>
                 </div>
 
-                {/* Grid de Estado de Componentes */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.6rem', fontSize: '0.78rem' }}>
                   <div style={{ background: '#ffffff', padding: '0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <div style={{ color: '#64748b', fontWeight: 600 }}>Niveles y Líquidos:</div>
                     <div style={{ color: '#10b981', fontWeight: 800 }}>✔ Sin fugas de combustible ni aceite</div>
                   </div>
-
                   <div style={{ background: '#ffffff', padding: '0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <div style={{ color: '#64748b', fontWeight: 600 }}>Estado Mecánico:</div>
                     <div style={{ color: '#10b981', fontWeight: 800 }}>✔ Cadena, Relación y Frenos OK</div>
                   </div>
-
                   <div style={{ background: '#ffffff', padding: '0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <div style={{ color: '#64748b', fontWeight: 600 }}>Sistema de Luces:</div>
-                    <div style={{ color: '#10b981', fontWeight: 800 }}>✔ Medias, Bajas, Direccionales y Freno OK</div>
+                    <div style={{ color: '#10b981', fontWeight: 800 }}>✔ Luces Medias, Bajas, Freno y Direccionales</div>
                   </div>
-
                   <div style={{ background: '#ffffff', padding: '0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <div style={{ color: '#64748b', fontWeight: 600 }}>Llantas y Pernos:</div>
                     <div style={{ color: '#10b981', fontWeight: 800 }}>✔ Desgaste y ajuste óptimo</div>
                   </div>
-
                   <div style={{ background: '#ffffff', padding: '0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <div style={{ color: '#64748b', fontWeight: 600 }}>Equipo de Seguridad:</div>
                     <div style={{ color: '#10b981', fontWeight: 800 }}>✔ Casco, Chaleco, Botas y Herramientas</div>
                   </div>
-
                   <div style={{ background: '#ffffff', padding: '0.6rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                     <div style={{ color: '#64748b', fontWeight: 600 }}>Documentos:</div>
                     <div style={{ color: '#0284c7', fontWeight: 800 }}>SOAT: {insp.soat_vencimiento} • Tecno: {insp.tecnomecanica_vencimiento}</div>
@@ -958,9 +1462,18 @@ export default function RegresoSeguroPage() {
         </div>
       )}
 
-      {/* 4. PESTAÑA CENSO COMPLETO DE COLABORADORES */}
+      {/* PESTAÑA 4: CENSO COMPLETO DE COLABORADORES */}
       {activeTab === 'censo' && (
         <div style={{ background: '#ffffff', borderRadius: '16px', padding: '1.5rem', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#00205b' }}>
+              Directorio General de Colaboradores ({filteredRecords.length})
+            </h3>
+            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+              Usa los filtros superiores para refinar la búsqueda
+            </div>
+          </div>
+
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
               <thead>
@@ -1020,7 +1533,7 @@ export default function RegresoSeguroPage() {
                           fontSize: '0.72rem',
                           fontWeight: 700
                         }}>
-                          {r.riesgos_identificados.length} riesgo(s) reportado(s)
+                          {r.riesgos_identificados.length} riesgo(s)
                         </span>
                       ) : (
                         <span style={{ color: '#10b981', fontSize: '0.75rem', fontWeight: 600 }}>Sin riesgos</span>
@@ -1097,7 +1610,6 @@ export default function RegresoSeguroPage() {
               ✕
             </button>
 
-            {/* Encabezado del Colaborador */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
               <div style={{
                 width: '54px',
@@ -1123,7 +1635,6 @@ export default function RegresoSeguroPage() {
               </div>
             </div>
 
-            {/* Información de Residencia y Ruta */}
             <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', marginBottom: '1.2rem', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.8rem', fontSize: '0.82rem' }}>
               <div>
                 <span style={{ color: '#64748b' }}>Ciudad y Barrio:</span>
@@ -1143,7 +1654,6 @@ export default function RegresoSeguroPage() {
               </div>
             </div>
 
-            {/* Datos del Vehículo */}
             {selectedRecord.placa && (
               <div style={{ background: '#eff6ff', padding: '1rem', borderRadius: '12px', marginBottom: '1.2rem', border: '1px solid #bfdbfe' }}>
                 <h4 style={{ margin: '0 0 0.6rem 0', color: '#1e40af', fontSize: '0.9rem', fontWeight: 800 }}>
@@ -1170,7 +1680,6 @@ export default function RegresoSeguroPage() {
               </div>
             )}
 
-            {/* Riesgos Reportados */}
             <div style={{ marginBottom: '1.2rem' }}>
               <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 800, color: '#b91c1c' }}>
                 ⚠️ Riesgos Viales Reportados en sus Desplazamientos
@@ -1190,7 +1699,6 @@ export default function RegresoSeguroPage() {
               )}
             </div>
 
-            {/* Elementos de Protección Personal */}
             {Array.isArray(selectedRecord.epp_elementos) && selectedRecord.epp_elementos.length > 0 && (
               <div>
                 <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 800, color: '#00205b' }}>
