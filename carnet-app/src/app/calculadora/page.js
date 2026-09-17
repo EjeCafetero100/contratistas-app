@@ -381,6 +381,20 @@ export default function CalculadoraPage() {
               🖥️ {isFullscreen ? "Salir" : "Pantalla Completa"}
             </button>
             <Link
+              href="/induccion"
+              style={{
+                background: "#fcd116",
+                color: "#00205b",
+                padding: "0.3rem 0.7rem",
+                borderRadius: "6px",
+                fontWeight: "800",
+                fontSize: "0.72rem",
+                textDecoration: "none"
+              }}
+            >
+              🎓 Inducciones
+            </Link>
+            <Link
               href="/"
               style={{
                 background: "#00205b",

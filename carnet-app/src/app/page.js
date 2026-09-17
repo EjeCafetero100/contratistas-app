@@ -11,6 +11,8 @@ export default function HomePage() {
     selectCity(cityName);
     if (cityName === "Pereira") {
       router.push("/calculadora");
+    } else if (cityName === "Barrancabermeja") {
+      router.push("/barrancabermeja/inducciones");
     } else {
       router.push("/dashboard");
     }
@@ -32,12 +34,48 @@ export default function HomePage() {
         <p className="home-subtitle">
           Selecciona el centro de distribución que deseas consultar.
         </p>
+
+        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center', gap: '1rem' }}>
+          <button 
+            onClick={() => router.push('/barrancabermeja/inducciones')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              backgroundColor: '#fcd116',
+              color: '#00205b',
+              fontWeight: 800,
+              fontSize: '0.95rem',
+              padding: '0.75rem 1.6rem',
+              borderRadius: '9999px',
+              border: 'none',
+              cursor: 'pointer',
+              boxShadow: '0 6px 20px rgba(252, 209, 22, 0.4)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em'
+            }}
+          >
+            <span>🎓</span> MÓDULO DE INDUCCIONES <span style={{ fontWeight: 900, marginLeft: '0.3rem' }}>→</span>
+          </button>
+        </div>
       </header>
 
       {/* Grid de Centros de Distribución */}
       <div className="cd-grid-container">
         {/* Tarjeta ARMENIA */}
-        <div className="cd-card cd-card-armenia">
+        <div 
+          className="cd-card cd-card-armenia"
+          onClick={() => handleSelectCity("Armenia")}
+          role="button"
+          tabIndex={0}
+          style={{ cursor: 'pointer' }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleSelectCity("Armenia");
+            }
+          }}
+        >
           <div className="cd-card-header">
             <div className="cd-icon-wrapper">
               <svg className="cd-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -57,7 +95,10 @@ export default function HomePage() {
           <div className="cd-card-footer">
             <button 
               className="btn-cd-action"
-              onClick={() => handleSelectCity("Armenia")}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSelectCity("Armenia");
+              }}
             >
               INGRESAR A ARMENIA
               <span className="arrow-icon">→</span>
@@ -66,7 +107,19 @@ export default function HomePage() {
         </div>
 
         {/* Tarjeta PEREIRA */}
-        <div className="cd-card cd-card-pereira">
+        <div 
+          className="cd-card cd-card-pereira"
+          onClick={() => handleSelectCity("Pereira")}
+          role="button"
+          tabIndex={0}
+          style={{ cursor: 'pointer' }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleSelectCity("Pereira");
+            }
+          }}
+        >
           <div className="cd-card-header">
             <div className="cd-icon-wrapper">
               <svg className="cd-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -86,7 +139,10 @@ export default function HomePage() {
           <div className="cd-card-footer">
             <button 
               className="btn-cd-action"
-              onClick={() => handleSelectCity("Pereira")}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSelectCity("Pereira");
+              }}
             >
               INGRESAR A PEREIRA
               <span className="arrow-icon">→</span>
@@ -95,7 +151,19 @@ export default function HomePage() {
         </div>
 
         {/* Tarjeta BARRANCABERMEJA */}
-        <div className="cd-card cd-card-barrancabermeja">
+        <div 
+          className="cd-card cd-card-barrancabermeja"
+          onClick={() => handleSelectCity("Barrancabermeja")}
+          role="button"
+          tabIndex={0}
+          style={{ cursor: 'pointer' }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleSelectCity("Barrancabermeja");
+            }
+          }}
+        >
           <div className="cd-card-header">
             <div className="cd-icon-wrapper">
               <svg className="cd-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -108,18 +176,42 @@ export default function HomePage() {
             </div>
             <h2 className="cd-card-title">BARRANCABERMEJA</h2>
             <p className="cd-card-desc">
-              Centro de Distribución Barrancabermeja • Santander. Monitorea la gestión de personal no grato, licencias y vehículos.
+              Centro de Distribución Barrancabermeja • Santander. Acceso directo al nuevo portal de Inducciones y módulos operativos.
             </p>
           </div>
           
           <div className="cd-card-footer">
             <button 
               className="btn-cd-action"
-              onClick={() => handleSelectCity("Barrancabermeja")}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSelectCity("Barrancabermeja");
+              }}
             >
               INGRESAR A BARRANCABERMEJA
               <span className="arrow-icon">→</span>
             </button>
+            <div style={{ marginTop: '0.65rem', textAlign: 'center' }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selectCity("Barrancabermeja");
+                  router.push("/barrancabermeja/inducciones");
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#00205b',
+                  fontSize: '0.82rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  padding: '0.2rem'
+                }}
+              >
+                🎓 Ir a Inducciones Barrancabermeja →
+              </button>
+            </div>
           </div>
         </div>
       </div>

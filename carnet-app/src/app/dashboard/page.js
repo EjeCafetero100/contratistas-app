@@ -55,27 +55,92 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {selectedCity === 'Pereira' && (
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <Link
-            href="/calculadora"
+            href={selectedCity === 'Barrancabermeja' ? '/barrancabermeja/inducciones' : '/induccion'}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.5rem',
-              backgroundColor: '#00205b',
-              color: '#fcd116',
+              backgroundColor: '#fcd116',
+              color: '#00205b',
               padding: '0.6rem 1.2rem',
               borderRadius: '8px',
               fontWeight: '800',
               fontSize: '0.9rem',
               textDecoration: 'none',
-              boxShadow: '0 4px 12px rgba(0, 32, 91, 0.2)'
+              boxShadow: '0 4px 12px rgba(252, 209, 22, 0.3)'
             }}
           >
-            <span>🗓️</span> GESTIÓN DE INCIDENTES
+            <span>🎓</span> INDUCCIONES {selectedCity ? selectedCity.toUpperCase() : ''}
           </Link>
-        )}
+
+          {selectedCity === 'Pereira' && (
+            <Link
+              href="/calculadora"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                backgroundColor: '#00205b',
+                color: '#fcd116',
+                padding: '0.6rem 1.2rem',
+                borderRadius: '8px',
+                fontWeight: '800',
+                fontSize: '0.9rem',
+                textDecoration: 'none',
+                boxShadow: '0 4px 12px rgba(0, 32, 91, 0.2)'
+              }}
+            >
+              <span>🗓️</span> GESTIÓN DE INCIDENTES
+            </Link>
+          )}
+        </div>
       </header>
+
+      {selectedCity === 'Barrancabermeja' && (
+        <div style={{
+          background: 'linear-gradient(135deg, #00205b 0%, #001233 100%)',
+          border: '2px solid #fcd116',
+          borderRadius: '16px',
+          padding: '1.25rem 1.75rem',
+          marginBottom: '2rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          color: '#ffffff',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          boxShadow: '0 8px 25px rgba(0, 32, 91, 0.25)'
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <span style={{ fontSize: '1.4rem' }}>🎓</span>
+              <h3 style={{ margin: 0, color: '#fcd116', fontSize: '1.2rem' }}>MÓDULO DE INDUCCIONES — BARRANCABERMEJA</h3>
+            </div>
+            <p style={{ margin: 0, color: '#cbd5e1', fontSize: '0.9rem' }}>
+              Accede al tablero oficial con las 5 inducciones (Conductores, GLP, Distoyota, Contratistas y Visitantes).
+            </p>
+          </div>
+          <Link
+            href="/barrancabermeja/inducciones"
+            style={{
+              background: '#fcd116',
+              color: '#00205b',
+              fontWeight: 800,
+              padding: '0.75rem 1.5rem',
+              borderRadius: '10px',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: '0.95rem'
+            }}
+          >
+            INGRESAR A INDUCCIONES BARRANCABERMEJA →
+          </Link>
+        </div>
+      )}
 
       <div className="glass-panel">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>

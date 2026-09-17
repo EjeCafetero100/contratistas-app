@@ -592,6 +592,292 @@ textarea:focus {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   color: #94a3b8;
   font-size: 0.875rem;
+/* ==========================================================================
+   MÓDULO INDUCCIONES — TABLERO Y SUBPANEL CORPORATIVO
+   ========================================================================== */
+
+.inducciones-title-banner {
+  background: #00205b;
+  border-top: 4px solid #fcd116;
+  border-bottom: 4px solid #fcd116;
+  padding: 1.25rem 2.5rem;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0, 32, 91, 0.7), inset 0 0 30px rgba(252, 209, 22, 0.08);
+  display: inline-block;
+  max-width: 100%;
+  margin-bottom: 1.25rem;
+}
+
+.inducciones-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+  width: 100%;
+  align-items: stretch;
+}
+
+/* ==========================================================================
+   NUEVA CUADRÍCULA 2 x 2 Y TARJETAS HERO CON IMÁGENES PROFESIONALES
+   ========================================================================== */
+.inducciones-grid-2x2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+  width: 100%;
+  max-width: 1250px;
+  margin: 0 auto 3rem auto;
+  align-items: stretch;
+}
+
+.induccion-card-feature {
+  background: #ffffff;
+  border-radius: 22px;
+  border: 1.5px solid rgba(226, 232, 240, 0.9);
+  border-top: 5px solid #00205b;
+  box-shadow: 0 14px 38px rgba(0, 32, 91, 0.12), 0 4px 12px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  cursor: pointer;
+  height: 100%;
+}
+
+.induccion-card-feature:hover {
+  transform: translateY(-8px) scale(1.01);
+  border-top-color: #fcd116;
+  border-color: rgba(252, 209, 22, 0.7);
+  box-shadow: 0 22px 50px rgba(0, 32, 91, 0.22), 0 8px 25px rgba(252, 209, 22, 0.25);
+}
+
+.induccion-card-image-box {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  overflow: hidden;
+  background: #001233;
+}
+
+@keyframes subtlePulseImg {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+
+@keyframes gentleFloatBadge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes badgePulseDot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.5; }
+}
+
+.induccion-card-hero-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  animation: subtlePulseImg 14s ease-in-out infinite alternate;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.induccion-card-feature:hover .induccion-card-hero-img {
+  transform: scale(1.08);
+  animation-play-state: paused;
+}
+
+.induccion-card-image-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 32, 91, 0.15) 0%, rgba(0, 18, 51, 0.75) 100%);
+  pointer-events: none;
+}
+
+.induccion-card-badge-floating {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: rgba(0, 32, 91, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1.5px solid #fcd116;
+  color: #fcd116;
+  font-weight: 800;
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  padding: 0.4rem 0.95rem;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  text-transform: uppercase;
+  z-index: 2;
+}
+
+.badge-pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+  display: inline-block;
+  animation: badgePulseDot 2s ease-in-out infinite;
+}
+
+.induccion-card-icon-pill {
+  position: absolute;
+  bottom: -22px;
+  right: 1.5rem;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 3.5px solid #fcd116;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(0, 32, 91, 0.28);
+  z-index: 3;
+  animation: gentleFloatBadge 4s ease-in-out infinite;
+  transition: transform 0.3s ease;
+}
+
+.induccion-card-feature:hover .induccion-card-icon-pill {
+  transform: scale(1.18) rotate(8deg);
+  animation-play-state: paused;
+}
+
+.induccion-card-content {
+  padding: 2rem 1.8rem 1.6rem 1.8rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
+}
+
+.induccion-card-title-lg {
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #00205b;
+  line-height: 1.25;
+  margin: 0 0 0.75rem 0;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.induccion-card-desc-lg {
+  font-size: 0.96rem;
+  line-height: 1.6;
+  color: #475569;
+  margin: 0 0 1.6rem 0;
+  font-weight: 500;
+}
+
+.induccion-feature-btn {
+  width: 100%;
+  background: #fcd116;
+  color: #00205b;
+  font-weight: 900;
+  font-size: 1.05rem;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 14px rgba(252, 209, 22, 0.35);
+}
+
+.induccion-card-feature:hover .induccion-feature-btn {
+  background: #e6bc0a;
+  box-shadow: 0 8px 22px rgba(252, 209, 22, 0.55);
+}
+
+.induccion-card-feature:hover .arrow-icon {
+  transform: translateX(6px);
+}
+
+.induccion-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 2rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.28);
+  border-top: 6px solid #fcd116;
+  border-left: 2px solid rgba(252, 209, 22, 0.15);
+  border-right: 2px solid rgba(252, 209, 22, 0.15);
+  border-bottom: 2px solid rgba(252, 209, 22, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.induccion-card:hover {
+  transform: translateY(-8px);
+  border-top-color: #fcd116;
+  border-color: #fcd116;
+  box-shadow: 0 20px 45px rgba(252, 209, 22, 0.25), 0 10px 25px rgba(0, 32, 91, 0.3);
+}
+
+.induccion-btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 0.6rem 1.4rem;
+  border-radius: 9999px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all 0.2s ease;
+  margin-bottom: 1.5rem;
+}
+
+.induccion-btn-back:hover {
+  background: #fcd116;
+  color: #00205b;
+  border-color: #fcd116;
+  transform: translateX(-3px);
+}
+
+@media (max-width: 1200px) {
+  .inducciones-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .inducciones-grid-2x2 {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+  }
+}
+
+@media (max-width: 680px) {
+  .inducciones-grid-4 {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .inducciones-title-banner {
+    padding: 1rem 1.25rem;
+  }
 }
 
 /* Top Navigation Bar */
@@ -777,6 +1063,270 @@ textarea:focus {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.5rem;
+}
+
+/* ==========================================================================
+   MÓDULO INDUCCIONES BARRANCABERMEJA — GRID 3 + 2 & ESTILO CORPORATIVO
+   ========================================================================== */
+
+.inducciones-barranca-portal {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #00205b 0%, #001233 60%, #0a192f 100%);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2.5rem 1.5rem 3rem 1.5rem;
+  width: 100%;
+}
+
+.inducciones-barranca-container {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.inducciones-top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.btn-inducciones-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 0.6rem 1.25rem;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(8px);
+}
+
+.btn-inducciones-back:hover {
+  background: #fcd116;
+  color: #00205b;
+  border-color: #fcd116;
+  transform: translateX(-3px);
+  box-shadow: 0 4px 15px rgba(252, 209, 22, 0.35);
+}
+
+.inducciones-hero {
+  text-align: center;
+  margin-bottom: 3.5rem;
+}
+
+.inducciones-badge-barranca {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #fcd116;
+  color: #00205b;
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 0.5rem 1.35rem;
+  border-radius: 9999px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 15px rgba(252, 209, 22, 0.4);
+  margin-bottom: 1.25rem;
+}
+
+.inducciones-main-title {
+  font-size: 2.85rem;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  line-height: 1.15;
+  margin-bottom: 0.75rem;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.inducciones-main-subtitle {
+  font-size: 1.2rem;
+  color: #cbd5e1;
+  font-weight: 500;
+  max-width: 750px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+
+/* Cuadrícula de 5 tarjetas: 3 en primera fila, 2 en segunda fila centradas */
+.inducciones-grid-3-2 {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2rem;
+  width: 100%;
+  margin-bottom: 3.5rem;
+  align-items: stretch;
+}
+
+/* Fila 1: 3 tarjetas de 2 columnas cada una (2 + 2 + 2 = 6 columnas) */
+.inducciones-grid-3-2 > :nth-child(1),
+.inducciones-grid-3-2 > :nth-child(2),
+.inducciones-grid-3-2 > :nth-child(3) {
+  grid-column: span 2;
+}
+
+/* Fila 2: 2 tarjetas centradas (columnas 2-3 y 4-5 dentro de las 6 columnas) */
+.inducciones-grid-3-2 > :nth-child(4) {
+  grid-column: 2 / span 2;
+}
+
+.inducciones-grid-3-2 > :nth-child(5) {
+  grid-column: 4 / span 2;
+}
+
+/* Tarjeta individual de inducción con estilo idéntico al panel de CD */
+.induccion-card-item {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 2.25rem 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.3);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  border: 3px solid transparent;
+  border-top: 6px solid #00205b;
+  cursor: pointer;
+  height: 100%;
+  text-decoration: none;
+}
+
+.induccion-card-item:hover {
+  transform: translateY(-10px);
+  border-color: #fcd116;
+  border-top-color: #fcd116;
+  box-shadow: 0 25px 50px rgba(252, 209, 22, 0.28);
+}
+
+.induccion-card-item .cd-card-title {
+  font-size: 1.55rem;
+  line-height: 1.25;
+  min-height: 3.8rem;
+  display: flex;
+  align-items: center;
+}
+
+.induccion-card-item .cd-card-desc {
+  min-height: 3.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.induccion-card-item .btn-cd-action {
+  font-size: 0.92rem;
+  padding: 1rem 1.2rem;
+  letter-spacing: 0.02em;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.main-content:has(.inducciones-barranca-portal) {
+  background: linear-gradient(135deg, #00205b 0%, #001233 60%, #0a192f 100%);
+}
+
+.main-content:has(.inducciones-barranca-portal) .page-content-wrapper {
+  padding: 0;
+}
+
+/* Adaptación responsive para Tablet */
+@media (max-width: 1080px) {
+  .inducciones-grid-3-2 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
   }
+  .inducciones-grid-3-2 > :nth-child(1),
+  .inducciones-grid-3-2 > :nth-child(2),
+  .inducciones-grid-3-2 > :nth-child(3),
+  .inducciones-grid-3-2 > :nth-child(4) {
+    grid-column: auto;
+  }
+  .inducciones-grid-3-2 > :nth-child(5) {
+    grid-column: 1 / -1;
+    max-width: 520px;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+/* Adaptación responsive para Móvil */
+@media (max-width: 680px) {
+  .inducciones-barranca-portal {
+    padding: 1.5rem 1rem 2rem 1rem;
+  }
+  .inducciones-main-title {
+    font-size: 2rem;
+  }
+  .inducciones-main-subtitle {
+    font-size: 1rem;
+  }
+  .inducciones-grid-3-2 {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+  .inducciones-grid-3-2 > :nth-child(1),
+  .inducciones-grid-3-2 > :nth-child(2),
+  .inducciones-grid-3-2 > :nth-child(3),
+  .inducciones-grid-3-2 > :nth-child(4),
+  .inducciones-grid-3-2 > :nth-child(5) {
+    grid-column: auto;
+    max-width: 100%;
+  }
+  .induccion-card-item {
+    padding: 1.75rem 1.5rem;
+  }
+  .induccion-card-item .cd-card-title {
+    min-height: auto;
+    margin-bottom: 0.5rem;
+  }
+  .induccion-card-item .cd-card-desc {
+    min-height: auto;
+    margin-bottom: 1.25rem;
+  }
+}
+
+/* Estilos de la pantalla provisional (Placeholder) */
+.induccion-placeholder-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 3.5rem 2.5rem;
+  max-width: 720px;
+  width: 100%;
+  margin: 2rem auto;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  border-top: 8px solid #fcd116;
+}
+
+.induccion-placeholder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(252, 209, 22, 0.2);
+  border: 1px solid rgba(252, 209, 22, 0.8);
+  color: #00205b;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 0.4rem 1.1rem;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1.5rem;
 }
 
