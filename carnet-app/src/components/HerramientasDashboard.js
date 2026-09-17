@@ -20,6 +20,7 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
   const [filterStatus, setFilterStatus] = useState('Todos');
   const [selectedCarretilla, setSelectedCarretilla] = useState('Todas');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [activeView, setActiveView] = useState('detalle'); // 'detalle' | 'todas_paneles'
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -127,6 +128,34 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
     return Object.entries(map).map(([name, count]) => ({ name, count }));
   }, [records]);
 
+  // Estadísticas detalladas por cada carretilla individual
+  const carretillasStats = useMemo(() => {
+    const map = {};
+    records.forEach(r => {
+      const c = r.codigo || r.equipo || 'Carretilla';
+      if (!map[c]) {
+        map[c] = {
+          name: c,
+          total: 0,
+          operativos: 0,
+          mantenimiento: 0,
+          fueraServicio: 0,
+          ultimoInspector: r.inspector || 'Auxiliar Operativo',
+          cargo: r.cargo || 'Auxiliar',
+          ultimaFecha: r.fecha_inspeccion || '',
+          area: r.area || 'Picking',
+          turno: r.turno || 'Turno 1'
+        };
+      }
+      map[c].total++;
+      if (r.estado === 'Operativo') map[c].operativos++;
+      else if (r.estado === 'Mantenimiento') map[c].mantenimiento++;
+      else if (r.estado === 'Fuera de Servicio') map[c].fueraServicio++;
+    });
+
+    return Object.values(map).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  }, [records]);
+
   // Filtrado de registros reactivo
   const filteredRecords = useMemo(() => {
     return records.filter(r => {
@@ -194,6 +223,251 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, title.replace(/[^a-zA-Z0-9]/g, '_'));
     XLSX.writeFile(wb, `${tipo}_inspecciones_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  // Función para renderizar los 4 paneles idénticos a la referencia visual del usuario
+  const renderKpiPanelGroup = (equipoName, total, operativos, mantenimiento, fueraServicio, isFilterable = false) => {
+    const isSingleCarretilla = equipoName !== 'Todas' && equipoName !== 'FLOTA TOTAL';
+    const displayTitle = isSingleCarretilla ? `INSPECCIONES ${equipoName.toUpperCase()}` : 'INSPECCIONES TOTALES';
+
+    return (
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
+        gap: '1.2rem',
+        marginBottom: '1.5rem'
+      }}>
+        {/* Panel 1: Total Inspecciones */}
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '18px',
+          padding: '1.45rem 1.6rem 1.35rem 1.8rem',
+          boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+          border: '1px solid #f1f5f9',
+          position: 'relative',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          minHeight: '128px'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: '6px',
+            background: '#00205b',
+            borderTopLeftRadius: '18px',
+            borderBottomLeftRadius: '18px'
+          }} />
+          <div style={{
+            fontSize: '0.8rem',
+            fontWeight: 800,
+            color: '#475569',
+            letterSpacing: '0.03em',
+            textTransform: 'uppercase',
+            marginBottom: '0.35rem'
+          }}>
+            {displayTitle}
+          </div>
+          <div style={{
+            fontSize: '2.75rem',
+            fontWeight: 900,
+            color: '#00205b',
+            lineHeight: 1,
+            margin: '0 0 0.35rem 0',
+            letterSpacing: '-0.03em'
+          }}>
+            {total}
+          </div>
+          <div style={{
+            fontSize: '0.84rem',
+            color: '#64748b',
+            fontWeight: 500
+          }}>
+            {isSingleCarretilla ? 'Registros filtrados' : 'Total flota registrada'}
+          </div>
+        </div>
+
+        {/* Panel 2: Operativos (OK) */}
+        <div
+          onClick={isFilterable ? () => setFilterStatus(filterStatus === 'Operativo' ? 'Todos' : 'Operativo') : undefined}
+          style={{
+            background: isFilterable && filterStatus === 'Operativo' ? '#f0fdf4' : '#ffffff',
+            borderRadius: '18px',
+            padding: '1.45rem 1.6rem 1.35rem 1.8rem',
+            boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+            border: isFilterable && filterStatus === 'Operativo' ? '2px solid #10b981' : '1px solid #f1f5f9',
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            minHeight: '128px',
+            cursor: isFilterable ? 'pointer' : 'default',
+            transition: 'all 0.15s ease'
+          }}
+          title={isFilterable ? "Clic para filtrar operativos" : undefined}
+        >
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: '6px',
+            background: '#10b981',
+            borderTopLeftRadius: '18px',
+            borderBottomLeftRadius: '18px'
+          }} />
+          <div style={{
+            fontSize: '0.8rem',
+            fontWeight: 800,
+            color: '#15803d',
+            letterSpacing: '0.03em',
+            textTransform: 'uppercase',
+            marginBottom: '0.35rem'
+          }}>
+            OPERATIVOS (OK)
+          </div>
+          <div style={{
+            fontSize: '2.75rem',
+            fontWeight: 900,
+            color: '#15803d',
+            lineHeight: 1,
+            margin: '0 0 0.35rem 0',
+            letterSpacing: '-0.03em'
+          }}>
+            {operativos}
+          </div>
+          <div style={{
+            fontSize: '0.84rem',
+            color: '#166534',
+            fontWeight: 600
+          }}>
+            Listos para la operación
+          </div>
+        </div>
+
+        {/* Panel 3: Requiere Mantenimiento */}
+        <div
+          onClick={isFilterable ? () => setFilterStatus(filterStatus === 'Mantenimiento' ? 'Todos' : 'Mantenimiento') : undefined}
+          style={{
+            background: isFilterable && filterStatus === 'Mantenimiento' ? '#fffbeb' : '#ffffff',
+            borderRadius: '18px',
+            padding: '1.45rem 1.6rem 1.35rem 1.8rem',
+            boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+            border: isFilterable && filterStatus === 'Mantenimiento' ? '2px solid #f59e0b' : '1px solid #f1f5f9',
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            minHeight: '128px',
+            cursor: isFilterable ? 'pointer' : 'default',
+            transition: 'all 0.15s ease'
+          }}
+          title={isFilterable ? "Clic para filtrar en mantenimiento" : undefined}
+        >
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: '6px',
+            background: '#f59e0b',
+            borderTopLeftRadius: '18px',
+            borderBottomLeftRadius: '18px'
+          }} />
+          <div style={{
+            fontSize: '0.8rem',
+            fontWeight: 800,
+            color: '#b45309',
+            letterSpacing: '0.03em',
+            textTransform: 'uppercase',
+            marginBottom: '0.35rem'
+          }}>
+            REQUIERE MANTENIMIENTO
+          </div>
+          <div style={{
+            fontSize: '2.75rem',
+            fontWeight: 900,
+            color: '#c2410c',
+            lineHeight: 1,
+            margin: '0 0 0.35rem 0',
+            letterSpacing: '-0.03em'
+          }}>
+            {mantenimiento}
+          </div>
+          <div style={{
+            fontSize: '0.84rem',
+            color: '#78350f',
+            fontWeight: 600
+          }}>
+            Ajuste preventivo (bujes/llantas)
+          </div>
+        </div>
+
+        {/* Panel 4: Fuera de Servicio */}
+        <div
+          onClick={isFilterable ? () => setFilterStatus(filterStatus === 'Fuera de Servicio' ? 'Todos' : 'Fuera de Servicio') : undefined}
+          style={{
+            background: isFilterable && filterStatus === 'Fuera de Servicio' ? '#fef2f2' : '#ffffff',
+            borderRadius: '18px',
+            padding: '1.45rem 1.6rem 1.35rem 1.8rem',
+            boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02)',
+            border: isFilterable && filterStatus === 'Fuera de Servicio' ? '2px solid #ef4444' : '1px solid #f1f5f9',
+            position: 'relative',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            minHeight: '128px',
+            cursor: isFilterable ? 'pointer' : 'default',
+            transition: 'all 0.15s ease'
+          }}
+          title={isFilterable ? "Clic para filtrar fuera de servicio" : undefined}
+        >
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: '6px',
+            background: '#ef4444',
+            borderTopLeftRadius: '18px',
+            borderBottomLeftRadius: '18px'
+          }} />
+          <div style={{
+            fontSize: '0.8rem',
+            fontWeight: 800,
+            color: '#b91c1c',
+            letterSpacing: '0.03em',
+            textTransform: 'uppercase',
+            marginBottom: '0.35rem'
+          }}>
+            FUERA DE SERVICIO
+          </div>
+          <div style={{
+            fontSize: '2.75rem',
+            fontWeight: 900,
+            color: '#dc2626',
+            lineHeight: 1,
+            margin: '0 0 0.35rem 0',
+            letterSpacing: '-0.03em'
+          }}>
+            {fueraServicio}
+          </div>
+          <div style={{
+            fontSize: '0.84rem',
+            color: '#7f1d1d',
+            fontWeight: 600
+          }}>
+            Fisuras o daño estructural
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -411,164 +685,306 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
         </div>
       )}
 
-      {/* Selector de Carretillas / Equipos Individuales */}
-      {carretillasList.length > 1 && (
+      {/* Selector de Modo de Vista (Detalle vs Todas las Carretillas en Paneles) */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '0.8rem',
+        marginBottom: '1.2rem',
+        flexWrap: 'wrap'
+      }}>
         <div style={{
-          background: '#ffffff',
-          borderRadius: '14px',
-          padding: '1rem 1.4rem',
-          marginBottom: '1.5rem',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
-          border: '1px solid #e2e8f0',
           display: 'flex',
-          alignItems: 'center',
-          gap: '0.6rem',
-          flexWrap: 'wrap'
+          gap: '0.4rem',
+          background: '#f1f5f9',
+          padding: '0.35rem',
+          borderRadius: '12px',
+          border: '1px solid #e2e8f0'
         }}>
-          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#00205b', textTransform: 'uppercase', marginRight: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span>🛒</span> Seleccionar Carretilla:
-          </span>
+          <button
+            onClick={() => setActiveView('detalle')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.55rem 1.1rem',
+              borderRadius: '9px',
+              border: 'none',
+              background: activeView === 'detalle' ? '#00205b' : 'transparent',
+              color: activeView === 'detalle' ? '#ffffff' : '#475569',
+              fontWeight: activeView === 'detalle' ? 800 : 600,
+              fontSize: '0.84rem',
+              cursor: 'pointer',
+              boxShadow: activeView === 'detalle' ? '0 2px 8px rgba(0, 32, 91, 0.25)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>🎯</span> Vista Activa & Filtros
+          </button>
+
+          <button
+            onClick={() => setActiveView('todas_paneles')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.55rem 1.1rem',
+              borderRadius: '9px',
+              border: 'none',
+              background: activeView === 'todas_paneles' ? '#00205b' : 'transparent',
+              color: activeView === 'todas_paneles' ? '#ffffff' : '#475569',
+              fontWeight: activeView === 'todas_paneles' ? 800 : 600,
+              fontSize: '0.84rem',
+              cursor: 'pointer',
+              boxShadow: activeView === 'todas_paneles' ? '0 2px 8px rgba(0, 32, 91, 0.25)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <span>🗂️</span> Ver Cada Carretilla en Paneles ({carretillasStats.length})
+          </button>
+        </div>
+
+        {activeView === 'detalle' && selectedCarretilla !== 'Todas' && (
           <button
             onClick={() => setSelectedCarretilla('Todas')}
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              background: '#fef2f2',
+              color: '#dc2626',
+              border: '1px solid #fecaca',
               padding: '0.4rem 0.85rem',
               borderRadius: '8px',
-              border: selectedCarretilla === 'Todas' ? '2px solid #00205b' : '1px solid #e2e8f0',
-              fontSize: '0.8rem',
-              fontWeight: selectedCarretilla === 'Todas' ? 800 : 600,
-              background: selectedCarretilla === 'Todas' ? '#00205b' : '#f8fafc',
-              color: selectedCarretilla === 'Todas' ? '#ffffff' : '#334155',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              boxShadow: selectedCarretilla === 'Todas' ? '0 2px 8px rgba(0, 32, 91, 0.25)' : 'none'
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              cursor: 'pointer'
             }}
           >
-            Todas ({records.length})
+            ✕ Quitar filtro ({selectedCarretilla})
           </button>
-          {carretillasList.map(c => {
-            const isSelected = selectedCarretilla === c.name;
-            return (
+        )}
+      </div>
+
+      {/* VISTA 1: DETALLE INTERACTIVO CON PANELES SUPERIORES IDENTICOS A LA REFERENCIA */}
+      {activeView === 'detalle' && (
+        <>
+          {/* Selector de Carretillas / Equipos Individuales */}
+          {carretillasList.length > 1 && (
+            <div style={{
+              background: '#ffffff',
+              borderRadius: '14px',
+              padding: '1rem 1.4rem',
+              marginBottom: '1.5rem',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+              border: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              flexWrap: 'wrap'
+            }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#00205b', textTransform: 'uppercase', marginRight: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span>🛒</span> Seleccionar Carretilla:
+              </span>
               <button
-                key={c.name}
-                onClick={() => setSelectedCarretilla(isSelected ? 'Todas' : c.name)}
+                onClick={() => setSelectedCarretilla('Todas')}
                 style={{
                   padding: '0.4rem 0.85rem',
                   borderRadius: '8px',
-                  border: isSelected ? '2px solid #00205b' : '1px solid #e2e8f0',
+                  border: selectedCarretilla === 'Todas' ? '2px solid #00205b' : '1px solid #e2e8f0',
                   fontSize: '0.8rem',
-                  fontWeight: isSelected ? 800 : 600,
-                  background: isSelected ? '#fcd116' : '#f8fafc',
-                  color: isSelected ? '#00205b' : '#334155',
+                  fontWeight: selectedCarretilla === 'Todas' ? 800 : 600,
+                  background: selectedCarretilla === 'Todas' ? '#00205b' : '#f8fafc',
+                  color: selectedCarretilla === 'Todas' ? '#ffffff' : '#334155',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  boxShadow: isSelected ? '0 2px 8px rgba(252, 209, 22, 0.4)' : 'none'
+                  boxShadow: selectedCarretilla === 'Todas' ? '0 2px 8px rgba(0, 32, 91, 0.25)' : 'none'
                 }}
               >
-                {c.name} ({c.count})
+                Todas ({records.length})
               </button>
+              {carretillasList.map(c => {
+                const isSelected = selectedCarretilla === c.name;
+                return (
+                  <button
+                    key={c.name}
+                    onClick={() => setSelectedCarretilla(isSelected ? 'Todas' : c.name)}
+                    style={{
+                      padding: '0.4rem 0.85rem',
+                      borderRadius: '8px',
+                      border: isSelected ? '2px solid #00205b' : '1px solid #e2e8f0',
+                      fontSize: '0.8rem',
+                      fontWeight: isSelected ? 800 : 600,
+                      background: isSelected ? '#fcd116' : '#f8fafc',
+                      color: isSelected ? '#00205b' : '#334155',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      boxShadow: isSelected ? '0 2px 8px rgba(252, 209, 22, 0.4)' : 'none'
+                    }}
+                  >
+                    {c.name} ({c.count})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Paneles KPI idénticos a la referencia visual para la carretilla seleccionada */}
+          {renderKpiPanelGroup(
+            selectedCarretilla === 'Todas' ? 'FLOTA TOTAL' : selectedCarretilla,
+            filteredRecords.length,
+            filteredRecords.filter(r => r.estado === 'Operativo').length,
+            filteredRecords.filter(r => r.estado === 'Mantenimiento').length,
+            filteredRecords.filter(r => r.estado === 'Fuera de Servicio').length,
+            true
+          )}
+        </>
+      )}
+
+      {/* VISTA 2: VER CADA CARRETILLA EN PANELES INDIVIDUALES (REQUERIMIENTO DEL USUARIO) */}
+      {activeView === 'todas_paneles' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '2.5rem' }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            padding: '1.2rem 1.6rem',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '1rem'
+          }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 900, color: '#00205b' }}>
+                📦 Paneles Preoperacionales por Cada Carretilla de la Flota
+              </h3>
+              <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.83rem', color: '#64748b' }}>
+                Monitoreo simultáneo con paneles idénticos para cada una de las {carretillasStats.length} carretillas de Operaciones Logísticas.
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveView('detalle')}
+              style={{
+                background: '#00205b',
+                color: '#ffffff',
+                border: 'none',
+                padding: '0.55rem 1.1rem',
+                borderRadius: '8px',
+                fontWeight: 800,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem'
+              }}
+            >
+              Ir a Tabla y Filtros ➔
+            </button>
+          </div>
+
+          {carretillasStats.map(carretilla => {
+            const dispPct = carretilla.total > 0
+              ? Math.round(((carretilla.operativos + carretilla.mantenimiento) / carretilla.total) * 100)
+              : 100;
+            const isGood = dispPct >= 95;
+            const isMed = dispPct >= 85 && dispPct < 95;
+
+            return (
+              <div
+                key={carretilla.name}
+                style={{
+                  background: '#ffffff',
+                  borderRadius: '20px',
+                  padding: '1.6rem',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 6px 24px -4px rgba(0, 0, 0, 0.06)'
+                }}
+              >
+                {/* Cabecera de la Carretilla */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '1.2rem',
+                  paddingBottom: '0.8rem',
+                  borderBottom: '1px solid #f1f5f9',
+                  flexWrap: 'wrap',
+                  gap: '0.8rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <span style={{
+                      background: '#00205b',
+                      color: '#fcd116',
+                      padding: '0.45rem 0.9rem',
+                      borderRadius: '10px',
+                      fontWeight: 900,
+                      fontSize: '1rem',
+                      letterSpacing: '0.02em',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}>
+                      <span>🛒</span> {carretilla.name}
+                    </span>
+
+                    <span style={{
+                      fontSize: '0.78rem',
+                      fontWeight: 800,
+                      padding: '0.25rem 0.65rem',
+                      borderRadius: '999px',
+                      background: isGood ? '#dcfce7' : isMed ? '#fef3c7' : '#fee2e2',
+                      color: isGood ? '#15803d' : isMed ? '#b45309' : '#b91c1c'
+                    }}>
+                      Disponibilidad: {dispPct}%
+                    </span>
+
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      Última inspección: <strong style={{ color: '#1e293b' }}>{carretilla.ultimaFecha || 'Reciente'}</strong> por <strong style={{ color: '#1e293b' }}>{carretilla.ultimoInspector}</strong>
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setSelectedCarretilla(carretilla.name);
+                      setActiveView('detalle');
+                    }}
+                    style={{
+                      background: '#f8fafc',
+                      color: '#00205b',
+                      border: '1.5px solid #cbd5e1',
+                      padding: '0.45rem 0.9rem',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title="Ver histórico detallado de inspecciones de esta carretilla"
+                  >
+                    🔍 Ver Tabla de {carretilla.name}
+                  </button>
+                </div>
+
+                {/* Los 4 Paneles exactamente con el diseño solicitado */}
+                {renderKpiPanelGroup(
+                  carretilla.name,
+                  carretilla.total,
+                  carretilla.operativos,
+                  carretilla.mantenimiento,
+                  carretilla.fueraServicio,
+                  false
+                )}
+              </div>
             );
           })}
         </div>
       )}
-
-      {/* Tarjetas KPI */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '1rem',
-        marginBottom: '1.5rem'
-      }}>
-        {/* Total Equipos / Inspecciones */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '12px',
-          padding: '1.2rem',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-          borderLeft: '5px solid #00205b'
-        }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-            {selectedCarretilla === 'Todas' ? 'Total Inspecciones' : `Inspecciones ${selectedCarretilla}`}
-          </div>
-          <div style={{ fontSize: '2.2rem', fontWeight: 900, color: '#00205b', margin: '0.2rem 0' }}>
-            {filteredRecords.length}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-            {selectedCarretilla === 'Todas' ? `Flota activa: ${carretillasList.length} Carretillas` : 'Registros filtrados'}
-          </div>
-        </div>
-
-        {/* Operativos */}
-        <div
-          onClick={() => setFilterStatus(filterStatus === 'Operativo' ? 'Todos' : 'Operativo')}
-          style={{
-            background: filterStatus === 'Operativo' ? '#ecfdf5' : '#ffffff',
-            borderRadius: '12px',
-            padding: '1.2rem',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-            borderLeft: '5px solid #10b981',
-            cursor: 'pointer'
-          }}
-          title="Clic para filtrar operativos"
-        >
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#15803d', textTransform: 'uppercase' }}>
-            Operativos (OK)
-          </div>
-          <div style={{ fontSize: '2.2rem', fontWeight: 900, color: '#15803d', margin: '0.2rem 0' }}>
-            {filteredRecords.filter(r => r.estado === 'Operativo').length}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 600 }}>
-            Listos para la operación
-          </div>
-        </div>
-
-        {/* En Mantenimiento */}
-        <div
-          onClick={() => setFilterStatus(filterStatus === 'Mantenimiento' ? 'Todos' : 'Mantenimiento')}
-          style={{
-            background: filterStatus === 'Mantenimiento' ? '#fffbeb' : '#ffffff',
-            borderRadius: '12px',
-            padding: '1.2rem',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-            borderLeft: '5px solid #f59e0b',
-            cursor: 'pointer'
-          }}
-          title="Clic para filtrar en mantenimiento"
-        >
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b45309', textTransform: 'uppercase' }}>
-            Requiere Mantenimiento
-          </div>
-          <div style={{ fontSize: '2.2rem', fontWeight: 900, color: '#b45309', margin: '0.2rem 0' }}>
-            {filteredRecords.filter(r => r.estado === 'Mantenimiento').length}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#92400e', fontWeight: 600 }}>
-            Ajuste preventivo (bujes/llantas)
-          </div>
-        </div>
-
-        {/* Fuera de Servicio */}
-        <div
-          onClick={() => setFilterStatus(filterStatus === 'Fuera de Servicio' ? 'Todos' : 'Fuera de Servicio')}
-          style={{
-            background: filterStatus === 'Fuera de Servicio' ? '#fef2f2' : '#ffffff',
-            borderRadius: '12px',
-            padding: '1.2rem',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-            borderLeft: '5px solid #ef4444',
-            cursor: 'pointer'
-          }}
-          title="Clic para filtrar fuera de servicio"
-        >
-          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase' }}>
-            Fuera de Servicio
-          </div>
-          <div style={{ fontSize: '2.2rem', fontWeight: 900, color: '#b91c1c', margin: '0.2rem 0' }}>
-            {filteredRecords.filter(r => r.estado === 'Fuera de Servicio').length}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#991b1b', fontWeight: 600 }}>
-            Fisuras o daño estructural
-          </div>
-        </div>
-      </div>
 
       {/* Sección Gráfica y Resumen de Estado */}
       <div style={{
