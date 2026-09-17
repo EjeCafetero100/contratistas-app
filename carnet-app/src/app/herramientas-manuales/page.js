@@ -57,7 +57,7 @@ export default function HerramientasManualesOverviewPage() {
           </span>
         </div>
         <h1 style={{ fontSize: '2rem', fontWeight: 900, margin: '0 0 0.5rem 0' }}>
-          INSPECCIÓN DE HERRAMIENTAS MANUALES
+          HERRAMIENTAS MANUALES
         </h1>
         <p style={{ margin: 0, opacity: 0.85, fontSize: '0.95rem', maxWidth: '750px' }}>
           Módulo centralizado para el control preoperacional, auditorías de seguridad y registro de bases de datos de herramientas manuales de los centros de distribución.

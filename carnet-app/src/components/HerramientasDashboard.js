@@ -140,7 +140,7 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
               textTransform: 'uppercase',
               letterSpacing: '0.05em'
             }}>
-              Inspección de Herramientas Manuales
+              Herramientas Manuales
             </span>
             <span style={{
               background: 'rgba(255, 255, 255, 0.15)',

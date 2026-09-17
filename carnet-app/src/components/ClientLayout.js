@@ -11,6 +11,8 @@ const BASE_MENU_ITEMS = [
   { id: 'no-grato', label: 'Personal No Grato', icon: '🚫', href: '/no-grato', color: '#ef4444', matchPrefix: false },
   { id: 'dashboard', label: 'Panel de Control', icon: '📋', href: '/dashboard', matchPrefix: false },
   { id: 'induccion', label: 'INDUCCIONES', icon: '🎓', href: '/barrancabermeja/inducciones', matchPrefix: true },
+  { id: 'herramientas-manuales', label: 'HERRAMIENTAS MANUALES', icon: '🛠️', href: '/herramientas-manuales', matchPrefix: true },
+  { id: 'regreso-seguro', label: 'Regreso Seguro a Casa', icon: '🏡', href: '/regreso-seguro', matchPrefix: true },
   { id: 'register', label: 'Añadir Persona', icon: '➕', href: '/register', matchPrefix: false },
   { id: 'historial', label: 'Historial Ingresos', icon: '📜', href: '/historial', matchPrefix: false },
   { id: 'control-documental', label: 'Control Documental ABI', icon: '📂', href: '/control-documental', matchPrefix: false },
@@ -21,8 +23,6 @@ const BASE_MENU_ITEMS = [
   { id: 'extintores2', label: 'Extintores 2', icon: '🧯', href: '/extintores2', matchPrefix: true },
   { id: 'credit-360', label: 'Credit 360', icon: '📈', href: '/credit-360', matchPrefix: true },
   { id: 'telemetria', label: 'Telemetría', icon: '📡', href: '/telemetria', matchPrefix: true },
-  { id: 'regreso-seguro', label: 'Regreso Seguro a Casa', icon: '🏡', href: '/regreso-seguro', matchPrefix: true },
-  { id: 'herramientas-manuales', label: 'Inspección de Herramientas Manuales', icon: '🛠️', href: '/herramientas-manuales', matchPrefix: true },
   { id: 'dashboard-excel', label: 'Dashboard Dinámico Excel', icon: '📊', href: '/dashboard-excel', matchPrefix: true },
   { id: 'kpis', label: 'Indicadores (KPIs)', icon: '📊', href: '/kpis', matchPrefix: true, isSeparator: true }
 ];
@@ -47,21 +47,21 @@ const getInitialOrderForCity = (cityName) => {
       list.unshift(item);
     }
   } else if (city === 'barrancabermeja') {
-    // Para Barrancabermeja: INDUCCIONES en la parte superior, seguido de Regreso Seguro a Casa, Herramientas Manuales y Telemetría
+    // Para Barrancabermeja: INDUCCIONES primero, HERRAMIENTAS MANUALES segundo, Regreso Seguro a Casa tercero y Telemetría cuarto
     const indIdx = list.findIndex(i => i.id === 'induccion');
     if (indIdx > -1) {
       const [indItem] = list.splice(indIdx, 1);
       list.unshift(indItem);
     }
-    const rIdx = list.findIndex(i => i.id === 'regreso-seguro');
-    if (rIdx > -1) {
-      const [rItem] = list.splice(rIdx, 1);
-      list.splice(1, 0, rItem);
-    }
     const hIdx = list.findIndex(i => i.id === 'herramientas-manuales');
     if (hIdx > -1) {
       const [hItem] = list.splice(hIdx, 1);
-      list.splice(2, 0, hItem);
+      list.splice(1, 0, hItem);
+    }
+    const rIdx = list.findIndex(i => i.id === 'regreso-seguro');
+    if (rIdx > -1) {
+      const [rItem] = list.splice(rIdx, 1);
+      list.splice(2, 0, rItem);
     }
     const tIdx = list.findIndex(i => i.id === 'telemetria');
     if (tIdx > -1) {
@@ -94,8 +94,8 @@ export default function ClientLayout({ children }) {
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
   const isDraggingRef = useRef(false);
-  const [isInduccionesOpen, setIsInduccionesOpen] = useState(false);
-  const [isHerramientasOpen, setIsHerramientasOpen] = useState(false);
+  const [isInduccionesOpen, setIsInduccionesOpen] = useState(true);
+  const [isHerramientasOpen, setIsHerramientasOpen] = useState(true);
 
   // Auto-abrir submenús si la ruta corresponde
   useEffect(() => {
@@ -107,10 +107,10 @@ export default function ClientLayout({ children }) {
     }
   }, [pathname]);
 
-  // Cargar orden personalizado según la sede (Armenia, Pereira o Barrancabermeja) usando versión v5 para incorporar Inspección de Herramientas
+  // Cargar orden personalizado según la sede usando versión v6 para HERRAMIENTAS MANUALES
   useEffect(() => {
     try {
-      const storageKey = `sidebar_drag_order_v5_${cityKey}`;
+      const storageKey = `sidebar_drag_order_v6_${cityKey}`;
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const savedIds = JSON.parse(saved);
@@ -126,9 +126,9 @@ export default function ClientLayout({ children }) {
             }
           });
 
-          // Asegurar que INDUCCIONES esté en la primera posición para Barrancabermeja
-          const indPos = ordered.findIndex(i => i.id === 'induccion');
+          // Asegurar que INDUCCIONES y HERRAMIENTAS MANUALES estén en las primeras posiciones para Barrancabermeja
           if (cityKey === 'barrancabermeja') {
+            const indPos = ordered.findIndex(i => i.id === 'induccion');
             if (indPos === -1) {
               const indItem = BASE_MENU_ITEMS.find(i => i.id === 'induccion');
               if (indItem) ordered.unshift(indItem);
@@ -136,9 +136,19 @@ export default function ClientLayout({ children }) {
               const [indItem] = ordered.splice(indPos, 1);
               ordered.unshift(indItem);
             }
+
+            const hPos = ordered.findIndex(i => i.id === 'herramientas-manuales');
+            if (hPos === -1) {
+              const hItem = BASE_MENU_ITEMS.find(i => i.id === 'herramientas-manuales');
+              if (hItem) ordered.splice(1, 0, hItem);
+            } else if (hPos !== 1) {
+              const [hItem] = ordered.splice(hPos, 1);
+              ordered.splice(1, 0, hItem);
+            }
           } else {
             const dashPos = ordered.findIndex(i => i.id === 'dashboard');
             const targetPos = dashPos > -1 ? dashPos + 1 : 4;
+            const indPos = ordered.findIndex(i => i.id === 'induccion');
             if (indPos === -1) {
               const indItem = BASE_MENU_ITEMS.find(i => i.id === 'induccion');
               if (indItem) ordered.splice(targetPos, 0, indItem);
@@ -163,7 +173,7 @@ export default function ClientLayout({ children }) {
   const saveOrder = (newItems) => {
     setMenuItems(newItems);
     try {
-      const storageKey = `sidebar_drag_order_v5_${cityKey}`;
+      const storageKey = `sidebar_drag_order_v6_${cityKey}`;
       const ids = newItems.map(i => i.id);
       localStorage.setItem(storageKey, JSON.stringify(ids));
     } catch (e) {
@@ -227,6 +237,7 @@ export default function ClientLayout({ children }) {
         localStorage.removeItem(`sidebar_drag_order_v3_${cityKey}`);
         localStorage.removeItem(`sidebar_drag_order_v4_${cityKey}`);
         localStorage.removeItem(`sidebar_drag_order_v5_${cityKey}`);
+        localStorage.removeItem(`sidebar_drag_order_v6_${cityKey}`);
       } catch (e) {}
       setMenuItems(getInitialOrderForCity(effectiveCity));
     }
@@ -381,25 +392,36 @@ export default function ClientLayout({ children }) {
                       }}
                       className={`sidebar-link ${active ? 'active' : ''}`}
                       style={{
-                        color: item.color || undefined,
+                        color: (item.id === 'induccion' || item.id === 'herramientas-manuales')
+                          ? '#fcd116'
+                          : (item.color || undefined),
+                        fontWeight: (item.id === 'induccion' || item.id === 'herramientas-manuales') ? 800 : undefined,
+                        fontSize: (item.id === 'induccion' || item.id === 'herramientas-manuales') ? '0.96rem' : undefined,
                         padding: '0.65rem 0.75rem',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'space-between'
+                        justifyContent: 'space-between',
+                        letterSpacing: (item.id === 'induccion' || item.id === 'herramientas-manuales') ? '0.02em' : undefined
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <span style={{ marginRight: '0.45rem' }}>{item.icon}</span>
-                        <span>{item.label}</span>
+                        <span style={{ marginRight: '0.55rem', fontSize: '1.15rem' }}>{item.icon}</span>
+                        <span style={{
+                          color: (item.id === 'induccion' || item.id === 'herramientas-manuales') ? '#fcd116' : 'inherit',
+                          fontWeight: (item.id === 'induccion' || item.id === 'herramientas-manuales') ? 800 : 'inherit'
+                        }}>
+                          {item.label}
+                        </span>
                       </div>
                       {item.id === 'induccion' && (
                         <span
                           style={{
-                            fontSize: '0.65rem',
+                            fontSize: '0.75rem',
+                            color: '#fcd116',
                             marginLeft: 'auto',
                             transition: 'transform 0.25s ease',
                             transform: isInduccionesOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                            opacity: 0.85
+                            opacity: 0.95
                           }}
                         >
                           ▼
@@ -408,11 +430,12 @@ export default function ClientLayout({ children }) {
                       {item.id === 'herramientas-manuales' && (
                         <span
                           style={{
-                            fontSize: '0.65rem',
+                            fontSize: '0.75rem',
+                            color: '#fcd116',
                             marginLeft: 'auto',
                             transition: 'transform 0.25s ease',
                             transform: isHerramientasOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                            opacity: 0.85
+                            opacity: 0.95
                           }}
                         >
                           ▼
@@ -425,12 +448,12 @@ export default function ClientLayout({ children }) {
                 {/* Submódulos de Inducciones en el panel izquierdo (desplegables) */}
                 {item.id === 'induccion' && isInduccionesOpen && (
                   <div style={{
-                    margin: '0.3rem 0 0.5rem 1.6rem',
-                    paddingLeft: '0.65rem',
-                    borderLeft: '2px solid rgba(252, 209, 22, 0.4)',
+                    margin: '0.35rem 0 0.6rem 1.4rem',
+                    paddingLeft: '0.85rem',
+                    borderLeft: '2.5px solid #fcd116',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.2rem'
+                    gap: '0.35rem'
                   }}>
                     {[
                       { label: 'Conductores', href: '/barrancabermeja/inducciones/conductores', icon: '🚚' },
@@ -445,22 +468,23 @@ export default function ClientLayout({ children }) {
                           key={sub.href}
                           href={sub.href}
                           onClick={handleLinkClick}
+                          className="sidebar-submenu-link"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.45rem',
-                            padding: '0.35rem 0.55rem',
+                            gap: '0.65rem',
+                            padding: '0.45rem 0.65rem',
                             borderRadius: '6px',
-                            fontSize: '0.78rem',
-                            fontWeight: isSubActive ? 800 : 600,
-                            color: isSubActive ? '#00205b' : 'rgba(255, 255, 255, 0.85)',
+                            fontSize: '0.92rem',
+                            fontWeight: isSubActive ? 800 : 700,
+                            color: isSubActive ? '#00205b' : '#ffffff',
                             background: isSubActive ? '#fcd116' : 'transparent',
                             textDecoration: 'none',
                             boxShadow: isSubActive ? '0 2px 8px rgba(252, 209, 22, 0.35)' : 'none',
                             transition: 'all 0.15s ease'
                           }}
                         >
-                          <span>{sub.icon}</span>
+                          <span style={{ fontSize: '1.05rem', lineHeight: 1 }}>{sub.icon}</span>
                           <span>{sub.label}</span>
                         </Link>
                       );
@@ -468,15 +492,15 @@ export default function ClientLayout({ children }) {
                   </div>
                 )}
 
-                {/* Submódulos de Inspección de Herramientas Manuales en el panel izquierdo (desplegables) */}
+                {/* Submódulos de HERRAMIENTAS MANUALES en el panel izquierdo (desplegables) */}
                 {item.id === 'herramientas-manuales' && isHerramientasOpen && (
                   <div style={{
-                    margin: '0.3rem 0 0.5rem 1.6rem',
-                    paddingLeft: '0.65rem',
-                    borderLeft: '2px solid rgba(252, 209, 22, 0.4)',
+                    margin: '0.35rem 0 0.6rem 1.4rem',
+                    paddingLeft: '0.85rem',
+                    borderLeft: '2.5px solid #fcd116',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.2rem'
+                    gap: '0.35rem'
                   }}>
                     {[
                       { label: 'Carretillas OL', href: '/herramientas-manuales/carretillas-ol', icon: '🛒' },
@@ -489,22 +513,23 @@ export default function ClientLayout({ children }) {
                           key={sub.href}
                           href={sub.href}
                           onClick={handleLinkClick}
+                          className="sidebar-submenu-link"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.45rem',
-                            padding: '0.35rem 0.55rem',
+                            gap: '0.65rem',
+                            padding: '0.45rem 0.65rem',
                             borderRadius: '6px',
-                            fontSize: '0.78rem',
-                            fontWeight: isSubActive ? 800 : 600,
-                            color: isSubActive ? '#00205b' : 'rgba(255, 255, 255, 0.85)',
+                            fontSize: '0.92rem',
+                            fontWeight: isSubActive ? 800 : 700,
+                            color: isSubActive ? '#00205b' : '#ffffff',
                             background: isSubActive ? '#fcd116' : 'transparent',
                             textDecoration: 'none',
                             boxShadow: isSubActive ? '0 2px 8px rgba(252, 209, 22, 0.35)' : 'none',
                             transition: 'all 0.15s ease'
                           }}
                         >
-                          <span>{sub.icon}</span>
+                          <span style={{ fontSize: '1.05rem', lineHeight: 1 }}>{sub.icon}</span>
                           <span>{sub.label}</span>
                         </Link>
                       );

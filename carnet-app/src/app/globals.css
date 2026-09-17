@@ -1330,3 +1330,7 @@ textarea:focus {
   margin-bottom: 1.5rem;
 }
 
+.sidebar-submenu-link:hover {
+  background: rgba(252, 209, 22, 0.15) !important;
+  color: #fcd116 !important;
+}
