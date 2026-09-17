@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell, Legend, LabelList
 } from 'recharts';
 
 // Colores corporativos y semafóricos
@@ -830,18 +830,39 @@ export default function RegresoSeguroPage() {
                 )}
               </div>
 
-              {/* Gráfica Donut de SOAT */}
-              <div style={{ height: '260px', width: '100%', position: 'relative' }}>
+              {/* Gráfica Donut de SOAT con Etiquetas de Datos */}
+              <div style={{ height: '310px', width: '100%', position: 'relative' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={soatChartData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={95}
+                      innerRadius={48}
+                      outerRadius={78}
                       paddingAngle={4}
                       dataKey="value"
+                      label={({ cx, cy, midAngle, outerRadius, value, pct, name }) => {
+                        if (!value) return null;
+                        const RADIAN = Math.PI / 180;
+                        const radius = outerRadius + 14;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                        return (
+                          <text
+                            x={x}
+                            y={y}
+                            fill="#0f172a"
+                            textAnchor={x > cx ? 'start' : 'end'}
+                            dominantBaseline="central"
+                            fontSize={11}
+                            fontWeight={800}
+                          >
+                            {`${value} (${pct}%)`}
+                          </text>
+                        );
+                      }}
+                      labelLine={{ stroke: '#94a3b8', strokeWidth: 1.2 }}
                       onClick={(entry) => handleSoatClick(entry.name)}
                       cursor="pointer"
                     >
@@ -899,7 +920,7 @@ export default function RegresoSeguroPage() {
               </div>
             </div>
 
-            {/* GRÁFICA 2: TIPO DE TRANSPORTE UTILIZADO (INTERACTIVA) */}
+            {/* GRÁFICA 2: TIPO DE TRANSPORTE UTILIZADO (INTERACTIVA CON ETIQUETAS DE DATOS) */}
             <div style={{
               background: '#ffffff',
               borderRadius: '16px',
@@ -928,13 +949,13 @@ export default function RegresoSeguroPage() {
                 )}
               </div>
 
-              {/* Gráfica de Barras Horizontales de Transporte */}
+              {/* Gráfica de Barras Horizontales de Transporte con LabelList */}
               <div style={{ height: '310px', width: '100%' }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={transportChartData}
                     layout="vertical"
-                    margin={{ top: 5, right: 30, left: 110, bottom: 5 }}
+                    margin={{ top: 5, right: 75, left: 110, bottom: 5 }}
                     onClick={(state) => {
                       if (state && state.activePayload && state.activePayload[0]) {
                         handleTransportClick(state.activePayload[0].payload.rol);
@@ -964,6 +985,15 @@ export default function RegresoSeguroPage() {
                           />
                         );
                       })}
+                      <LabelList
+                        dataKey="count"
+                        position="right"
+                        formatter={(val) => {
+                          const item = transportChartData.find(t => t.count === val);
+                          return item ? `${val} (${item.pct}%)` : `${val}`;
+                        }}
+                        style={{ fill: '#00205b', fontSize: 11, fontWeight: 800 }}
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
