@@ -23,6 +23,51 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Estado para modal de nueva inspección hacia Supabase
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [newForm, setNewForm] = useState({
+    equipo: 'CARRETILLA 1',
+    fecha_inspeccion: new Date().toISOString().split('T')[0],
+    turno: 'TURNO A',
+    inspector: '',
+    cargo: 'Auxiliar Operativo',
+    area: 'Picking',
+    mango: true,
+    llantas: true,
+    buges: true,
+    soldaduras: true,
+    bases: true,
+    pintura: true,
+    observaciones: 'Condiciones óptimas de seguridad'
+  });
+
+  // Guardar nueva inspección en Supabase Cloud
+  const handleCreateInspection = async (e) => {
+    e.preventDefault();
+    if (!newForm.inspector.trim()) {
+      alert('Por favor ingrese el nombre del inspector responsable.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/herramientas-manuales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newForm, tipo, submodulo: tipo })
+      });
+      const resData = await res.json();
+      if (!res.ok || resData.error) throw new Error(resData.error || 'Error al guardar');
+      alert('✔ ¡Inspección preoperacional registrada y sincronizada en Supabase Cloud!');
+      setIsNewModalOpen(false);
+      loadData();
+    } catch (err) {
+      alert(`Error al registrar inspección: ${err.message}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Cargar datos desde la API
   const loadData = async () => {
     setLoading(true);
@@ -201,29 +246,54 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
           </p>
         </div>
 
-        {/* Acciones e Indicador de Archivo */}
+        {/* Acciones e Indicador de Archivo / Supabase */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.6rem' }}>
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.4rem',
-            background: data?.found ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.25)',
-            border: `1px solid ${data?.found ? 'rgba(16, 185, 129, 0.4)' : 'rgba(245, 158, 11, 0.4)'}`,
-            padding: '0.35rem 0.75rem',
+            gap: '0.45rem',
+            background: data?.source === 'supabase' ? 'rgba(16, 185, 129, 0.22)' : data?.found ? 'rgba(59, 130, 246, 0.22)' : 'rgba(245, 158, 11, 0.25)',
+            border: `1px solid ${data?.source === 'supabase' ? 'rgba(16, 185, 129, 0.45)' : data?.found ? 'rgba(59, 130, 246, 0.45)' : 'rgba(245, 158, 11, 0.4)'}`,
+            padding: '0.4rem 0.85rem',
             borderRadius: '8px',
-            fontSize: '0.75rem',
+            fontSize: '0.78rem',
             fontWeight: 700
           }}>
             <span style={{
-              width: '8px',
-              height: '8px',
+              width: '9px',
+              height: '9px',
               borderRadius: '50%',
-              background: data?.found ? '#10b981' : '#f59e0b'
+              background: data?.source === 'supabase' ? '#10b981' : data?.found ? '#3b82f6' : '#f59e0b',
+              boxShadow: data?.source === 'supabase' ? '0 0 8px #10b981' : 'none'
             }} />
-            {data?.found ? `Archivo: ${data.fileName}` : 'Esperando Excel en scratch (Modo Demo)'}
+            {data?.source === 'supabase'
+              ? `🟢 Supabase Cloud (${data.total || 0} Inspecciones Conectadas)`
+              : data?.found
+                ? `📄 Archivo Excel Local: ${data.fileName}`
+                : 'Esperando Excel en scratch (Modo Demo)'}
           </div>
 
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setIsNewModalOpen(true)}
+              style={{
+                background: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                padding: '0.5rem 0.9rem',
+                borderRadius: '8px',
+                fontWeight: 800,
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                boxShadow: '0 4px 10px rgba(37, 99, 235, 0.35)'
+              }}
+            >
+              ➕ Nueva Inspección
+            </button>
+
             <input
               type="file"
               ref={fileInputRef}
@@ -255,6 +325,7 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
 
             <button
               onClick={loadData}
+              disabled={loading}
               style={{
                 background: 'rgba(255, 255, 255, 0.15)',
                 color: '#fff',
@@ -268,9 +339,9 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
                 alignItems: 'center',
                 gap: '0.4rem'
               }}
-              title="Re-escanear carpeta scratch"
+              title="Consultar datos en vivo desde Supabase Cloud"
             >
-              🔄 Actualizar
+              🔄 {loading ? 'Actualizando...' : 'Actualizar'}
             </button>
 
             <button
@@ -929,6 +1000,305 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
                 Cerrar Ficha
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Registrar Nueva Inspección en Supabase Cloud */}
+      {isNewModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 32, 91, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            maxWidth: '680px',
+            width: '100%',
+            maxHeight: '92vh',
+            overflowY: 'auto',
+            padding: '1.75rem',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+            border: '1px solid #e2e8f0'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', background: '#dbeafe', color: '#1d4ed8', padding: '0.2rem 0.6rem', borderRadius: '999px', fontWeight: 700 }}>
+                  ☁️ Supabase Cloud Sync
+                </span>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#00205b', margin: '0.4rem 0 0.1rem 0' }}>
+                  Nueva Inspección Preoperacional
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>
+                  El registro se almacenará inmediatamente en la base de datos de Supabase.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsNewModalOpen(false)}
+                style={{
+                  background: '#f1f5f9',
+                  border: 'none',
+                  fontSize: '1.1rem',
+                  cursor: 'pointer',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#64748b'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateInspection} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.3rem' }}>
+                    Equipo / Carretilla *
+                  </label>
+                  <select
+                    value={newForm.equipo}
+                    onChange={e => setNewForm({ ...newForm, equipo: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.85rem',
+                      fontWeight: 600
+                    }}
+                  >
+                    {carretillasList.length > 0 ? (
+                      carretillasList.map(c => (
+                        <option key={c.name} value={c.name}>{c.name}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="CARRETILLA 1">CARRETILLA 1</option>
+                        <option value="CARRETILLA 2">CARRETILLA 2</option>
+                        <option value="CARRETILLA 3">CARRETILLA 3</option>
+                        <option value="CARRETILLA 4">CARRETILLA 4</option>
+                        <option value="CARRETILLA 5">CARRETILLA 5</option>
+                        <option value="CARRETILLA 6 GLP">CARRETILLA 6 GLP</option>
+                        <option value="CARRETILLA GLP">CARRETILLA GLP</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.3rem' }}>
+                    Fecha de Inspección *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={newForm.fecha_inspeccion}
+                    onChange={e => setNewForm({ ...newForm, fecha_inspeccion: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.3rem' }}>
+                    Turno *
+                  </label>
+                  <select
+                    value={newForm.turno}
+                    onChange={e => setNewForm({ ...newForm, turno: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    <option value="TURNO A (23:00 - 7:00)">TURNO A (23:00 - 7:00)</option>
+                    <option value="TURNO B (7:00 - 15:00)">TURNO B (7:00 - 15:00)</option>
+                    <option value="TURNO C (15:00 - 23:00)">TURNO C (15:00 - 23:00)</option>
+                    <option value="Turno 1">Turno 1</option>
+                    <option value="Turno 2">Turno 2</option>
+                    <option value="Turno 3">Turno 3</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.3rem' }}>
+                    Área Operativa
+                  </label>
+                  <input
+                    type="text"
+                    value={newForm.area}
+                    onChange={e => setNewForm({ ...newForm, area: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.3rem' }}>
+                    Inspector / Responsable *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nombre completo"
+                    value={newForm.inspector}
+                    onChange={e => setNewForm({ ...newForm, inspector: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.3rem' }}>
+                    Cargo
+                  </label>
+                  <input
+                    type="text"
+                    value={newForm.cargo}
+                    onChange={e => setNewForm({ ...newForm, cargo: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Lista de Chequeo Rápida */}
+              <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#00205b', textTransform: 'uppercase', marginBottom: '0.6rem' }}>
+                  📋 Verificación de Puntos Críticos:
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.6rem' }}>
+                  {[
+                    { key: 'mango', label: '✋ Mango de agarre' },
+                    { key: 'llantas', label: '🔘 Llantas en buen estado' },
+                    { key: 'buges', label: '🛞 Bujes de rodadura' },
+                    { key: 'soldaduras', label: '🛡️ Soldaduras estructurales' },
+                    { key: 'bases', label: '📐 Bases y espaldar' },
+                    { key: 'pintura', label: '🎨 Pintura y acabado' }
+                  ].map(c => (
+                    <label
+                      key={c.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.45rem 0.7rem',
+                        background: newForm[c.key] ? '#f0fdf4' : '#fef2f2',
+                        border: `1px solid ${newForm[c.key] ? '#bbf7d0' : '#fecaca'}`,
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        color: newForm[c.key] ? '#166534' : '#991b1b'
+                      }}
+                    >
+                      <span>{c.label}</span>
+                      <input
+                        type="checkbox"
+                        checked={newForm[c.key]}
+                        onChange={e => setNewForm({ ...newForm, [c.key]: e.target.checked })}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.3rem' }}>
+                  Observaciones / Hallazgos
+                </label>
+                <textarea
+                  rows={2}
+                  value={newForm.observaciones}
+                  onChange={e => setNewForm({ ...newForm, observaciones: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.55rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid #cbd5e1',
+                    fontSize: '0.85rem',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.8rem', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsNewModalOpen(false)}
+                  style={{
+                    background: '#e2e8f0',
+                    color: '#334155',
+                    border: 'none',
+                    padding: '0.6rem 1.2rem',
+                    borderRadius: '8px',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    background: '#10b981',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '0.6rem 1.4rem',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    boxShadow: '0 4px 10px rgba(16, 185, 129, 0.35)'
+                  }}
+                >
+                  {submitting ? 'Sincronizando con Supabase...' : '💾 Registrar en Supabase'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

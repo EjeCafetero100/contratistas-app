@@ -6,7 +6,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "sync:telemetria": "node sync_telemetria.js"
+    "sync:telemetria": "node sync_telemetria.js",
+    "sync:herramientas": "node sync_herramientas_manuales.cjs",
+    "sync:regreso": "node sync_regreso_seguro.cjs"
   },
   "keywords": [],
   "author": "",
