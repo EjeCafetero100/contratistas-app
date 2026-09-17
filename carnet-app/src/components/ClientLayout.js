@@ -21,6 +21,7 @@ const BASE_MENU_ITEMS = [
   { id: 'extintores2', label: 'Extintores 2', icon: '🧯', href: '/extintores2', matchPrefix: true },
   { id: 'credit-360', label: 'Credit 360', icon: '📈', href: '/credit-360', matchPrefix: true },
   { id: 'telemetria', label: 'Telemetría', icon: '📡', href: '/telemetria', matchPrefix: true },
+  { id: 'regreso-seguro', label: 'Regreso Seguro a Casa', icon: '🏡', href: '/regreso-seguro', matchPrefix: true },
   { id: 'dashboard-excel', label: 'Dashboard Dinámico Excel', icon: '📊', href: '/dashboard-excel', matchPrefix: true },
   { id: 'kpis', label: 'Indicadores (KPIs)', icon: '📊', href: '/kpis', matchPrefix: true, isSeparator: true }
 ];
@@ -45,16 +46,21 @@ const getInitialOrderForCity = (cityName) => {
       list.unshift(item);
     }
   } else if (city === 'barrancabermeja') {
-    // Para Barrancabermeja: INDUCCIONES en la parte superior, seguido de Telemetría
+    // Para Barrancabermeja: INDUCCIONES en la parte superior, seguido de Regreso Seguro a Casa y Telemetría
     const indIdx = list.findIndex(i => i.id === 'induccion');
     if (indIdx > -1) {
       const [indItem] = list.splice(indIdx, 1);
       list.unshift(indItem);
     }
+    const rIdx = list.findIndex(i => i.id === 'regreso-seguro');
+    if (rIdx > -1) {
+      const [rItem] = list.splice(rIdx, 1);
+      list.splice(1, 0, rItem);
+    }
     const tIdx = list.findIndex(i => i.id === 'telemetria');
     if (tIdx > -1) {
       const [tItem] = list.splice(tIdx, 1);
-      list.splice(1, 0, tItem);
+      list.splice(2, 0, tItem);
     }
   }
 
@@ -84,10 +90,10 @@ export default function ClientLayout({ children }) {
   const isDraggingRef = useRef(false);
   const [isInduccionesOpen, setIsInduccionesOpen] = useState(false);
 
-  // Cargar orden personalizado según la sede (Armenia, Pereira o Barrancabermeja) usando versión v3 para invalidar cachés viejos
+  // Cargar orden personalizado según la sede (Armenia, Pereira o Barrancabermeja) usando versión v4 para incorporar Regreso Seguro a Casa
   useEffect(() => {
     try {
-      const storageKey = `sidebar_drag_order_v3_${cityKey}`;
+      const storageKey = `sidebar_drag_order_v4_${cityKey}`;
       const saved = localStorage.getItem(storageKey);
       if (saved) {
         const savedIds = JSON.parse(saved);
@@ -140,7 +146,7 @@ export default function ClientLayout({ children }) {
   const saveOrder = (newItems) => {
     setMenuItems(newItems);
     try {
-      const storageKey = `sidebar_drag_order_v3_${cityKey}`;
+      const storageKey = `sidebar_drag_order_v4_${cityKey}`;
       const ids = newItems.map(i => i.id);
       localStorage.setItem(storageKey, JSON.stringify(ids));
     } catch (e) {
@@ -202,6 +208,7 @@ export default function ClientLayout({ children }) {
       try {
         localStorage.removeItem(`sidebar_drag_order_${cityKey}`);
         localStorage.removeItem(`sidebar_drag_order_v3_${cityKey}`);
+        localStorage.removeItem(`sidebar_drag_order_v4_${cityKey}`);
       } catch (e) {}
       setMenuItems(getInitialOrderForCity(effectiveCity));
     }
@@ -213,6 +220,10 @@ export default function ClientLayout({ children }) {
       if (pathname?.startsWith('/barrancabermeja/inducciones')) return true;
       if (pathname?.startsWith('/inducciones')) return true;
       if (pathname === '/induccion') return true;
+    }
+    if (item.id === 'regreso-seguro') {
+      if (pathname?.startsWith('/regreso-seguro')) return true;
+      if (pathname?.startsWith('/barrancabermeja/regreso-seguro')) return true;
     }
     if (item.excludePrefix && pathname.startsWith(item.excludePrefix)) return false;
     if (item.matchPrefix) return pathname.startsWith(item.href);
