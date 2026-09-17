@@ -18,6 +18,7 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('Todos');
+  const [selectedCarretilla, setSelectedCarretilla] = useState('Todas');
   const [selectedItem, setSelectedItem] = useState(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -69,8 +70,19 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
     }
   };
 
-  // Filtrado de registros
+  // Registros y lista de carretillas únicas
   const records = data?.records || [];
+
+  const carretillasList = useMemo(() => {
+    const map = {};
+    records.forEach(r => {
+      const c = r.codigo || r.equipo;
+      if (c) map[c] = (map[c] || 0) + 1;
+    });
+    return Object.entries(map).map(([name, count]) => ({ name, count }));
+  }, [records]);
+
+  // Filtrado de registros reactivo
   const filteredRecords = useMemo(() => {
     return records.filter(r => {
       const q = search.toLowerCase();
@@ -79,12 +91,40 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
         (r.equipo && r.equipo.toLowerCase().includes(q)) ||
         (r.inspector && r.inspector.toLowerCase().includes(q)) ||
         (r.ubicacion && r.ubicacion.toLowerCase().includes(q)) ||
-        (r.observaciones && r.observaciones.toLowerCase().includes(q));
+        (r.observaciones && r.observaciones.toLowerCase().includes(q)) ||
+        (r.turno && r.turno.toLowerCase().includes(q)) ||
+        (r.area && r.area.toLowerCase().includes(q));
 
       const matchStatus = filterStatus === 'Todos' || r.estado === filterStatus;
-      return matchText && matchStatus;
+      const matchCarretilla = selectedCarretilla === 'Todas' || r.codigo === selectedCarretilla || r.equipo === selectedCarretilla;
+
+      return matchText && matchStatus && matchCarretilla;
     });
-  }, [records, search, filterStatus]);
+  }, [records, search, filterStatus, selectedCarretilla]);
+
+  // Estadísticas de chequeos de componentes para los registros filtrados
+  const checkStats = useMemo(() => {
+    const total = filteredRecords.length || 1;
+    let mangoOk = 0, llantasOk = 0, bugesOk = 0, soldadurasOk = 0, basesOk = 0, pinturaOk = 0;
+
+    filteredRecords.forEach(r => {
+      if (r.mango !== false && (!r.chequeos || r.chequeos['Mango de agarre'] === 'Conforme')) mangoOk++;
+      if (r.llantas !== false && (!r.chequeos || r.chequeos['Llantas'] === 'Conforme')) llantasOk++;
+      if (r.buges !== false && (!r.chequeos || r.chequeos['Bujes de llantas'] === 'Conforme')) bugesOk++;
+      if (r.soldaduras !== false && (!r.chequeos || r.chequeos['Soldaduras estructurales'] === 'Conforme')) soldadurasOk++;
+      if (r.bases !== false && (!r.chequeos || r.chequeos['Bases del espaldar'] === 'Conforme')) basesOk++;
+      if (r.pintura !== false && (!r.chequeos || r.chequeos['Pintura y acabado'] === 'Conforme')) pinturaOk++;
+    });
+
+    return {
+      mango: Math.round((mangoOk / total) * 100),
+      llantas: Math.round((llantasOk / total) * 100),
+      buges: Math.round((bugesOk / total) * 100),
+      soldaduras: Math.round((soldadurasOk / total) * 100),
+      bases: Math.round((basesOk / total) * 100),
+      pintura: Math.round((pinturaOk / total) * 100)
+    };
+  }, [filteredRecords]);
 
   // Datos para la gráfica de estado
   const chartData = useMemo(() => {
@@ -300,6 +340,66 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
         </div>
       )}
 
+      {/* Selector de Carretillas / Equipos Individuales */}
+      {carretillasList.length > 1 && (
+        <div style={{
+          background: '#ffffff',
+          borderRadius: '14px',
+          padding: '1rem 1.4rem',
+          marginBottom: '1.5rem',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+          border: '1px solid #e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.6rem',
+          flexWrap: 'wrap'
+        }}>
+          <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#00205b', textTransform: 'uppercase', marginRight: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <span>🛒</span> Seleccionar Carretilla:
+          </span>
+          <button
+            onClick={() => setSelectedCarretilla('Todas')}
+            style={{
+              padding: '0.4rem 0.85rem',
+              borderRadius: '8px',
+              border: selectedCarretilla === 'Todas' ? '2px solid #00205b' : '1px solid #e2e8f0',
+              fontSize: '0.8rem',
+              fontWeight: selectedCarretilla === 'Todas' ? 800 : 600,
+              background: selectedCarretilla === 'Todas' ? '#00205b' : '#f8fafc',
+              color: selectedCarretilla === 'Todas' ? '#ffffff' : '#334155',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              boxShadow: selectedCarretilla === 'Todas' ? '0 2px 8px rgba(0, 32, 91, 0.25)' : 'none'
+            }}
+          >
+            Todas ({records.length})
+          </button>
+          {carretillasList.map(c => {
+            const isSelected = selectedCarretilla === c.name;
+            return (
+              <button
+                key={c.name}
+                onClick={() => setSelectedCarretilla(isSelected ? 'Todas' : c.name)}
+                style={{
+                  padding: '0.4rem 0.85rem',
+                  borderRadius: '8px',
+                  border: isSelected ? '2px solid #00205b' : '1px solid #e2e8f0',
+                  fontSize: '0.8rem',
+                  fontWeight: isSelected ? 800 : 600,
+                  background: isSelected ? '#fcd116' : '#f8fafc',
+                  color: isSelected ? '#00205b' : '#334155',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: isSelected ? '0 2px 8px rgba(252, 209, 22, 0.4)' : 'none'
+                }}
+              >
+                {c.name} ({c.count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Tarjetas KPI */}
       <div style={{
         display: 'grid',
@@ -307,7 +407,7 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
         gap: '1rem',
         marginBottom: '1.5rem'
       }}>
-        {/* Total Equipos */}
+        {/* Total Equipos / Inspecciones */}
         <div style={{
           background: '#ffffff',
           borderRadius: '12px',
@@ -316,13 +416,13 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
           borderLeft: '5px solid #00205b'
         }}>
           <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-            Total Equipos
+            {selectedCarretilla === 'Todas' ? 'Total Inspecciones' : `Inspecciones ${selectedCarretilla}`}
           </div>
           <div style={{ fontSize: '2.2rem', fontWeight: 900, color: '#00205b', margin: '0.2rem 0' }}>
-            {data?.total || filteredRecords.length}
+            {filteredRecords.length}
           </div>
           <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-            Inventario inspeccionado
+            {selectedCarretilla === 'Todas' ? `Flota activa: ${carretillasList.length} Carretillas` : 'Registros filtrados'}
           </div>
         </div>
 
@@ -343,7 +443,7 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
             Operativos (OK)
           </div>
           <div style={{ fontSize: '2.2rem', fontWeight: 900, color: '#15803d', margin: '0.2rem 0' }}>
-            {data?.operativos || filteredRecords.filter(r => r.estado === 'Operativo').length}
+            {filteredRecords.filter(r => r.estado === 'Operativo').length}
           </div>
           <div style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 600 }}>
             Listos para la operación
@@ -367,10 +467,10 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
             Requiere Mantenimiento
           </div>
           <div style={{ fontSize: '2.2rem', fontWeight: 900, color: '#b45309', margin: '0.2rem 0' }}>
-            {data?.mantenimiento || filteredRecords.filter(r => r.estado === 'Mantenimiento').length}
+            {filteredRecords.filter(r => r.estado === 'Mantenimiento').length}
           </div>
           <div style={{ fontSize: '0.75rem', color: '#92400e', fontWeight: 600 }}>
-            Ajuste preventivo programado
+            Ajuste preventivo (bujes/llantas)
           </div>
         </div>
 
@@ -391,10 +491,10 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
             Fuera de Servicio
           </div>
           <div style={{ fontSize: '2.2rem', fontWeight: 900, color: '#b91c1c', margin: '0.2rem 0' }}>
-            {data?.fueraServicio || filteredRecords.filter(r => r.estado === 'Fuera de Servicio').length}
+            {filteredRecords.filter(r => r.estado === 'Fuera de Servicio').length}
           </div>
           <div style={{ fontSize: '0.75rem', color: '#991b1b', fontWeight: 600 }}>
-            Bloqueados por seguridad
+            Fisuras o daño estructural
           </div>
         </div>
       </div>
@@ -474,35 +574,89 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
           border: '1px solid #e2e8f0'
         }}>
           <h3 style={{ margin: '0 0 0.3rem 0', fontSize: '1.05rem', fontWeight: 800, color: '#00205b' }}>
-            🛠️ Puntos de Verificación Críticos
+            🛠️ Cumplimiento por Criterio de Inspección
           </h3>
           <p style={{ margin: '0 0 1rem 0', fontSize: '0.8rem', color: '#64748b' }}>
-            Criterios de seguridad evaluados en cada elemento
+            Porcentaje de conformidad técnica evaluado en las inspecciones ({selectedCarretilla})
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.8rem' }}>
-            <div style={{ background: '#f8fafc', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>🛞</div>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#00205b' }}>Ruedas y Rodamientos</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Verificación de holguras, desgastes y giro libre.</div>
+            {/* Bujes */}
+            <div style={{ background: '#f8fafc', padding: '0.75rem 0.9rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: '#00205b' }}>🛞 Bujes de Llantas</span>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: checkStats.buges >= 90 ? '#10b981' : '#f59e0b' }}>
+                  {checkStats.buges}%
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
+                <div style={{ width: `${checkStats.buges}%`, height: '100%', background: checkStats.buges >= 90 ? '#10b981' : '#f59e0b', borderRadius: '999px' }} />
+              </div>
             </div>
 
-            <div style={{ background: '#f8fafc', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>🔩</div>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#00205b' }}>Chasis y Soldaduras</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Inspección visual de fisuras, óxido y deformaciones.</div>
+            {/* Llantas */}
+            <div style={{ background: '#f8fafc', padding: '0.75rem 0.9rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: '#00205b' }}>🔘 Estado de Llantas</span>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: checkStats.llantas >= 90 ? '#10b981' : '#f59e0b' }}>
+                  {checkStats.llantas}%
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
+                <div style={{ width: `${checkStats.llantas}%`, height: '100%', background: checkStats.llantas >= 90 ? '#10b981' : '#f59e0b', borderRadius: '999px' }} />
+              </div>
             </div>
 
-            <div style={{ background: '#f8fafc', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>✋</div>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#00205b' }}>Manubrio y Agarre</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Grips antideslizantes, fijación y ergonomía.</div>
+            {/* Soldaduras */}
+            <div style={{ background: '#f8fafc', padding: '0.75rem 0.9rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: '#00205b' }}>🛡️ Puntos de Soldadura</span>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: checkStats.soldaduras >= 90 ? '#10b981' : '#ef4444' }}>
+                  {checkStats.soldaduras}%
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
+                <div style={{ width: `${checkStats.soldaduras}%`, height: '100%', background: checkStats.soldaduras >= 90 ? '#10b981' : '#ef4444', borderRadius: '999px' }} />
+              </div>
             </div>
 
-            <div style={{ background: '#f8fafc', padding: '0.85rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>🛑</div>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#00205b' }}>Frenos y Seguros</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Trabas de seguridad mecánicas y topes de carga.</div>
+            {/* Bases Espaldar */}
+            <div style={{ background: '#f8fafc', padding: '0.75rem 0.9rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: '#00205b' }}>📐 Bases de Espaldar</span>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: checkStats.bases >= 90 ? '#10b981' : '#ef4444' }}>
+                  {checkStats.bases}%
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
+                <div style={{ width: `${checkStats.bases}%`, height: '100%', background: checkStats.bases >= 90 ? '#10b981' : '#ef4444', borderRadius: '999px' }} />
+              </div>
+            </div>
+
+            {/* Mango Agarre */}
+            <div style={{ background: '#f8fafc', padding: '0.75rem 0.9rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: '#00205b' }}>✋ Mango de Agarre</span>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: checkStats.mango >= 90 ? '#10b981' : '#f59e0b' }}>
+                  {checkStats.mango}%
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
+                <div style={{ width: `${checkStats.mango}%`, height: '100%', background: checkStats.mango >= 90 ? '#10b981' : '#f59e0b', borderRadius: '999px' }} />
+              </div>
+            </div>
+
+            {/* Pintura */}
+            <div style={{ background: '#f8fafc', padding: '0.75rem 0.9rem', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: '#00205b' }}>🎨 Pintura y Acabado</span>
+                <span style={{ fontWeight: 800, fontSize: '0.82rem', color: checkStats.pintura >= 90 ? '#10b981' : '#f59e0b' }}>
+                  {checkStats.pintura}%
+                </span>
+              </div>
+              <div style={{ width: '100%', height: '6px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
+                <div style={{ width: `${checkStats.pintura}%`, height: '100%', background: checkStats.pintura >= 90 ? '#10b981' : '#f59e0b', borderRadius: '999px' }} />
+              </div>
             </div>
           </div>
         </div>
@@ -563,8 +717,9 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
             <thead>
               <tr style={{ background: '#f8fafc', color: '#475569', textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>
                 <th style={{ padding: '0.75rem 1rem' }}>Código / Equipo</th>
-                <th style={{ padding: '0.75rem 1rem' }}>Ubicación</th>
+                <th style={{ padding: '0.75rem 1rem' }}>Turno</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Inspector</th>
+                <th style={{ padding: '0.75rem 1rem' }}>Ubicación</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Fecha</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Estado</th>
                 <th style={{ padding: '0.75rem 1rem' }}>Observaciones</th>
@@ -578,13 +733,17 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
                     <div style={{ fontWeight: 800, color: '#00205b' }}>{r.codigo}</div>
                     <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{r.equipo}</div>
                   </td>
-                  <td style={{ padding: '0.75rem 1rem', color: '#334155', fontWeight: 600 }}>
-                    {r.ubicacion}
+                  <td style={{ padding: '0.75rem 1rem', color: '#475569', fontSize: '0.78rem', fontWeight: 600 }}>
+                    {r.turno || 'Turno A'}
+                  </td>
+                  <td style={{ padding: '0.75rem 1rem', color: '#334155', fontWeight: 700 }}>
+                    <div>{r.inspector}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 500 }}>{r.cargo || 'Auxiliar'}</div>
                   </td>
                   <td style={{ padding: '0.75rem 1rem', color: '#475569' }}>
-                    {r.inspector}
+                    {r.ubicacion}
                   </td>
-                  <td style={{ padding: '0.75rem 1rem', color: '#64748b' }}>
+                  <td style={{ padding: '0.75rem 1rem', color: '#64748b', whiteSpace: 'nowrap' }}>
                     {r.fecha_inspeccion}
                   </td>
                   <td style={{ padding: '0.75rem 1rem' }}>
@@ -610,7 +769,7 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
                         background: '#00205b',
                         color: '#ffffff',
                         border: 'none',
-                        padding: '0.35rem 0.65rem',
+                        padding: '0.35rem 0.75rem',
                         borderRadius: '6px',
                         fontSize: '0.75rem',
                         fontWeight: 700,
@@ -678,11 +837,52 @@ export default function HerramientasDashboard({ tipo, title, icon, subtitle }) {
                 <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 900, color: '#00205b' }}>
                   {selectedItem.codigo} • {selectedItem.equipo}
                 </h3>
-                <div style={{ fontSize: '0.82rem', color: '#64748b' }}>
-                  {selectedItem.ubicacion} • Inspector: {selectedItem.inspector}
+                <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: '0.2rem' }}>
+                  {selectedItem.ubicacion} • Inspector: <strong>{selectedItem.inspector}</strong> ({selectedItem.cargo || 'Auxiliar'})
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#0284c7', fontWeight: 700, marginTop: '0.2rem' }}>
+                  🕒 {selectedItem.turno || 'Turno A'} • 📅 {selectedItem.fecha_inspeccion}
                 </div>
               </div>
             </div>
+
+            {/* Chequeos Preoperacionales detallados */}
+            {selectedItem.chequeos && (
+              <div style={{ marginBottom: '1.2rem' }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#00205b', textTransform: 'uppercase', marginBottom: '0.6rem' }}>
+                  📋 Lista de Chequeo Preoperacional:
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem' }}>
+                  {Object.entries(selectedItem.chequeos).map(([criterio, val]) => {
+                    const isOk = val === 'Conforme';
+                    return (
+                      <div key={criterio} style={{
+                        background: isOk ? '#f0fdf4' : '#fef2f2',
+                        border: `1px solid ${isOk ? '#bbf7d0' : '#fecaca'}`,
+                        padding: '0.55rem 0.75rem',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        fontSize: '0.8rem'
+                      }}>
+                        <span style={{ fontWeight: 600, color: isOk ? '#166534' : '#991b1b' }}>{criterio}</span>
+                        <span style={{
+                          fontWeight: 800,
+                          fontSize: '0.72rem',
+                          background: isOk ? '#22c55e' : '#ef4444',
+                          color: '#fff',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px'
+                        }}>
+                          {isOk ? '✔ SI' : '✖ NO'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div style={{ background: '#f8fafc', padding: '1rem', borderRadius: '12px', marginBottom: '1rem', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.8rem', fontSize: '0.82rem' }}>
               <div>
